@@ -60,7 +60,7 @@ export class PolicyComponent {
 
   getSessionId(): string | null {
     if (!this.isBrowser) return null;
-    return sessionStorage.getItem('lub_session');
+    return sessionStorage.getItem('lm_session');
   }
 
 
@@ -128,7 +128,7 @@ export class PolicyComponent {
           this.dataLoading = false;
           // Session-ID aus Storage entfernen
           if (this.isBrowser) {
-            sessionStorage.removeItem('lub_session');
+            sessionStorage.removeItem('lm_session');
           }
         },
         error: () => {

@@ -1,4 +1,3 @@
-import { ContactRequest } from 'src/contact-requests/contact-requests.entity';
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, UpdateDateColumn, OneToMany, Index
@@ -48,6 +47,4 @@ export class User {
   @UpdateDateColumn({ type: 'timestamptz', default: () => 'now()' })
   updatedAt: Date;
 
-  @OneToMany(() => ContactRequest, request => request.user)
-  contactRequests: ContactRequest[];
 }

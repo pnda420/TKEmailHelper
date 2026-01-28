@@ -9,7 +9,7 @@
 
 <div align="center">
 
-# Leonards & Brandenburger IT
+# LeonardsMedia
 
 **Angular • NestJS • PostgreSQL**
 

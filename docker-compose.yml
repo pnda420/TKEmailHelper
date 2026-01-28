@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:16
-    container_name: lub_db
+    container_name: lm_db
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: secret
@@ -21,7 +21,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: lub_backend
+    container_name: lm_backend
     ports:
       - "13000:3000"  # ← Außen 13000 statt 3000
     env_file:
@@ -35,7 +35,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: lub_frontend
+    container_name: lm_frontend
     ports:
       - "1111:80"  # ← Außen 1111 statt 80 (DAS WILLST DU!)
     volumes:

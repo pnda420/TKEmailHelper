@@ -7,7 +7,6 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User } from 'src/users/users.entity';
-import { GoogleAuthController } from 'src/booking/google-auth.controller';
 
 
 @Module({
@@ -30,7 +29,7 @@ import { GoogleAuthController } from 'src/booking/google-auth.controller';
             },
         }),
     ],
-    controllers: [AuthController, GoogleAuthController],
+    controllers: [AuthController],
     providers: [AuthService, JwtStrategy],
     exports: [AuthService],
 })

@@ -46,8 +46,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.user = user;
     });
     
-    // Load service categories for dropdown
-    this.loadServiceCategories();
     
     // Reset dropdown on EVERY route change
     this.routerSub = this.router.events.subscribe(() => {
@@ -61,22 +59,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.categoriesSub?.unsubscribe();
     this.routerSub?.unsubscribe();
-  }
-
-  private loadServiceCategories(): void {
-    this.categoriesSub = this.api.getServicesCatalog().subscribe({
-      next: (categories) => {
-        this.serviceCategories = categories.map(cat => ({
-          id: cat.slug,
-          name: cat.name,
-          icon: cat.materialIcon
-        }));
-      },
-      error: () => {
-        // Fallback - zeige Dropdown trotzdem, aber ohne Kategorien
-        this.serviceCategories = [];
-      }
-    });
   }
 
   // Close dropdown when clicking outside

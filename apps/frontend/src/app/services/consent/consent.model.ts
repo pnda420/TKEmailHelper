@@ -52,4 +52,4 @@ export const DEFAULT_CONSENT: ConsentState = {
 };
 
 export const CONSENT_VERSION = '1.0';
-export const CONSENT_STORAGE_KEY = 'lub_consent';
+export const CONSENT_STORAGE_KEY = 'lm_consent';

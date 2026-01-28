@@ -14,9 +14,9 @@ export interface SeoOptions {
 
 @Injectable({ providedIn: 'root' })
 export class SeoService {
-  private readonly siteName = 'Leonards & Brandenburger IT';
+  private readonly siteName = 'LeonardsMedia';
   private readonly defaultDescription =
-    'IT-Dienstleistungen, Webentwicklung und SEO aus einer Hand. Leonards & Brandenburger IT – pragmatisch, transparent und zuverlässig.';
+    'IT-Dienstleistungen, Webentwicklung und SEO aus einer Hand. LeonardsMedia – pragmatisch, transparent und zuverlässig.';
   private readonly defaultImage = '/assets/LM_Logos/Logo1.png';
 
   constructor(

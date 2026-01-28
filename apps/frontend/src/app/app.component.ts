@@ -6,14 +6,11 @@ import { SeoService } from './shared/seo.service';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { filter } from 'rxjs/operators';
 import { FormsModule } from '@angular/forms';
-import { MaintenanceComponent } from "./components/maintenance/maintenance.component";
 import { ToastContainerComponent } from "./shared/toasts/toast-container.component";
 import { ToastService } from './shared/toasts/toast.service';
 import { ConfirmationComponent } from "./shared/confirmation/confirmation.component";
 import { ConfirmationService } from './shared/confirmation/confirmation.service';
 import { ApiService } from './api/api.service';
-import { CookieBannerComponent } from './shared/cookie-banner/cookie-banner.component';
-import { AnalyticsService } from './services/analytics.service';
 
 @Component({
   selector: 'app-root',
@@ -24,10 +21,8 @@ import { AnalyticsService } from './services/analytics.service';
     FooterComponent,
     CommonModule,
     FormsModule,
-    MaintenanceComponent,
     ToastContainerComponent,
     ConfirmationComponent,
-    CookieBannerComponent
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
@@ -63,7 +58,6 @@ export class AppComponent implements OnInit {
     private toasts: ToastService,
     private confirmationService: ConfirmationService,
     private api: ApiService,
-    private analytics: AnalyticsService // Initialisiert automatisch Pageview-Tracking
   ) { }
 
   ngOnInit(): void {
@@ -83,7 +77,7 @@ export class AppComponent implements OnInit {
         const deepest = this.getDeepest(this.route);
         const routeTitle: any = deepest.snapshot.routeConfig && (deepest.snapshot.routeConfig as any).title;
         const description = deepest.snapshot.data && deepest.snapshot.data['description'];
-        const title = typeof routeTitle === 'string' ? routeTitle : 'Leonards & Brandenburger IT';
+        const title = typeof routeTitle === 'string' ? routeTitle : 'LeonardsMedia';
         const url = this.doc.location.href;
 
         this.seo.update({ title, description, url });
@@ -100,43 +94,6 @@ export class AppComponent implements OnInit {
     // Initial Admin-Route Check
     this.isAdminRoute = this.router.url.startsWith('/admin');
 
-    // Wartungsmodus-Check bei Routen-Änderungen
-    this.router.events
-      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
-      .subscribe((event) => {
-        this.checkMaintenanceStatus(event.urlAfterRedirects);
-      });
-
-    // Initial check
-    this.checkMaintenanceStatus(this.router.url);
-  }
-
-  private checkMaintenanceStatus(url: string): void {
-    // Admin-Bereich ist immer zugänglich (damit man Settings ändern kann)
-    if (url.startsWith('/admin')) {
-      this.isUnderConstruction = false;
-      return;
-    }
-
-    // Wenn Zugang mit Passwort gewährt wurde (nicht für normale Logins!)
-    if (sessionStorage.getItem('maintenanceBypass') === 'true') {
-      this.isUnderConstruction = false;
-      return;
-    }
-
-    this.api.getPublicSettings().subscribe({
-      next: (settings) => {
-        this.isUnderConstruction = settings.isUnderConstruction;
-        if (settings.maintenanceMessage) {
-          this.maintenanceMessage = settings.maintenanceMessage;
-        }
-      },
-      error: (error) => {
-        console.error('Fehler beim Laden der Settings:', error);
-        // Im Fehlerfall: Seite normal anzeigen
-        this.isUnderConstruction = false;
-      }
-    });
   }
 
   private checkMaintenancePassword(password: string): void {

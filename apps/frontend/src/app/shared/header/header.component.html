@@ -3,61 +3,29 @@
 
     <!-- Logo als Button für besseres Touch-Handling -->
     <button type="button" class="brand-btn" (click)="routeTo('/', $event)" aria-label="Zur Startseite">
-      <img class="brand" src="assets/logos/blue_logo_transparent_name_big.png" alt="Leonards & Brandenburger IT"
+      <img class="brand" src="assets/logos/blue_logo_transparent_name_big.png" alt="LeonardsMedia"
         decoding="async" loading="eager" fetchpriority="high" />
     </button>
 
     <nav id="primary-nav" class="nav" [class.open]="open">
       <div class="nav__main">
         <!-- Jeder Link schließt explizit das Dropdown UND das Mobile-Menu -->
-        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" 
-           (click)="servicesDropdownOpen = false; closeMenu()">
-          <span class="material-symbols-outlined ms-size-18">home</span>
-          Startseite
+        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"
+          (click)="servicesDropdownOpen = false; closeMenu()">
+          <span class="material-symbols-outlined ms-size-18">dashboard</span>
+          Dashboard
         </a>
 
-        <div class="nav-dropdown-container" [class.dropdown-open]="servicesDropdownOpen">
-          <button class="nav-dropdown-trigger" [class.active]="router.url.startsWith('/services')"
-            (click)="toggleServicesDropdown($event)" type="button">
-            <span class="material-symbols-outlined ms-size-18">business_center</span>
-            <div style="font-size: 0.9375rem; font-weight: 500 !important;">
-              Leistungen
-            </div>
-            <span class="material-symbols-outlined dropdown-arrow ms-size-16">expand_more</span>
-          </button>
-
-          <div class="nav-dropdown" *ngIf="servicesDropdownOpen">
-            <button type="button" class="dropdown-item dropdown-item--all" (click)="navigateToServices()">
-              <span class="material-symbols-outlined">grid_view</span>
-              Alle Leistungen
-            </button>
-
-            <div class="dropdown-divider" *ngIf="serviceCategories.length > 0"></div>
-
-            <button type="button" class="dropdown-item" *ngFor="let cat of serviceCategories" (click)="navigateToCategory(cat.id)">
-              <span class="material-symbols-outlined">{{ cat.icon }}</span>
-              {{ cat.name }}
-            </button>
-          </div>
-        </div>
-
-        <a routerLink="/contact" routerLinkActive="active" 
-           (click)="servicesDropdownOpen = false; closeMenu()">
+        <a routerLink="/contact" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
           <span class="material-symbols-outlined ms-size-18">mail</span>
-          Kontakt
+          Email-Helper
         </a>
-        <a routerLink="/remote-support" routerLinkActive="active" 
-           (click)="servicesDropdownOpen = false; closeMenu()">
-          <span class="material-symbols-outlined ms-size-18">support_agent</span>
-          Remote Support
-        </a>
-        <a routerLink="/faq" routerLinkActive="active" 
-           (click)="servicesDropdownOpen = false; closeMenu()">
-          <span class="material-symbols-outlined ms-size-18">help</span>
-          FAQ
+        <a routerLink="/remote-support" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
+          <span class="material-symbols-outlined ms-size-18">settings</span>
+          Einstellungen
         </a>
         <a *ngIf="user?.role === UserRole.ADMIN" routerLink="/admin" routerLinkActive="active"
-           class="nav-link--admin-main" (click)="servicesDropdownOpen = false; closeMenu()">
+          class="nav-link--admin-main" (click)="servicesDropdownOpen = false; closeMenu()">
           <span class="material-symbols-outlined ms-size-18">admin_panel_settings</span>
           Admin
         </a>
@@ -65,8 +33,8 @@
 
       <div class="nav__auth">
         <ng-container *ngIf="!user">
-          <a routerLink="/login" routerLinkActive="active" class="nav-link--primary" 
-             (click)="servicesDropdownOpen = false; closeMenu()">
+          <a routerLink="/login" routerLinkActive="active" class="nav-link--primary"
+            (click)="servicesDropdownOpen = false; closeMenu()">
             <span class="material-symbols-outlined ms-size-20">login</span>
             Login
           </a>
@@ -75,13 +43,13 @@
         <ng-container *ngIf="user">
           <app-admin-notification-center *ngIf="user.role === UserRole.ADMIN"></app-admin-notification-center>
 
-          <a routerLink="/profile" routerLinkActive="active" class="nav-link--icon" title="Profil" 
-             (click)="servicesDropdownOpen = false; closeMenu()">
+          <a routerLink="/profile" routerLinkActive="active" class="nav-link--icon" title="Profil"
+            (click)="servicesDropdownOpen = false; closeMenu()">
             <span class="material-symbols-outlined ms-size-22 ms-fill">account_circle</span>
           </a>
 
-          <button class="nav-link--icon nav-link--logout" type="button" 
-            (click)="servicesDropdownOpen = false; logout()" title="Ausloggen">
+          <button class="nav-link--icon nav-link--logout" type="button" (click)="servicesDropdownOpen = false; logout()"
+            title="Ausloggen">
             <span class="material-symbols-outlined ms-size-22">logout</span>
           </button>
         </ng-container>

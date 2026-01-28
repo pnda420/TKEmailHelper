@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:16
-    container_name: lub_db_dev
+    container_name: lm_db_dev_2  # Umbenennen
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: secret
@@ -9,7 +9,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata_dev:/var/lib/postgresql/data
+      - pgdata_dev_lm_tk:/var/lib/postgresql/data  # Anderes Volume
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U app -d appdb"]
       interval: 5s
@@ -17,4 +17,4 @@ services:
       retries: 10
 
 volumes:
-  pgdata_dev:
+  pgdata_dev_lm_tk:  # Anderes Volume definieren
