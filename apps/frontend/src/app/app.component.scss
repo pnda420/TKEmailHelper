@@ -1,0 +1,243 @@
+/* app.component.scss - Modern Glassmorphism Theme */
+
+@import './utils/shared-styles.scss';
+
+:host {
+  display: block;
+  position: relative;
+}
+
+/* ===== PAGE LAYOUT ===== */
+
+.page {
+  min-height: 100svh;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: $gradient-bg;
+  background-attachment: fixed;
+  color: $color-text-primary;
+  position: relative;
+  overflow-x: hidden;
+
+  // Subtiler Ambient Background Effect
+  &::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.04) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.03) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  // Maintenance Mode
+  &--maintenance {
+    grid-template-rows: 1fr;
+    background: linear-gradient(135deg, $color-gray-900 0%, $color-gray-800 100%);
+
+    &::before {
+      display: none;
+    }
+  }
+}
+
+/* ===== HEADER ===== */
+
+.site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  backdrop-filter: blur(20px) saturate(160%);
+  background: rgba(255, 255, 255, 0.85);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  transition: all 0.3s ease;
+  animation: slideDown 0.4s ease-out;
+
+  // Scrolled State
+  &.scrolled {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 
+      0 8px 24px rgba(0, 0, 0, 0.08),
+      0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+  }
+}
+
+/* ===== MAIN CONTENT ===== */
+
+.site-main {
+  position: relative;
+  z-index: 1;
+  padding-top: 57px; // Header Height Offset
+  
+  .main-content {
+    position: relative;
+    
+    // Container wird in jeder Section individuell gesetzt
+    // damit manche Sections full-width sein können
+  }
+}
+
+/* ===== FOOTER ===== */
+
+.site-footer {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+}
+
+/* ===== SCROLL TO TOP BUTTON ===== */
+
+.scroll-to-top {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $gradient-primary;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: $shadow-brand;
+  transition: all 0.3s ease;
+  transform: translateY(100px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 999;
+
+  &.visible {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  &:hover {
+    box-shadow: $shadow-brand-hover;
+    transform: translateY(-4px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+  }
+
+  .material-symbols-outlined {
+    font-size: 24px;
+  }
+
+  // Mobile: Kleinerer Button und andere Position
+  @media (max-width: 768px) {
+    width: 44px;
+    height: 44px;
+    bottom: 1.5rem;
+    right: 1.5rem;
+
+    .material-symbols-outlined {
+      font-size: 20px;
+    }
+  }
+}
+
+/* ===== SAFE AREA INSETS (für iOS Notch etc.) ===== */
+
+.page,
+.site-header,
+.site-footer {
+  padding-left: max(env(safe-area-inset-left), 0);
+  padding-right: max(env(safe-area-inset-right), 0);
+}
+
+.site-header {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+.site-footer {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* ===== ANIMATIONS ===== */
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ===== LOADING OVERLAY (optional für später) ===== */
+
+.page-loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $glass-bg;
+  backdrop-filter: blur(10px);
+  z-index: 9999;
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid $color-gray-200;
+    border-top-color: $color-brand-primary;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== MOTION PREFERENCES ===== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .site-header {
+    animation: none;
+  }
+
+  .scroll-to-top {
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+  }
+}
+
+/* ===== PREVIEW MODE (kein Header/Footer) ===== */
+
+.page:has(router-outlet:only-child) {
+  // Wenn nur router-outlet sichtbar (Preview Mode)
+  grid-template-rows: 1fr;
+  
+  .site-main {
+    padding-block: 0;
+    padding-top: 0;
+  }
+}

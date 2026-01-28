@@ -1,0 +1,90 @@
+<!-- <app-page-title title="Registrieren"></app-page-title> -->
+
+<section class="auth">
+  <div class="container">
+    <div class="auth-card page-animate" [class.login-success]="registerSuccess" [class.login-error]="registerError">
+
+      <!-- Header -->
+      <div class="auth-header">
+        <div class="auth-icon">
+          <span class="material-symbols-outlined ms-fill">person_add</span>
+        </div>
+        <h1>Account erstellen</h1>
+      </div>
+
+      <!-- Form -->
+      <form (ngSubmit)="register()" class="auth-form">
+
+        <!-- Name (Vorname + Nachname für besseres Autofill) -->
+        <div class="form-row">
+          <div class="form-field">
+            <label for="firstName">Vorname</label>
+            <div class="input-wrapper">
+              <span class="input-icon material-symbols-outlined">person</span>
+              <input id="firstName" type="text" [(ngModel)]="firstName" name="firstName" placeholder="Max"
+                [disabled]="loading" required autocomplete="given-name" />
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="lastName">Nachname</label>
+            <div class="input-wrapper">
+              <span class="input-icon material-symbols-outlined">person</span>
+              <input id="lastName" type="text" [(ngModel)]="lastName" name="lastName" placeholder="Mustermann"
+                [disabled]="loading" required autocomplete="family-name" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="form-field">
+          <label for="email">E-Mail</label>
+          <div class="input-wrapper">
+            <span class="input-icon material-symbols-outlined">mail</span>
+            <input id="email" type="email" [(ngModel)]="email" name="email" placeholder="max@beispiel.de"
+              [disabled]="loading" required autocomplete="email" />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="form-field">
+          <label for="password">Passwort</label>
+          <div class="input-wrapper">
+            <span class="input-icon material-symbols-outlined">key</span>
+            <input id="password" [type]="showPassword ? 'text' : 'password'" [(ngModel)]="password" name="password"
+              placeholder="Mindestens 8 Zeichen" [disabled]="loading" required autocomplete="new-password" />
+            <button type="button" class="input-action" (click)="showPassword = !showPassword"
+              [attr.aria-label]="showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'">
+              <span class="material-symbols-outlined">
+                {{ showPassword ? 'visibility_off' : 'visibility' }}
+              </span>
+            </button>
+          </div>
+          <p class="field-hint">Mindestens 8 Zeichen</p>
+        </div>
+
+        <!-- Error -->
+        <div *ngIf="error" class="alert alert--error">
+          <span class="material-symbols-outlined ms-fill">error</span>
+          <span>{{ error }}</span>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn btn--primary btn--large" [disabled]="loading">
+          <span *ngIf="!loading"  class="flex" style="justify-content: center; align-items: center; gap: 10px;">
+            <span class="material-symbols-outlined ms-size-20">person_add</span>
+            Registrieren
+          </span>
+          <span *ngIf="loading" class="loading-content flex" style="justify-content: center; align-items: center; gap: 10px;">
+            <span class="spinner"></span>
+            Wird erstellt...
+          </span>
+        </button>
+      </form>
+
+      <!-- Footer -->
+      <div class="auth-footer">
+        <p>Bereits registriert? <a routerLink="/login">Jetzt anmelden</a></p>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,87 @@
+<!-- Cookie Banner Overlay -->
+<div class="cookie-overlay" *ngIf="showBanner" [class.closing]="isClosing" role="dialog" aria-modal="true" aria-labelledby="cookie-title">
+  
+  <div class="cookie-banner" [class.expanded]="showDetails" [class.closing]="isClosing">
+    
+    <!-- Header -->
+    <div class="banner-header">
+      <div class="banner-icon">
+        <span class="material-symbols-outlined">cookie</span>
+      </div>
+      <div class="banner-title-area">
+        <h2 id="cookie-title">Cookie-Einstellungen</h2>
+        <p class="banner-subtitle">Wir respektieren deine Privatsphäre</p>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="banner-content">
+      <p class="banner-text" *ngIf="!showDetails">
+        Wir nutzen Cookies, um dir die beste Erfahrung zu bieten. 
+        Technisch notwendige Cookies sind immer aktiv. 
+        Für Statistiken benötigen wir deine Zustimmung.
+      </p>
+
+      <!-- Details View -->
+      <div class="cookie-details" *ngIf="showDetails">
+        <div 
+          class="cookie-category" 
+          *ngFor="let cat of categories"
+          [class.enabled]="isCategoryEnabled(cat)"
+          [class.required]="cat.required"
+        >
+          <div class="category-header">
+            <div class="category-info">
+              <span class="material-symbols-outlined category-icon">{{ cat.icon }}</span>
+              <div>
+                <span class="category-name">{{ cat.name }}</span>
+                <span class="category-badge" *ngIf="cat.required">Erforderlich</span>
+              </div>
+            </div>
+            <button 
+              class="toggle-switch"
+              [class.active]="isCategoryEnabled(cat)"
+              [disabled]="cat.required"
+              (click)="toggleCategory(cat.id)"
+              [attr.aria-label]="cat.name + ' ' + (isCategoryEnabled(cat) ? 'deaktivieren' : 'aktivieren')"
+            >
+              <span class="toggle-knob"></span>
+            </button>
+          </div>
+          <p class="category-description">{{ cat.description }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="banner-actions">
+      <div class="action-row primary-actions">
+        <button class="btn btn-accept" (click)="acceptAll()">
+          <span class="material-symbols-outlined">check_circle</span>
+          Alle akzeptieren
+        </button>
+        <button class="btn btn-reject" (click)="rejectAll()">
+          Nur Notwendige
+        </button>
+      </div>
+      
+      <button class="btn-details" (click)="toggleDetails()">
+        <span class="material-symbols-outlined">{{ showDetails ? 'expand_less' : 'tune' }}</span>
+        {{ showDetails ? 'Weniger anzeigen' : 'Einstellungen' }}
+      </button>
+      
+      <button class="btn btn-save" *ngIf="showDetails" (click)="saveCustom()">
+        <span class="material-symbols-outlined">save</span>
+        Auswahl speichern
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <div class="banner-footer">
+      <a routerLink="/policy">Datenschutzerklärung</a>
+      <span class="separator">•</span>
+      <a routerLink="/imprint">Impressum</a>
+    </div>
+
+  </div>
+</div>

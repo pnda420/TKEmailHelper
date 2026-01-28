@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+tmp/
+out-tsc/
+bazel-out/
+
+# Angular
+.angular/
+.sass-cache/
+
+# Vite
+.vite/
+vite/
+
+# Environment (aber example behalten!)
+.env
+.env.development
+.env.production
+*.local
+!.env.example
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.sqlite

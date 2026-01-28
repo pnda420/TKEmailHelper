@@ -1,0 +1,194 @@
+<app-admin-layout>
+<section class="admin-page">
+    <div class="admin-container">
+
+        <!-- Page Header -->
+        <header class="admin-page-header">
+            <div>
+                <h1 class="admin-page-title">Anfragen</h1>
+                <p class="admin-page-subtitle">
+                    {{ unprocessedRequests.length }} offen · {{ processedRequests.length }} erledigt
+                </p>
+            </div>
+            <div class="admin-header-actions">
+                <button class="admin-btn admin-btn--secondary admin-btn--icon" (click)="loadRequests()" [class.spin]="loading" title="Aktualisieren">
+                    <app-icon icon="refresh" size="20px"></app-icon>
+                </button>
+            </div>
+        </header>
+
+        <!-- Filter Tabs -->
+        <div class="admin-filter-bar">
+            <div class="admin-filter-chips">
+                <button class="admin-chip" [class.active]="activeTab === 'unprocessed'" (click)="switchTab('unprocessed')">
+                    <app-icon icon="schedule" size="18px"></app-icon>
+                    Offen
+                    <span class="chip-badge">{{ unprocessedRequests.length }}</span>
+                </button>
+                <button class="admin-chip" [class.active]="activeTab === 'processed'" (click)="switchTab('processed')">
+                    <app-icon icon="check_circle" size="18px"></app-icon>
+                    Erledigt
+                    <span class="chip-badge">{{ processedRequests.length }}</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div *ngIf="loading" class="admin-loading-state">
+            <div class="admin-spinner"></div>
+            <p>Lade Anfragen...</p>
+        </div>
+
+        <!-- Error State -->
+        <div *ngIf="error && !loading" class="admin-error-state">
+            <app-icon icon="error" size="48px" class="state-icon"></app-icon>
+            <h3>Fehler aufgetreten</h3>
+            <p>{{ error }}</p>
+            <button class="admin-btn admin-btn--primary" (click)="loadRequests()">Nochmal versuchen</button>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="!loading && !error && currentRequests.length === 0" class="admin-empty-state">
+            <app-icon [icon]="activeTab === 'unprocessed' ? 'celebration' : 'inbox'" size="56px" class="state-icon"></app-icon>
+            <h3 *ngIf="activeTab === 'unprocessed'">Alles erledigt! 🎉</h3>
+            <h3 *ngIf="activeTab === 'processed'">Noch nichts erledigt</h3>
+            <p *ngIf="activeTab === 'unprocessed'">Keine offenen Anfragen vorhanden</p>
+            <p *ngIf="activeTab === 'processed'">Erledigte Anfragen erscheinen hier</p>
+        </div>
+
+        <!-- Requests List -->
+        <div *ngIf="!loading && !error && currentRequests.length > 0" class="requests-list">
+            
+            <div 
+                *ngFor="let request of currentRequests; trackBy: trackById" 
+                class="request-item"
+                [class.request-item--expanded]="expandedId === request.id"
+                [class.request-item--done]="activeTab === 'processed'">
+
+                <!-- Main Row - Always Visible -->
+                <div class="request-item__main" (click)="toggleExpand(request.id)">
+                    
+                    <!-- Left: Status + Info -->
+                    <div class="request-item__info">
+                        <div class="status-indicator">
+                            <span class="status-dot"></span>
+                        </div>
+                        <div class="info-content">
+                            <div class="info-primary">
+                                <span class="name">{{ request.name || 'Unbekannt' }}</span>
+                                <span class="service-chip" *ngIf="request.serviceType !== undefined">
+                                    {{ getServiceLabel(request.serviceType) }}
+                                </span>
+                                <span class="callback-chip" *ngIf="request.prefersCallback">
+                                    <app-icon icon="phone_callback" size="12px"></app-icon>
+                                    Rückruf
+                                </span>
+                            </div>
+                            <div class="info-secondary">
+                                <span class="email">{{ request.email }}</span>
+                                <span class="separator">•</span>
+                                <span class="date">{{ formatDate(request.createdAt) }}</span>
+                                <span class="separator" *ngIf="request.phoneNumber">•</span>
+                                <span class="phone" *ngIf="request.phoneNumber">{{ request.phoneNumber }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Quick Actions -->
+                    <div class="request-item__actions" (click)="$event.stopPropagation()">
+                        <a class="action-btn action-btn--mail" [href]="'mailto:'+request.email" title="E-Mail senden">
+                            <app-icon icon="mail" size="18px"></app-icon>
+                        </a>
+                        <a *ngIf="request.phoneNumber" class="action-btn action-btn--call" [href]="'tel:'+request.phoneNumber" title="Anrufen">
+                            <app-icon icon="call" size="18px"></app-icon>
+                        </a>
+                        <button 
+                            *ngIf="activeTab === 'unprocessed'" 
+                            class="action-btn action-btn--done" 
+                            (click)="markAsProcessed(request.id)"
+                            title="Als erledigt markieren">
+                            <app-icon icon="check" size="18px"></app-icon>
+                        </button>
+                        <button 
+                            *ngIf="activeTab === 'processed'" 
+                            class="action-btn action-btn--reopen" 
+                            (click)="markAsUnprocessed(request.id)"
+                            title="Wieder öffnen">
+                            <app-icon icon="undo" size="18px"></app-icon>
+                        </button>
+                        <button 
+                            *ngIf="activeTab === 'processed'" 
+                            class="action-btn action-btn--delete" 
+                            (click)="deleteRequest(request.id)"
+                            title="Löschen">
+                            <app-icon icon="delete" size="18px"></app-icon>
+                        </button>
+                        <button class="expand-toggle" [class.expand-toggle--open]="expandedId === request.id">
+                            <app-icon icon="expand_more" size="20px"></app-icon>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Expanded Content -->
+                <div class="request-item__detail" *ngIf="expandedId === request.id">
+                    
+                    <!-- Message Section -->
+                    <div class="detail-block">
+                        <div class="detail-block__header">
+                            <app-icon icon="chat" size="16px"></app-icon>
+                            <span>Nachricht</span>
+                        </div>
+                        <div class="detail-block__content">
+                            <p class="message-text">{{ request.message || 'Keine Nachricht hinterlassen.' }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Additional Fields -->
+                    <div class="detail-block" *ngIf="getAdditionalFields(request).length > 0">
+                        <div class="detail-block__header">
+                            <app-icon icon="info" size="16px"></app-icon>
+                            <span>Details</span>
+                        </div>
+                        <div class="detail-block__content">
+                            <div class="detail-grid">
+                                <div class="detail-row" *ngFor="let field of getAdditionalFields(request)">
+                                    <span class="detail-label">{{ field.key }}</span>
+                                    <span class="detail-value">
+                                        {{ field.isDate ? (field.value | date:'dd.MM.yyyy HH:mm') : field.value }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="detail-actions">
+                        <a class="btn btn--primary" [href]="'mailto:'+request.email+'?subject=Re: Anfrage bei Leonards %26 Brandenburger IT'">
+                            <app-icon icon="send" size="16px"></app-icon>
+                            E-Mail schreiben
+                        </a>
+                        <a *ngIf="request.phoneNumber" class="btn btn--secondary" [href]="'tel:'+request.phoneNumber">
+                            <app-icon icon="call" size="16px"></app-icon>
+                            {{ request.phoneNumber }}
+                        </a>
+                        <div class="detail-actions__spacer"></div>
+                        <button *ngIf="activeTab === 'unprocessed'" class="btn btn--success" (click)="markAsProcessed(request.id)">
+                            <app-icon icon="check_circle" size="16px"></app-icon>
+                            Erledigt
+                        </button>
+                        <button *ngIf="activeTab === 'processed'" class="btn btn--ghost" (click)="markAsUnprocessed(request.id)">
+                            <app-icon icon="undo" size="16px"></app-icon>
+                            Wieder öffnen
+                        </button>
+                        <button *ngIf="activeTab === 'processed'" class="btn btn--danger" (click)="deleteRequest(request.id)">
+                            <app-icon icon="delete" size="16px"></app-icon>
+                            Löschen
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+</app-admin-layout>

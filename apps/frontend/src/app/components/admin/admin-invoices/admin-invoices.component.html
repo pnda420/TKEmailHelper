@@ -1,0 +1,426 @@
+<app-admin-layout>
+<div class="admin-page">
+  <!-- Stats Row -->
+  <div class="admin-stats-row">
+    <div class="admin-stat-chip">
+      <app-icon icon="receipt_long" />
+      <span class="stat-value">{{ stats.total }}</span>
+      <span class="stat-label">Rechnungen</span>
+    </div>
+    <div class="admin-stat-chip admin-stat-chip--muted">
+      <app-icon icon="edit_note" />
+      <span class="stat-value">{{ stats.draft }}</span>
+      <span class="stat-label">Entwürfe</span>
+    </div>
+    <div class="admin-stat-chip admin-stat-chip--primary">
+      <app-icon icon="send" />
+      <span class="stat-value">{{ stats.sent }}</span>
+      <span class="stat-label">Gesendet</span>
+    </div>
+    <div class="admin-stat-chip admin-stat-chip--success">
+      <app-icon icon="check_circle" />
+      <span class="stat-value">{{ stats.paid }}</span>
+      <span class="stat-label">Bezahlt</span>
+    </div>
+    <div class="admin-stat-chip admin-stat-chip--highlight">
+      <app-icon icon="euro" />
+      <span class="stat-value">{{ formatCurrency(stats.totalRevenue) }}</span>
+      <span class="stat-label">Umsatz</span>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="admin-page-header">
+    <h1 class="admin-page-title">Rechnungen</h1>
+    <button class="admin-btn admin-btn--primary" (click)="openCreateModal()">
+      <app-icon icon="add" />
+      Neue Rechnung
+    </button>
+  </div>
+
+  <!-- Invoice Table -->
+  <div class="admin-table-container">
+    @if (loading) {
+      <div class="admin-loading-state">
+        <div class="admin-spinner"></div>
+        Lade Rechnungen...
+      </div>
+    } @else if (invoices.length === 0) {
+      <div class="admin-empty-state">
+        <app-icon icon="receipt_long" class="state-icon" />
+        <h3>Keine Rechnungen</h3>
+        <p>Erstelle deine erste Rechnung um loszulegen</p>
+        <button class="admin-btn admin-btn--primary" (click)="openCreateModal()">
+          <app-icon icon="add" />
+          Rechnung erstellen
+        </button>
+      </div>
+    } @else {
+      <!-- Table Header -->
+      <div class="admin-table-header" style="grid-template-columns: 40px 100px 1fr 100px 100px 100px 120px;">
+        <div class="col-expand"></div>
+        <div class="col-number sortable" (click)="sortBy('invoiceNumber')">
+          Nr. <app-icon [icon]="getSortIcon('invoiceNumber')" />
+        </div>
+        <div class="col-customer sortable" (click)="sortBy('customerName')">
+          Kunde <app-icon [icon]="getSortIcon('customerName')" />
+        </div>
+        <div class="col-date sortable" (click)="sortBy('date')">
+          Datum <app-icon [icon]="getSortIcon('date')" />
+        </div>
+        <div class="col-status sortable" (click)="sortBy('status')">
+          Status <app-icon [icon]="getSortIcon('status')" />
+        </div>
+        <div class="col-amount sortable" (click)="sortBy('totalGross')">
+          Betrag <app-icon [icon]="getSortIcon('totalGross')" />
+        </div>
+        <div class="col-actions">Aktionen</div>
+      </div>
+
+      <!-- Table Rows -->
+      @for (invoice of invoices; track invoice.id) {
+        <div class="table-row-wrapper" [class.expanded]="isExpanded(invoice.id)">
+          <!-- Compact Row -->
+          <div class="admin-table-row" style="grid-template-columns: 40px 100px 1fr 100px 100px 100px 120px;" [class]="'status-' + invoice.status" (click)="toggleExpand(invoice.id)">
+            <div class="col-expand">
+              <app-icon [icon]="isExpanded(invoice.id) ? 'expand_less' : 'expand_more'" />
+            </div>
+            <div class="col-number">
+              <span class="number">{{ invoice.invoiceNumber }}</span>
+            </div>
+            <div class="col-customer">
+              <span class="customer-name">{{ invoice.customerName }}</span>
+            </div>
+            <div class="col-date">
+              {{ formatDate(invoice.date) }}
+            </div>
+            <div class="col-status">
+              <span class="admin-badge" [class.admin-badge--success]="invoice.status === 'paid'" [class.admin-badge--primary]="invoice.status === 'sent'" [class.admin-badge--warning]="invoice.status === 'overdue'" [class.admin-badge--muted]="invoice.status === 'draft'">
+                <app-icon [icon]="getStatusIcon(invoice.status)" />
+                <div>
+                    {{ getStatusLabel(invoice.status) }}
+                </div>
+              </span>
+            </div>
+            <div class="col-amount">
+              <strong>{{ formatCurrency(invoice.totalGross || calculateTotal(invoice.items, invoice.taxRate).gross) }}</strong>
+            </div>
+            <div class="col-actions" (click)="$event.stopPropagation()">
+              <button class="admin-btn admin-btn--icon admin-btn--ghost" (click)="exportPdf(invoice, $event)" title="PDF">
+                <app-icon icon="picture_as_pdf" />
+              </button>
+              <button class="admin-btn admin-btn--icon admin-btn--ghost" (click)="openEditModal(invoice, $event)" title="Bearbeiten">
+                <app-icon icon="edit" />
+              </button>
+              <button class="admin-btn admin-btn--icon admin-btn--danger" (click)="deleteInvoice(invoice, $event)" title="Löschen">
+                <app-icon icon="delete" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Expanded Details -->
+          @if (isExpanded(invoice.id)) {
+            <div class="row-details">
+              <div class="details-grid">
+                <div class="detail-section">
+                  <h4><app-icon icon="person" /> Kunde</h4>
+                  <p>{{ invoice.customerName }}</p>
+                  <p class="muted">{{ invoice.customerAddress }}</p>
+                  <p class="muted">{{ invoice.customerZip }} {{ invoice.customerCity }}</p>
+                  @if (invoice.customerEmail) {
+                    <p class="muted">{{ invoice.customerEmail }}</p>
+                  }
+                </div>
+
+                <div class="detail-section">
+                  <h4><app-icon icon="event" /> Daten</h4>
+                  <p><strong>Erstellt:</strong> {{ formatDate(invoice.date) }}</p>
+                  <p [class.overdue]="invoice.status === 'overdue'">
+                    <strong>Fällig:</strong> {{ formatDate(invoice.dueDate) }}
+                  </p>
+                </div>
+
+                <div class="detail-section items-section">
+                  <h4><app-icon icon="list" /> Positionen ({{ invoice.items.length }})</h4>
+                  @for (item of invoice.items; track item.id) {
+                    <div class="item-line">
+                      <span class="item-desc">{{ item.description }}</span>
+                      <span class="item-qty">{{ item.quantity }} {{ item.unit }}</span>
+                      <span class="item-price">{{ formatCurrency(item.quantity * item.unitPrice) }}</span>
+                    </div>
+                  }
+                  <div class="item-totals">
+                    <div><span>Netto:</span> <span>{{ formatCurrency(calculateTotal(invoice.items, invoice.taxRate).net) }}</span></div>
+                    <div><span>MwSt. ({{ invoice.taxRate }}%):</span> <span>{{ formatCurrency(calculateTotal(invoice.items, invoice.taxRate).tax) }}</span></div>
+                    <div class="gross"><span>Gesamt:</span> <span>{{ formatCurrency(calculateTotal(invoice.items, invoice.taxRate).gross) }}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="details-actions">
+                <div class="status-actions">
+                  @if (invoice.status === 'draft') {
+                    <button class="admin-btn admin-btn--sm admin-btn--secondary" (click)="setStatus(invoice, 'sent', $event)">
+                      <app-icon icon="send" /> Als gesendet markieren
+                    </button>
+                  }
+                  @if (invoice.status === 'sent' || invoice.status === 'overdue') {
+                    <button class="admin-btn admin-btn--sm admin-btn--success" (click)="setStatus(invoice, 'paid', $event)">
+                      <app-icon icon="check" /> Als bezahlt markieren
+                    </button>
+                  }
+                  @if (invoice.status === 'sent') {
+                    <button class="admin-btn admin-btn--sm admin-btn--warning" (click)="setStatus(invoice, 'overdue', $event)">
+                      <app-icon icon="warning" /> Als überfällig markieren
+                    </button>
+                  }
+                </div>
+                <div class="main-actions">
+                  <button class="admin-btn admin-btn--sm admin-btn--ghost" (click)="openPreview(invoice, $event)">
+                    <app-icon icon="visibility" /> Vorschau
+                  </button>
+                  <button class="admin-btn admin-btn--sm admin-btn--ghost" (click)="duplicateInvoice(invoice, $event)">
+                    <app-icon icon="content_copy" /> Duplizieren
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+  </div>
+</div>
+
+<!-- Editor Modal -->
+@if (showEditor) {
+  <div class="admin-modal-overlay" (click)="closeEditor()">
+    <div class="admin-modal admin-modal--lg" (click)="$event.stopPropagation()">
+      <div class="admin-modal-header">
+        <h2>{{ editingInvoice ? 'Rechnung bearbeiten' : 'Neue Rechnung' }}</h2>
+        <button class="close-btn" (click)="closeEditor()">
+          <app-icon icon="close" />
+        </button>
+      </div>
+
+      <div class="admin-modal-body">
+        <!-- Invoice Info -->
+        <div class="form-section">
+          <h3><app-icon icon="info" /> Rechnungsdetails</h3>
+          <div class="form-row three-col">
+            <div class="admin-form-group">
+              <label>Rechnungsnummer</label>
+              <input type="text" class="admin-input" [(ngModel)]="form.invoiceNumber" placeholder="RE-2024-0001" />
+            </div>
+            <div class="admin-form-group">
+              <label>Rechnungsdatum</label>
+              <input type="date" class="admin-input" [(ngModel)]="form.date" />
+            </div>
+            <div class="admin-form-group">
+              <label>Fälligkeitsdatum</label>
+              <input type="date" class="admin-input" [(ngModel)]="form.dueDate" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer Info -->
+        <div class="form-section">
+          <h3><app-icon icon="person" /> Kundendaten</h3>
+          <div class="form-row two-col">
+            <div class="admin-form-group">
+              <label>Name / Firma *</label>
+              <input type="text" class="admin-input" [(ngModel)]="form.customerName" placeholder="Max Mustermann GmbH" />
+            </div>
+            <div class="admin-form-group">
+              <label>E-Mail</label>
+              <input type="email" class="admin-input" [(ngModel)]="form.customerEmail" placeholder="kunde@beispiel.de" />
+            </div>
+          </div>
+          <div class="admin-form-group">
+            <label>Adresse</label>
+            <input type="text" class="admin-input" [(ngModel)]="form.customerAddress" placeholder="Musterstraße 123" />
+          </div>
+          <div class="form-row two-col">
+            <div class="admin-form-group">
+              <label>PLZ</label>
+              <input type="text" class="admin-input" [(ngModel)]="form.customerZip" placeholder="12345" />
+            </div>
+            <div class="admin-form-group">
+              <label>Stadt</label>
+              <input type="text" class="admin-input" [(ngModel)]="form.customerCity" placeholder="Musterstadt" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Items -->
+        <div class="form-section">
+          <div class="admin-section-header">
+            <h3><app-icon icon="list" /> Positionen</h3>
+            <button class="admin-btn admin-btn--sm admin-btn--secondary" (click)="addItem()">
+              <app-icon icon="add" /> Position hinzufügen
+            </button>
+          </div>
+
+          <div class="items-table">
+            <div class="items-header">
+              <span class="col-desc">Beschreibung</span>
+              <span class="col-qty">Menge</span>
+              <span class="col-unit">Einheit</span>
+              <span class="col-price">Einzelpreis</span>
+              <span class="col-total">Gesamt</span>
+              <span class="col-action"></span>
+            </div>
+
+            @for (item of form.items; track item.id; let i = $index) {
+              <div class="item-row">
+                <input class="admin-input col-desc" type="text" [(ngModel)]="item.description" placeholder="Leistungsbeschreibung" />
+                <input class="admin-input col-qty" type="number" [(ngModel)]="item.quantity" min="1" />
+                <select class="admin-select col-unit" [(ngModel)]="item.unit">
+                  <option value="Stk.">Stk.</option>
+                  <option value="Std.">Std.</option>
+                  <option value="Psch.">Psch.</option>
+                  <option value="Tag(e)">Tag(e)</option>
+                  <option value="Monat(e)">Monat(e)</option>
+                </select>
+                <input class="admin-input col-price" type="number" [(ngModel)]="item.unitPrice" min="0" step="0.01" />
+                <span class="col-total">{{ formatCurrency(item.quantity * item.unitPrice) }}</span>
+                <button class="admin-btn admin-btn--icon admin-btn--danger col-action" (click)="removeItem(i)" [disabled]="form.items && form.items.length === 1">
+                  <app-icon icon="delete" />
+                </button>
+              </div>
+            }
+          </div>
+
+          <!-- Totals -->
+          <div class="totals">
+            <div class="tax-rate">
+              <label>MwSt.:</label>
+              <select class="admin-select" [(ngModel)]="form.taxRate">
+                <option [value]="0">0%</option>
+                <option [value]="7">7%</option>
+                <option [value]="19">19%</option>
+              </select>
+            </div>
+            <div class="totals-breakdown">
+              <div class="total-row">
+                <span>Netto:</span>
+                <span>{{ formatCurrency(formTotals.net) }}</span>
+              </div>
+              <div class="total-row">
+                <span>MwSt. ({{ form.taxRate }}%):</span>
+                <span>{{ formatCurrency(formTotals.tax) }}</span>
+              </div>
+              <div class="total-row gross">
+                <span>Gesamt:</span>
+                <span>{{ formatCurrency(formTotals.gross) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="form-section">
+          <h3><app-icon icon="notes" /> Hinweise</h3>
+          <textarea class="admin-textarea" [(ngModel)]="form.notes" rows="2" placeholder="Zahlungsbedingungen, Notizen..."></textarea>
+        </div>
+      </div>
+
+      <div class="admin-modal-footer">
+        <button class="admin-btn admin-btn--secondary" (click)="closeEditor()">Abbrechen</button>
+        <button class="admin-btn admin-btn--primary" (click)="saveInvoice()">
+          <app-icon icon="save" />
+          {{ editingInvoice ? 'Speichern' : 'Erstellen' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Preview Modal -->
+@if (showPreview) {
+  <div class="admin-modal-overlay" (click)="closePreview()">
+    <div class="admin-modal admin-modal--lg preview-modal" (click)="$event.stopPropagation()">
+      <div class="admin-modal-header">
+        <h2>Rechnungsvorschau</h2>
+        <div class="preview-actions">
+          <button class="admin-btn admin-btn--primary" (click)="exportPdf(form)">
+            <app-icon icon="picture_as_pdf" /> PDF exportieren
+          </button>
+          <button class="close-btn" (click)="closePreview()">
+            <app-icon icon="close" />
+          </button>
+        </div>
+      </div>
+
+      <div class="admin-modal-body preview-body">
+        <div class="invoice-preview">
+          <div class="preview-header">
+            <div class="brand">
+              <h1>RECHNUNG</h1>
+              <span class="company">Leonards & Brandenburger IT</span>
+            </div>
+            <div class="meta">
+              <div><strong>Nr.</strong> {{ form.invoiceNumber }}</div>
+              <div><strong>Datum:</strong> {{ formatDate(form.date || '') }}</div>
+              <div><strong>Fällig:</strong> {{ formatDate(form.dueDate || '') }}</div>
+            </div>
+          </div>
+
+          <div class="preview-customer">
+            <small>Leonards & Brandenburger IT · Musterstraße 1 · 12345 Musterstadt</small>
+            <div class="customer-block">
+              <strong>{{ form.customerName }}</strong><br />
+              {{ form.customerAddress }}<br />
+              {{ form.customerZip }} {{ form.customerCity }}<br />
+              @if (form.customerEmail) {
+                <span class="email">{{ form.customerEmail }}</span>
+              }
+            </div>
+          </div>
+
+          <table class="preview-table">
+            <thead>
+              <tr>
+                <th>Beschreibung</th>
+                <th>Menge</th>
+                <th>Einheit</th>
+                <th>Einzelpreis</th>
+                <th>Gesamt</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of form.items; track item.id) {
+                <tr>
+                  <td>{{ item.description }}</td>
+                  <td>{{ item.quantity }}</td>
+                  <td>{{ item.unit }}</td>
+                  <td>{{ formatCurrency(item.unitPrice) }}</td>
+                  <td>{{ formatCurrency(item.quantity * item.unitPrice) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          <div class="preview-totals">
+            <div class="row"><span>Netto:</span><span>{{ formatCurrency(formTotals.net) }}</span></div>
+            <div class="row"><span>MwSt. ({{ form.taxRate }}%):</span><span>{{ formatCurrency(formTotals.tax) }}</span></div>
+            <div class="row gross"><span>Gesamt:</span><span>{{ formatCurrency(formTotals.gross) }}</span></div>
+          </div>
+
+          @if (form.notes) {
+            <div class="preview-notes">
+              <strong>Hinweise:</strong>
+              <p>{{ form.notes }}</p>
+            </div>
+          }
+
+          <div class="preview-footer">
+            <span>Leonards & Brandenburger IT</span>
+            <span>IBAN: DE12 3456 7890 1234 5678 90</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+</app-admin-layout>

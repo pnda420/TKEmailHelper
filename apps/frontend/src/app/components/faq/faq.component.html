@@ -1,0 +1,116 @@
+<app-page-title title="FAQ"></app-page-title>
+
+<section class="faq">
+  <div class="container page-animate">
+
+    <!-- Loading State -->
+    <div class="faq-loading" *ngIf="loading">
+      <div class="loading-spinner"></div>
+      <p>FAQs werden geladen...</p>
+    </div>
+
+    <!-- Error State -->
+    <div class="faq-message" *ngIf="error && !loading">
+      <div class="message-icon">
+        <span class="material-symbols-outlined">error</span>
+      </div>
+      <h3>Fehler beim Laden</h3>
+      <p>Die FAQs konnten leider nicht geladen werden. Bitte versuche es später erneut.</p>
+      <button class="btn btn--primary" (click)="router.navigate(['/contact'])">
+        <span class="material-symbols-outlined ms-size-20">mail</span>
+        Direkt Kontakt aufnehmen
+      </button>
+    </div>
+
+    <!-- Empty State / Under Construction -->
+    <div class="faq-message" *ngIf="isEmpty && !loading && !error">
+      <div class="message-icon message-icon--construction">
+        <span class="material-symbols-outlined">construction</span>
+      </div>
+      <h3>In Arbeit</h3>
+      <p>Die FAQs werden gerade erstellt und sind bald verfügbar.</p>
+      <p class="message-sub">Hast du eine dringende Frage? Kontaktiere uns direkt!</p>
+      <button class="btn btn--primary" (click)="router.navigate(['/contact'])">
+        <span class="material-symbols-outlined ms-size-20">mail</span>
+        Frage stellen
+      </button>
+    </div>
+
+    <!-- Main Content (nur wenn FAQs vorhanden) -->
+    <ng-container *ngIf="!loading && !error && !isEmpty">
+    
+      <!-- Intro -->
+      <div class="faq-intro">
+        <!-- Search & Tools -->
+        <div class="faq-tools">
+          <div class="search-wrapper">
+            <span class="search-icon material-symbols-outlined">search</span>
+            <input type="search" 
+                   [(ngModel)]="q" 
+                   placeholder="In Fragen suchen..."
+                   aria-label="FAQ durchsuchen" />
+          </div>
+          <div class="tool-buttons">
+            <button class="btn btn--ghost" type="button" (click)="setAll(true)">
+              <span class="material-symbols-outlined ms-size-20">unfold_more</span>
+              Alle öffnen
+            </button>
+            <button class="btn btn--ghost" type="button" (click)="setAll(false)">
+              <span class="material-symbols-outlined ms-size-20">unfold_less</span>
+              Alle schließen
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FAQ List -->
+      <div class="faq-list" *ngIf="filtered.length; else nohits">
+        <details class="faq-item" 
+                 *ngFor="let f of filtered; trackBy: trackById" 
+                 [attr.open]="expandAll ? '' : null">
+          <summary>
+            <span class="faq-icon material-symbols-outlined">help</span>
+            <span class="faq-question">{{ f.q }}</span>
+            <span class="faq-arrow material-symbols-outlined">expand_more</span>
+          </summary>
+          <div class="faq-answer">
+            <p *ngFor="let p of f.a">{{ p }}</p>
+            <ul *ngIf="f.list?.length">
+              <li *ngFor="let li of f.list">{{ li }}</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+
+      <!-- No Results -->
+      <ng-template #nohits>
+        <div class="faq-nohits">
+          <div class="nohits-icon">
+            <span class="material-symbols-outlined">search_off</span>
+          </div>
+          <p>
+            Keine Treffer gefunden. 
+            <a (click)="router.navigate(['/contact'])">Stelle uns deine Frage direkt</a>
+          </p>
+        </div>
+      </ng-template>
+
+      <!-- CTA -->
+      <div class="faq-cta">
+        <div class="cta-card">
+          <div class="cta-icon">
+            <span class="material-symbols-outlined ms-fill">contact_support</span>
+          </div>
+          <h3>Nicht fündig geworden?</h3>
+          <p>Kurzes Erstgespräch, klare Einschätzung, kein Sales-Druck.</p>
+          <button class="btn btn--primary btn--large" (click)="router.navigate(['/contact'])">
+            <span class="material-symbols-outlined ms-size-20">send</span>
+            Frage stellen
+          </button>
+        </div>
+      </div>
+
+    </ng-container>
+
+  </div>
+</section>

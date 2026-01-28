@@ -1,0 +1,99 @@
+@import '../../utils/shared-styles.scss';
+
+.site-footer {
+  position: relative;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.06);
+
+  // Optional: Gradient overlay für mehr Tiefe
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(59, 130, 246, 0.03) 0%,
+      rgba(147, 51, 234, 0.03) 100%
+    );
+    pointer-events: none;
+  }
+
+  .footer__inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block: 1.5rem;
+
+    @media (max-width: 600px) {
+      flex-direction: column;
+      text-align: center;
+      gap: 0.75rem;
+    }
+  }
+
+  .footer__copy {
+    font-size: 0.875rem;
+    color: $color-text-secondary;
+    font-weight: 500;
+  }
+
+  .footer__nav {
+    display: flex;
+    gap: 2rem;
+
+    @media (max-width: 600px) {
+      gap: 1.5rem;
+    }
+
+    a, .cookie-link {
+      position: relative;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: $color-text-primary;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      transition: all 200ms ease;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      font-family: inherit;
+
+      &:hover {
+        color: $color-brand-primary;
+        background: rgba(59, 130, 246, 0.08);
+      }
+
+      &:focus-visible {
+        outline: 2px solid $color-brand-primary;
+        outline-offset: 2px;
+      }
+
+      // Optional: Subtle underline effect
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0.25rem;
+        left: 1rem;
+        right: 1rem;
+        height: 1px;
+        background: $color-brand-primary;
+        transform: scaleX(0);
+        transition: transform 200ms ease;
+      }
+
+      &:hover::after {
+        transform: scaleX(1);
+      }
+    }
+  }
+}

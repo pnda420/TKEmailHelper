@@ -1,0 +1,268 @@
+<app-admin-layout>
+  <div class="admin-page">
+    <div class="admin-container">
+      
+      <!-- HEADER -->
+      <header class="admin-page-header">
+        <div>
+          <h1 class="admin-page-title">Analytics</h1>
+        </div>
+        <div class="admin-header-actions">
+          <div class="auto-reload-container">
+            <div class="auto-reload-toggle">
+              <label class="toggle-label">
+                <input 
+                  type="checkbox" 
+                  [checked]="autoReload" 
+                  (change)="toggleAutoReload()"
+                  class="toggle-input"
+                >
+                <span class="toggle-slider"></span>
+                <span class="toggle-text">Auto-Reload</span>
+              </label>
+            </div>
+            <div class="countdown-timer" *ngIf="autoReload">
+              <span class="countdown-text">{{ countdown }}s</span>
+              <div class="countdown-progress">
+                <div class="countdown-bar" [style.width.%]="(countdown / 15) * 100"></div>
+              </div>
+            </div>
+          </div>
+          <button class="admin-btn admin-btn--primary" (click)="loadDashboard()">
+            <span class="material-symbols-outlined">refresh</span>
+            Aktualisieren
+          </button>
+          <button class="admin-btn admin-btn--danger-outline" (click)="cleanupOldData()">
+            <span class="material-symbols-outlined">delete_sweep</span>
+            Cleanup
+          </button>
+        </div>
+      </header>
+
+      <!-- LOADING -->
+      <div class="loading-state" *ngIf="loading">
+        <div class="loading-spinner"></div>
+        <p>Daten werden geladen...</p>
+      </div>
+
+      <!-- ERROR -->
+      <div class="error-state" *ngIf="error && !loading">
+        <span class="material-symbols-outlined">error</span>
+        <h3>Fehler beim Laden</h3>
+        <p>Analytics konnten nicht geladen werden.</p>
+        <button class="admin-btn admin-btn--primary" (click)="loadDashboard()">Erneut versuchen</button>
+      </div>
+
+      <!-- MAIN CONTENT -->
+      <ng-container *ngIf="data && !loading && !error">
+        
+        <!-- PERIOD SELECTOR -->
+        <div class="period-selector">
+          <button 
+            *ngFor="let period of periods"
+            class="period-btn"
+            [class.active]="selectedPeriod === period"
+            (click)="setPeriod(period)"
+          >
+            {{ period === 'today' ? 'Heute' : period === 'yesterday' ? 'Gestern' : period === 'last7Days' ? '7 Tage' : '30 Tage' }}
+          </button>
+        </div>
+
+        <!-- STAT CARDS -->
+        <div class="stat-cards">
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--blue">
+              <span class="material-symbols-outlined">visibility</span>
+            </div>
+            <div class="stat-content">
+              <span class="stat-value">{{ currentStats?.pageviews || 0 }}</span>
+              <span class="stat-label">Seitenaufrufe</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--purple">
+              <span class="material-symbols-outlined">person</span>
+            </div>
+            <div class="stat-content">
+              <span class="stat-value">{{ currentStats?.uniqueSessions || 0 }}</span>
+              <span class="stat-label">Besucher</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--green">
+              <span class="material-symbols-outlined">check_circle</span>
+            </div>
+            <div class="stat-content">
+              <span class="stat-value">{{ currentStats?.conversions || 0 }}</span>
+              <span class="stat-label">Conversions</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon stat-icon--orange">
+              <span class="material-symbols-outlined">trending_up</span>
+            </div>
+            <div class="stat-content">
+              <span class="stat-value">
+                {{ getPagesPerVisit() | number:'1.1-1' }}
+              </span>
+              <span class="stat-label">Seiten/Besuch</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- GRID -->
+        <div class="analytics-grid">
+          
+          <!-- CHART (Simple Bar Chart) -->
+          <div class="analytics-card chart-card">
+            <h3>
+              <span class="material-symbols-outlined">show_chart</span>
+              Seitenaufrufe (30 Tage)
+            </h3>
+            <div class="simple-chart">
+              <div 
+                class="chart-bar" 
+                *ngFor="let point of data.timeSeries"
+                [style.height.%]="(point.pageviews / getMaxPageviews()) * 100"
+                [title]="formatDate(point.date) + ': ' + point.pageviews + ' Aufrufe'"
+              >
+                <span class="chart-tooltip">{{ point.pageviews }}</span>
+              </div>
+            </div>
+            <div class="chart-labels">
+              <span>{{ getFirstDate() }}</span>
+              <span>{{ getLastDate() }}</span>
+            </div>
+          </div>
+
+          <!-- TOP PAGES -->
+          <div class="analytics-card pages-card">
+            <h3>
+              <span class="material-symbols-outlined">article</span>
+              Top Seiten
+            </h3>
+            <div class="list-content">
+              <div class="list-item" *ngFor="let page of data.topPages; let i = index">
+                <span class="list-rank">{{ i + 1 }}</span>
+                <span class="list-name" [title]="page.page">{{ page.page }}</span>
+                <span class="list-value">{{ page.views }}</span>
+              </div>
+              <div class="empty-state" *ngIf="!data.topPages.length">
+                <span class="material-symbols-outlined">inbox</span>
+                <p>Noch keine Daten</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- REFERRERS -->
+          <div class="analytics-card referrers-card">
+            <h3>
+              <span class="material-symbols-outlined">link</span>
+              Referrer
+            </h3>
+            <div class="list-content">
+              <div class="list-item" *ngFor="let ref of data.referrers; let i = index">
+                <span class="list-rank">{{ i + 1 }}</span>
+                <span class="list-name">{{ ref.referrer }}</span>
+                <span class="list-value">{{ ref.count }}</span>
+              </div>
+              <div class="empty-state" *ngIf="!data.referrers.length">
+                <span class="material-symbols-outlined">inbox</span>
+                <p>Noch keine Daten</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- DEVICES -->
+          <div class="analytics-card devices-card">
+            <h3>
+              <span class="material-symbols-outlined">devices</span>
+              Geräte
+            </h3>
+            <div class="devices-content">
+              <div class="device-row">
+                <span class="device-icon material-symbols-outlined">computer</span>
+                <span class="device-label">Desktop</span>
+                <div class="device-bar">
+                  <div class="device-fill desktop" [style.width.%]="getDevicePercent(data.devices.desktop)"></div>
+                </div>
+                <span class="device-percent">{{ getDevicePercent(data.devices.desktop) }}%</span>
+              </div>
+              <div class="device-row">
+                <span class="device-icon material-symbols-outlined">smartphone</span>
+                <span class="device-label">Mobile</span>
+                <div class="device-bar">
+                  <div class="device-fill mobile" [style.width.%]="getDevicePercent(data.devices.mobile)"></div>
+                </div>
+                <span class="device-percent">{{ getDevicePercent(data.devices.mobile) }}%</span>
+              </div>
+              <div class="device-row">
+                <span class="device-icon material-symbols-outlined">tablet</span>
+                <span class="device-label">Tablet</span>
+                <div class="device-bar">
+                  <div class="device-fill tablet" [style.width.%]="getDevicePercent(data.devices.tablet)"></div>
+                </div>
+                <span class="device-percent">{{ getDevicePercent(data.devices.tablet) }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- RECENT EVENTS -->
+          <div class="analytics-card events-card">
+            <h3>
+              <span class="material-symbols-outlined">timeline</span>
+              Letzte Events
+            </h3>
+            <div class="events-list">
+              <div class="event-item" *ngFor="let event of data.recentEvents" [class.conversion-event]="event.type === 'conversion'">
+                <div class="event-icon" [attr.data-type]="event.type">
+                  <span class="material-symbols-outlined">{{ getEventIcon(event.type) }}</span>
+                </div>
+                <div class="event-content">
+                  <div class="event-header">
+                    <span class="event-type">{{ getEventLabel(event.type) }}</span>
+                    <span class="event-device">
+                      <span class="material-symbols-outlined">{{ getDeviceIcon(event.deviceType) }}</span>
+                    </span>
+                  </div>
+                  <span class="event-page" [title]="event.page">{{ event.page }}</span>
+                  <div class="event-details" *ngIf="event.metadata">
+                    <span class="event-metadata" *ngIf="event.metadata['goal']">
+                      <span class="material-symbols-outlined">flag</span>
+                      {{ event.metadata['goal'] }}
+                    </span>
+                    <span class="event-metadata" *ngIf="event.metadata['service']">
+                      <span class="material-symbols-outlined">handyman</span>
+                      {{ event.metadata['service'] }}
+                    </span>
+                  </div>
+                  <div class="event-session" *ngIf="event.screenSize">
+                    <span class="material-symbols-outlined">aspect_ratio</span>
+                    {{ event.screenSize }}
+                  </div>
+                </div>
+                <span class="event-time">{{ formatEventTime(event.timestamp) }}</span>
+              </div>
+              <div class="empty-state" *ngIf="!data.recentEvents.length">
+                <span class="material-symbols-outlined">inbox</span>
+                <p>Noch keine Events</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- PRIVACY INFO -->
+        <div class="privacy-info">
+          <span class="material-symbols-outlined">security</span>
+          <p>Alle Daten sind DSGVO-konform anonymisiert. IPs werden gekürzt, keine Profile erstellt.</p>
+        </div>
+
+      </ng-container>
+
+    </div>
+  </div>
+</app-admin-layout>

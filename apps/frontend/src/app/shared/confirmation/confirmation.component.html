@@ -1,0 +1,30 @@
+<div class="modal-backdrop" *ngIf="isOpen" (click)="onBackdropClick()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+
+        <!-- Icon -->
+        <div class="modal-icon" [class]="'modal-icon--' + config.type">
+            <span class="material-symbols-outlined ms-fill">
+                {{ config.icon || getDefaultIcon() }}
+            </span>
+        </div>
+
+        <!-- Content -->
+        <div class="modal-content">
+            <h2 class="modal-title">{{ config.title }}</h2>
+            <p class="modal-message">{{ config.message }}</p>
+        </div>
+
+        <!-- Actions -->
+        <div class="modal-actions">
+            <button class="btn btn--ghost" type="button" (click)="onCancel()" [disabled]="loading">
+                {{ config.cancelText || 'Abbrechen' }}
+            </button>
+            <button class="btn" type="button" [class]="'btn--' + config.type" (click)="onConfirm()"
+                [disabled]="loading">
+                <span class="spinner" *ngIf="loading"></span>
+                <span *ngIf="!loading">{{ config.confirmText || 'Bestätigen' }}</span>
+            </button>
+        </div>
+
+    </div>
+</div>

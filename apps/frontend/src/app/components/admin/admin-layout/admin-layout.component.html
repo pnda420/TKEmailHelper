@@ -1,0 +1,61 @@
+<div class="admin-layout" [class.sidebar-open]="sidebarOpen">
+    <!-- Sidebar -->
+    <aside class="sidebar" [class.open]="sidebarOpen" role="navigation" aria-label="Admin Navigation">
+        <div class="sidebar-header">
+            <div class="brand">
+                <span class="material-symbols-outlined brand-icon">admin_panel_settings</span>
+                <span class="brand-title">Admin</span>
+            </div>
+            <button class="sidebar-close" (click)="closeSidebar()" aria-label="Sidebar schließen">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a *ngFor="let route of routes; let i = index" 
+               class="nav-item" 
+               [routerLink]="normalize(route.path)"
+               routerLinkActive="nav-item--active" 
+               [routerLinkActiveOptions]="{ exact: true }"
+               [style.animation-delay.ms]="i * 30"
+               (click)="isMobile && closeSidebar()">
+                <span class="nav-item-indicator"></span>
+                <span class="material-symbols-outlined nav-icon">{{ route.icon }}</span>
+                <span class="nav-label">{{ route.label }}</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a routerLink="/" class="nav-item nav-item--home">
+                <span class="material-symbols-outlined nav-icon">home</span>
+                <span class="nav-label">Zur Webseite</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Backdrop for mobile -->
+    <div class="backdrop" *ngIf="sidebarOpen && isMobile" (click)="closeSidebar()" aria-hidden="true"></div>
+
+    <!-- Main Content with page transition -->
+    <main class="admin-main">
+        <div class="admin-content" [@routeAnimations]="prepareRoute()">
+            <ng-content></ng-content>
+        </div>
+    </main>
+
+    <!-- Mobile bottom nav - OUTSIDE of animated content -->
+    <nav class="mobile-nav" *ngIf="isMobile">
+        <a *ngFor="let route of mobileNavRoutes" 
+           class="mobile-nav-item"
+           [routerLink]="normalize(route.path)"
+           routerLinkActive="active"
+           [routerLinkActiveOptions]="{ exact: true }">
+            <span class="material-symbols-outlined">{{ route.icon }}</span>
+            <span class="mobile-nav-label">{{ route.label }}</span>
+        </a>
+        <button class="mobile-nav-item mobile-nav-more" (click)="toggleSidebar()">
+            <span class="material-symbols-outlined">menu</span>
+            <span class="mobile-nav-label">Mehr</span>
+        </button>
+    </nav>
+</div>

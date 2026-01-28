@@ -1,0 +1,10 @@
+<footer class="site-footer" role="contentinfo">
+  <div class="container footer__inner">
+    <div class="footer__copy">© {{ year }} Leonards & Brandenburger IT</div>
+    <nav class="footer__nav" aria-label="Footer-Navigation">
+      <a [routerLink]="['/imprint']">Impressum</a>
+      <a [routerLink]="['/policy']">Datenschutz</a>
+      <button class="cookie-link" (click)="openCookieSettings()">Cookies</button>
+    </nav>
+  </div>
+</footer>

@@ -1,0 +1,221 @@
+/* ===== GLOBAL STYLES - CLEAN & MINIMAL ===== */
+
+@import './app/utils/shared-styles.scss';
+
+/* ===== RESET ===== */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: $color-text-primary;
+  background: $gradient-bg;
+  background-attachment: fixed;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ===== TYPOGRAPHY ===== */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.2;
+  color: $color-text-primary;
+}
+
+h1 { font-size: clamp(1.75rem, 5vw, 3rem); font-weight: 800; }
+h2 { font-size: clamp(1.5rem, 4vw, 2.25rem); font-weight: 700; }
+h3 { font-size: clamp(1.25rem, 3vw, 1.75rem); }
+h4 { font-size: clamp(1.1rem, 2.5vw, 1.35rem); }
+
+p { margin: 0; }
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img, svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ===== CONTAINER ===== */
+.container {
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 1rem;
+
+  @media (min-width: 900px) {
+    max-width: 1000px;
+    padding: 0 1.5rem;
+  }
+
+  @media (min-width: 1200px) {
+    max-width: 1400px;
+    padding: 0 2rem;
+  }
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: $color-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $color-brand-primary;
+  border-radius: 4px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: $color-brand-primary $color-gray-100;
+}
+
+/* ===== SELECTION ===== */
+::selection {
+  background: rgba(37, 99, 235, 0.2);
+}
+
+/* ===== FOCUS STATES ===== */
+*:focus-visible {
+  outline: 2px solid $color-brand-primary;
+  outline-offset: 2px;
+}
+
+/* ===== MATERIAL ICONS ===== */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-size: 24px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ===== GLASS PANEL ===== */
+.glass-panel {
+  background: $glass-bg;
+  border: 1px solid $glass-border;
+  border-radius: $radius-xl;
+  box-shadow: $shadow-glass;
+  padding: 1.5rem;
+
+  @media (min-width: 641px) {
+    backdrop-filter: blur(20px);
+    padding: 2rem;
+  }
+}
+
+/* ===== FORM ELEMENTS ===== */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="number"],
+textarea,
+select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid $color-gray-200;
+  border-radius: $radius-md;
+  font-size: 1rem;
+  font-family: inherit;
+  color: $color-text-primary;
+  background: $color-white;
+  transition: border-color 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: $color-brand-primary;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  }
+
+  &::placeholder {
+    color: $color-text-tertiary;
+  }
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+label {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+/* ===== UTILITIES ===== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-center { text-align: center; }
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid $color-gray-200;
+  border-top-color: $color-brand-primary;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===== MOBILE PERFORMANCE ===== */
+@media (max-width: 640px) {
+  *, *::before, *::after {
+    backdrop-filter: none !important;
+  }
+}

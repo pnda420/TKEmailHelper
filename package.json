@@ -1,0 +1,26 @@
+{
+  "name": "lub-project",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/frontend",
+    "apps/backend"
+  ],
+  "scripts": {
+    "dev:f": "npm run start -w apps/frontend -- --host 0.0.0.0",
+    "dev:b": "npm run start:dev -w apps/backend -- --host 0.0.0.0",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend -- --host 0.0.0.0\"",
+    "build:frontend": "npm run build -w apps/frontend",
+    "build:backend": "npm run build -w apps/backend",
+    "build:all": "npm run build:backend && npm run build:frontend"
+  },
+  "dependencies": {
+    "rxjs": "~7.8.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "overrides": {
+    "rxjs": "~7.8.0"
+  }
+}

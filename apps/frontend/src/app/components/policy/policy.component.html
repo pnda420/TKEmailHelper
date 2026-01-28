@@ -1,0 +1,330 @@
+<app-page-title title="Datenschutz"></app-page-title>
+
+<section class="legal legal--policy">
+  <div class="container">
+    <div class="legal__content">
+
+      <!-- Verantwortlicher als Info Card -->
+      <div class="info-card">
+        <div class="info-icon">
+          <span class="material-symbols-outlined">person</span>
+        </div>
+        <div class="info-content">
+          <h3>Verantwortlicher</h3>
+          <p>
+            Tom Leonards (Leonards & Brandenburger IT), Einzelunternehmen<br />
+            Kirchergarten 19, 57614 Wahlrod<br />
+            E-Mail: <a href="mailto:tom@leonardsmedia.de">tom&#64;Leonards & Brandenburger IT&#46;de</a>
+          </p>
+        </div>
+      </div>
+
+      <h2>Arten der verarbeiteten Daten</h2>
+      <p>
+        Bestands- und Kontaktdaten (z. B. Name, E-Mail, Telefonnummer), Nutzungsdaten
+        (z. B. Zugriffszeiten, besuchte Seiten), Meta-/Kommunikationsdaten (z. B. IP-Adresse, Geräteinformationen).
+      </p>
+
+      <h2>Zwecke der Verarbeitung</h2>
+      <p>
+        Bereitstellung der Website, Kommunikation und Bearbeitung von Anfragen, Vertragserfüllung und -anbahnung,
+        Sicherheit/Abwehr von Angriffen, ggf. Reichweitenmessung/Statistik (sofern eingesetzt).
+      </p>
+
+      <h2>Rechtsgrundlagen</h2>
+      <div class="highlight-box">
+        <p>
+          <strong>Art. 6 Abs. 1 lit. b DSGVO</strong> (Vertrag/Anbahnung)<br>
+          <strong>Art. 6 Abs. 1 lit. f DSGVO</strong> (berechtigtes Interesse: sichere, funktionsfähige Website,
+          Kommunikation, Statistik)<br>
+          <strong>Art. 6 Abs. 1 lit. a DSGVO</strong> (Einwilligung, z. B. für optionale Cookies/Tracking)
+        </p>
+      </div>
+
+      <h2>Hosting und Auftragsverarbeitung</h2>
+      <p>
+        Diese Website wird bei [Hosting-Anbieter] gehostet. Mit dem Anbieter besteht ein Vertrag zur
+        Auftragsverarbeitung gemäß Art. 28 DSGVO. Es werden u. a. IP-Adresse, Zeitstempel, angeforderte Ressourcen
+        zur technischen Bereitstellung und Sicherheit verarbeitet.
+      </p>
+
+      <h2>Protokolldaten (Server-Logfiles)</h2>
+      <p>
+        Der Provider erhebt Protokolldaten (z. B. IP-Adresse, Datum/Uhrzeit, abgerufene URL, Referrer-URL,
+        User-Agent). Die Verarbeitung erfolgt auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO zur Bereitstellung,
+        Sicherheit und Fehleranalyse. Logdaten werden regelmäßig kurzfristig gespeichert und anschließend gelöscht
+        oder anonymisiert, sofern keine weitergehende Aufbewahrung aus Sicherheitsgründen erforderlich ist.
+      </p>
+
+      <h2>Cookies, Einwilligungen & Reichweitenmessung</h2>
+      <p>
+        Wir setzen erforderliche Cookies ein. Optionale Cookies (z. B. Statistik/Marketing) werden nur nach
+        Einwilligung über das Consent-Banner gesetzt (Art. 6 Abs. 1 lit. a DSGVO). Einstellungen können Sie dort
+        jederzeit ändern.
+      </p>
+
+      <h2>Eigene Nutzungsstatistiken (Self-Hosted Analytics)</h2>
+      <p>
+        Zur Verbesserung unserer Website setzen wir ein <strong>selbst gehostetes Analyse-System</strong> ein, 
+        das ausschließlich auf unseren eigenen Servern in Deutschland betrieben wird. Es werden 
+        <strong>keine Daten an Dritte übermittelt</strong>.
+      </p>
+      
+      <div class="highlight-box">
+        <p><strong>Erfasste Daten (nur mit Ihrer Einwilligung):</strong></p>
+        <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+          <li>Besuchte Seiten und Verweildauer</li>
+          <li>Referrer (woher Sie kamen) – ohne Query-Parameter</li>
+          <li>Gerätekategorie (Desktop/Tablet/Mobil) – keine exakten Bildschirmgrößen</li>
+          <li>Browser und Betriebssystem (nur Typ, keine Versionen)</li>
+          <li>IP-Adresse wird sofort anonymisiert (letztes Oktett auf 0 gesetzt)</li>
+        </ul>
+      </div>
+
+      <p>
+        <strong>Keine Nutzerprofile:</strong> Es werden keine Cookies zur Wiedererkennung gesetzt. 
+        Die Session-ID wird nur für die Dauer Ihres Besuchs im Browser-Speicher gehalten und danach verworfen.
+      </p>
+      
+      <p>
+        <strong>Speicherdauer:</strong> Analytics-Daten werden nach <strong>90 Tagen automatisch gelöscht</strong>.
+      </p>
+      
+      <p>
+        <strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. a DSGVO (Einwilligung). Sie können Ihre Einwilligung 
+        jederzeit über das Cookie-Banner widerrufen oder Ihre Analytics-Daten löschen lassen.
+      </p>
+
+      <div class="info-card">
+        <div class="info-icon">
+          <span class="material-symbols-outlined">delete_sweep</span>
+        </div>
+        <div class="info-content">
+          <h3>Ihre Analytics-Daten verwalten</h3>
+          <p>
+            Sie haben das Recht, die zu Ihrer Session gehörenden Analytics-Daten einzusehen und zu löschen.
+          </p>
+          <button class="data-btn" (click)="toggleDataSection()">
+            <span class="material-symbols-outlined">{{ showDataSection ? 'expand_less' : 'expand_more' }}</span>
+            {{ showDataSection ? 'Verbergen' : 'Meine Daten anzeigen' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Interaktive Daten-Sektion -->
+      <div class="data-section" *ngIf="showDataSection">
+        <div class="data-loading" *ngIf="dataLoading">
+          <div class="spinner"></div>
+          <span>Lade Daten...</span>
+        </div>
+
+        <div class="data-error" *ngIf="dataError">
+          <span class="material-symbols-outlined">error</span>
+          {{ dataError }}
+        </div>
+
+        <div class="data-success" *ngIf="deleteSuccess">
+          <span class="material-symbols-outlined">check_circle</span>
+          {{ deleteSuccess }}
+        </div>
+
+        <div class="data-content" *ngIf="myData && !deleteSuccess">
+          <div class="data-summary">
+            <p><strong>Session-ID:</strong> {{ myData.sessionId }}</p>
+            <p><strong>Gespeicherte Einträge:</strong> {{ myData.recordCount }}</p>
+            <p class="data-info">{{ myData.info }}</p>
+          </div>
+
+          <div class="data-table" *ngIf="myData.data.length > 0">
+            <table>
+              <thead>
+                <tr>
+                  <th>Typ</th>
+                  <th>Seite</th>
+                  <th>Zeitpunkt</th>
+                  <th>Gerät</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let entry of myData.data">
+                  <td>{{ entry.type }}</td>
+                  <td class="page-cell">{{ entry.page }}</td>
+                  <td>{{ entry.timestamp | date:'dd.MM.yyyy HH:mm' }}</td>
+                  <td>{{ entry.screenSize }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="data-empty" *ngIf="myData.data.length === 0">
+            <span class="material-symbols-outlined">inbox</span>
+            <p>Keine Analytics-Daten für Ihre aktuelle Session gefunden.</p>
+          </div>
+
+          <div class="data-actions" *ngIf="myData.data.length > 0">
+            <button class="delete-btn" (click)="deleteMyData()">
+              <span class="material-symbols-outlined">delete</span>
+              Alle meine Daten löschen
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <h2>Kontaktaufnahme (E-Mail/Telefon/Formular)</h2>
+      <p>
+        Bei Kontaktaufnahme verarbeiten wir die von Ihnen übermittelten Daten zur Bearbeitung Ihrer Anfrage
+        (Art. 6 Abs. 1 lit. b oder lit. f DSGVO). Pflichtangaben sind auf das Nötige beschränkt; weitere Angaben
+        sind freiwillig. Daten werden gelöscht, sobald der Zweck entfällt und keine Aufbewahrungspflichten bestehen.
+      </p>
+
+      <h2>Bewerbungen (falls genutzt)</h2>
+      <p>
+        Bewerbungsdaten werden nur zum Zweck der Durchführung des Bewerbungsverfahrens verarbeitet (Art. 6 Abs. 1 lit. b
+        DSGVO,
+        § 26 BDSG). Nach Abschluss werden Daten gelöscht, es sei denn, gesetzliche Pflichten oder Ihre Einwilligung
+        (für einen Bewerberpool) stehen entgegen.
+      </p>
+
+      <h2>Empfänger von Daten</h2>
+      <p>
+        Kategorien von Empfängern: IT-Dienstleister/Hosting, ggf. Support-/Wartungsanbieter,
+        Newsletter-/Mail-Dienstleister
+        (sofern eingesetzt), Behörden im Rahmen gesetzlicher Pflichten. Eine Weitergabe erfolgt nur, soweit hierfür eine
+        Rechtsgrundlage besteht.
+      </p>
+
+      <h2>Datenübermittlung in Drittländer</h2>
+      <p>
+        Soweit Dienste außerhalb des EWR eingesetzt werden, erfolgt die Übermittlung auf Grundlage geeigneter Garantien
+        (z. B. Angemessenheitsbeschluss, EU-Standardvertragsklauseln). Details stellen wir auf Anfrage bereit.
+      </p>
+
+      <h2>Speicherdauer</h2>
+      <p>
+        Wir verarbeiten personenbezogene Daten nur solange, wie es für die genannten Zwecke erforderlich ist
+        oder gesetzliche Aufbewahrungsfristen bestehen. Danach werden Daten gelöscht oder anonymisiert.
+      </p>
+
+      <h2>Betroffenenrechte</h2>
+      <p>Sie haben nach Art. 15–21 DSGVO folgende Rechte:</p>
+
+      <div class="rights-list">
+        <div class="rights-item">
+          <div class="rights-check">
+            <span class="material-symbols-outlined">check</span>
+          </div>
+          <div class="rights-content">
+            <h4>Auskunft</h4>
+            <p>Recht auf Auskunft über Ihre gespeicherten personenbezogenen Daten</p>
+          </div>
+        </div>
+
+        <div class="rights-item">
+          <div class="rights-check">
+            <span class="material-symbols-outlined">check</span>
+          </div>
+          <div class="rights-content">
+            <h4>Berichtigung</h4>
+            <p>Recht auf Berichtigung unrichtiger oder unvollständiger Daten</p>
+          </div>
+        </div>
+
+        <div class="rights-item">
+          <div class="rights-check">
+            <span class="material-symbols-outlined">check</span>
+          </div>
+          <div class="rights-content">
+            <h4>Löschung</h4>
+            <p>Recht auf Löschung Ihrer personenbezogenen Daten</p>
+          </div>
+        </div>
+
+        <div class="rights-item">
+          <div class="rights-check">
+            <span class="material-symbols-outlined">check</span>
+          </div>
+          <div class="rights-content">
+            <h4>Einschränkung der Verarbeitung</h4>
+            <p>Recht auf Einschränkung der Verarbeitung Ihrer Daten</p>
+          </div>
+        </div>
+
+        <div class="rights-item">
+          <div class="rights-check">
+            <span class="material-symbols-outlined">check</span>
+          </div>
+          <div class="rights-content">
+            <h4>Datenübertragbarkeit</h4>
+            <p>Recht auf Erhalt Ihrer Daten in einem strukturierten, maschinenlesbaren Format</p>
+          </div>
+        </div>
+
+        <div class="rights-item">
+          <div class="rights-check">
+            <span class="material-symbols-outlined">check</span>
+          </div>
+          <div class="rights-content">
+            <h4>Widerspruch</h4>
+            <p>Widerspruchsrecht gegen Verarbeitungen auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO</p>
+          </div>
+        </div>
+      </div>
+
+      <h2>Widerruf von Einwilligungen</h2>
+      <p>
+        Einwilligungen können Sie jederzeit mit Wirkung für die Zukunft widerrufen, ohne dass die Rechtmäßigkeit
+        der bis zum Widerruf erfolgten Verarbeitung berührt wird.
+      </p>
+
+      <h2>Beschwerderecht</h2>
+      <div class="highlight-box">
+        <p>
+          Sie haben das Recht auf Beschwerde bei einer Datenschutz-Aufsichtsbehörde, insbesondere in dem Mitgliedstaat
+          Ihres gewöhnlichen Aufenthaltsorts, Ihres Arbeitsplatzes oder des Orts des mutmaßlichen Verstoßes.
+        </p>
+      </div>
+
+      <h2>Pflicht zur Bereitstellung / Automatisierte Entscheidungen</h2>
+      <p>
+        Eine gesetzliche oder vertragliche Pflicht zur Bereitstellung besteht grundsätzlich nicht; ohne bestimmte
+        Angaben
+        kann die Bearbeitung Ihrer Anfrage jedoch nicht erfolgen. Eine automatisierte Entscheidungsfindung
+        einschließlich
+        Profiling findet nicht statt.
+      </p>
+
+      <h2>Datensicherheit</h2>
+      <div class="info-card">
+        <div class="info-icon">
+          <span class="material-symbols-outlined">lock</span>
+        </div>
+        <div class="info-content">
+          <h3>Technische Sicherheitsmaßnahmen</h3>
+          <p>
+            Wir treffen angemessene technische und organisatorische Maßnahmen (z. B. TLS-Verschlüsselung), um Daten
+            gegen Verlust, Missbrauch und unbefugten Zugriff zu schützen.
+          </p>
+        </div>
+      </div>
+
+      <h2>Änderungen dieser Hinweise</h2>
+      <p>
+        Wir passen diese Hinweise bei Bedarf an, z. B. bei neuen Funktionen oder Rechtsänderungen. Stand: {{ currentYear
+        }}.
+      </p>
+
+      <!-- Kontakt CTA -->
+      <div class="contact-box">
+        <div class="contact-icon">
+          <span class="material-symbols-outlined">mail</span>
+        </div>
+        <h3>Fragen zum Datenschutz?</h3>
+        <p>Bei Fragen zur Verarbeitung Ihrer personenbezogenen Daten kontaktieren Sie uns gerne.</p>
+        <div class="contact-details">
+          <a href="mailto:tom@leonardsmedia.de">tom&#64;Leonards & Brandenburger IT&#46;de</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>

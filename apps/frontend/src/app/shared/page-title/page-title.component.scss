@@ -1,0 +1,89 @@
+@import '../../utils/shared-styles.scss';
+
+.page-header {
+  margin-bottom: 2rem;
+  text-align: center;
+  margin-top: 2rem;
+  animation: fadeSlideIn 0.6s ease-out;
+
+  @media (min-width: 768px) {
+    margin-bottom: 2.5rem;
+  }
+}
+
+.page-title {
+  position: relative;
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+  font-size: clamp(1.75rem, 4vw + 1rem, 2.5rem);
+  font-weight: 900;
+  color: $color-text-primary;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+
+  .title-accent {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 4px;
+    background: $gradient-primary;
+    border-radius: $radius-full;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    animation: scaleIn 0.4s ease-out 0.3s both;
+  }
+}
+
+.page-subtitle {
+  margin: 1rem auto 0;
+  max-width: 600px;
+  font-size: clamp(1rem, 1.5vw + 0.5rem, 1.125rem);
+  color: $color-text-secondary;
+  line-height: 1.6;
+  animation: fadeIn 0.5s ease-out 0.2s both;
+}
+
+/* ===== ANIMATIONS ===== */
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: translateX(-50%) scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) scaleX(1);
+    opacity: 1;
+  }
+}
+
+/* ===== MOTION PREFERENCES ===== */
+
+@media (prefers-reduced-motion: reduce) {
+  .page-header,
+  .page-subtitle,
+  .title-accent {
+    animation: none !important;
+  }
+}

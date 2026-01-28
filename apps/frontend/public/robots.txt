@@ -1,0 +1,6 @@
+# robots.txt
+# Update the Sitemap URL to your production domain if needed.
+User-agent: *
+Allow: /
+
+Sitemap: /sitemap.xml

@@ -1,0 +1,790 @@
+[
+  {
+    "id": "1a2b3c4d-5e6f-7890-abcd-ef1234567890",
+    "slug": "was-ist-leonards-brandenburger-it",
+    "question": "Was ist Leonards & Brandenburger IT?",
+    "answers": [
+      "Wir sind ein junges IT-Unternehmen aus dem Westerwald, das sich auf umfassende IT-Dienstleistungen für Privatkunden und kleine Unternehmen spezialisiert hat.",
+      "Unser Fokus liegt darauf, professionelle IT-Lösungen auch in ländlichen Regionen zugänglich zu machen."
+    ],
+    "listItems": [
+      "Gegründet von zwei erfahrenen Entwicklern",
+      "Spezialisiert auf ländliche Regionen",
+      "Persönlicher Service vor Ort"
+    ],
+    "sortOrder": 1,
+    "isPublished": true,
+    "category": "Allgemein",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "2b3c4d5e-6f78-90ab-cdef-234567890abc",
+    "slug": "welche-regionen-bedienen-sie",
+    "question": "Welche Regionen bedienen Sie?",
+    "answers": [
+      "Wir sind primär im Westerwald und der Region um Altenkirchen tätig.",
+      "Auf Anfrage kommen wir auch gerne in umliegende Gebiete wie den Kreis Neuwied, Siegen-Wittgenstein oder den Rhein-Sieg-Kreis."
+    ],
+    "listItems": [
+      "Westerwald",
+      "Kreis Altenkirchen",
+      "Umliegende Regionen auf Anfrage"
+    ],
+    "sortOrder": 2,
+    "isPublished": true,
+    "category": "Allgemein",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "3c4d5e6f-7890-abcd-ef12-34567890abcd",
+    "slug": "bieten-sie-vor-ort-service",
+    "question": "Bieten Sie Vor-Ort-Service an?",
+    "answers": [
+      "Ja, wir kommen direkt zu Ihnen nach Hause oder in Ihr Büro.",
+      "Gerade in ländlichen Regionen wissen wir, wie wichtig persönlicher Service vor Ort ist."
+    ],
+    "listItems": [
+      "Hausbesuche für Privatkunden",
+      "Vor-Ort-Support für Unternehmen",
+      "Flexible Terminvereinbarung"
+    ],
+    "sortOrder": 3,
+    "isPublished": true,
+    "category": "Service",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "4d5e6f78-90ab-cdef-1234-567890abcdef",
+    "slug": "was-kostet-eine-beratung",
+    "question": "Was kostet eine Erstberatung?",
+    "answers": [
+      "Die telefonische Erstberatung ist bei uns kostenlos.",
+      "So können wir gemeinsam herausfinden, wie wir Ihnen am besten helfen können, bevor Kosten entstehen."
+    ],
+    "listItems": [
+      "Telefonische Beratung kostenlos",
+      "Transparente Preisgestaltung",
+      "Kostenvoranschlag vor Arbeitsbeginn"
+    ],
+    "sortOrder": 4,
+    "isPublished": true,
+    "category": "Preise",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "5e6f7890-abcd-ef12-3456-7890abcdef12",
+    "slug": "pc-startet-nicht-mehr",
+    "question": "Mein PC startet nicht mehr – können Sie helfen?",
+    "answers": [
+      "Ja, Computerreparaturen gehören zu unserem Kerngeschäft.",
+      "Wir diagnostizieren das Problem und reparieren Ihren PC – oft noch am selben Tag."
+    ],
+    "listItems": [
+      "Hardware-Diagnose",
+      "Softwareprobleme beheben",
+      "Datenrettung wenn möglich"
+    ],
+    "sortOrder": 5,
+    "isPublished": true,
+    "category": "PC-Reparatur",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "6f7890ab-cdef-1234-5678-90abcdef1234",
+    "slug": "laptop-ist-langsam",
+    "question": "Mein Laptop ist sehr langsam geworden – was kann ich tun?",
+    "answers": [
+      "Ein langsamer Laptop kann viele Ursachen haben: veraltete Hardware, zu viele Programme oder sogar Schadsoftware.",
+      "Wir analysieren Ihr Gerät und optimieren es oder empfehlen sinnvolle Upgrades wie eine SSD."
+    ],
+    "listItems": [
+      "System-Optimierung",
+      "SSD-Upgrade",
+      "RAM-Erweiterung",
+      "Virenentfernung"
+    ],
+    "sortOrder": 6,
+    "isPublished": true,
+    "category": "PC-Reparatur",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "7890abcd-ef12-3456-7890-abcdef123456",
+    "slug": "daten-wiederherstellen",
+    "question": "Können Sie gelöschte Daten wiederherstellen?",
+    "answers": [
+      "In vielen Fällen ja. Je schneller Sie uns kontaktieren, desto höher die Erfolgschancen.",
+      "Wir nutzen professionelle Tools zur Datenrettung von Festplatten, SSDs und USB-Sticks."
+    ],
+    "listItems": [
+      "Datenrettung von Festplatten",
+      "SSD-Wiederherstellung",
+      "USB-Stick und SD-Karten"
+    ],
+    "sortOrder": 7,
+    "isPublished": true,
+    "category": "Datenrettung",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "890abcde-f123-4567-890a-bcdef1234567",
+    "slug": "neuen-pc-kaufen-beratung",
+    "question": "Ich möchte einen neuen PC kaufen – beraten Sie mich?",
+    "answers": [
+      "Selbstverständlich! Wir beraten Sie herstellerunabhängig und finden das beste Gerät für Ihre Bedürfnisse und Ihr Budget.",
+      "Auf Wunsch kümmern wir uns auch um Beschaffung, Einrichtung und Datenübertragung."
+    ],
+    "listItems": [
+      "Unabhängige Kaufberatung",
+      "Einrichtung des neuen Geräts",
+      "Datenübertragung vom Altgerät"
+    ],
+    "sortOrder": 8,
+    "isPublished": true,
+    "category": "Beratung",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "90abcdef-1234-5678-90ab-cdef12345678",
+    "slug": "wlan-probleme",
+    "question": "Mein WLAN funktioniert nicht richtig – können Sie helfen?",
+    "answers": [
+      "Ja, Netzwerkprobleme sind einer unserer häufigsten Einsätze.",
+      "Wir prüfen Ihre Verbindung, optimieren die Router-Einstellungen und verbessern bei Bedarf die WLAN-Abdeckung."
+    ],
+    "listItems": [
+      "Router-Konfiguration",
+      "WLAN-Optimierung",
+      "Repeater-Installation",
+      "Mesh-Netzwerke"
+    ],
+    "sortOrder": 9,
+    "isPublished": true,
+    "category": "Netzwerk",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "0abcdef1-2345-6789-0abc-def123456789",
+    "slug": "heimnetzwerk-einrichten",
+    "question": "Können Sie mir ein Heimnetzwerk einrichten?",
+    "answers": [
+      "Ja, wir planen und installieren komplette Heimnetzwerke – von einfachen Lösungen bis hin zu professionellen Setups.",
+      "Dazu gehören Router-Konfiguration, NAS-Einrichtung, Smart-Home-Integration und mehr."
+    ],
+    "listItems": [
+      "Router und Access Points",
+      "NAS-Systeme",
+      "Smart-Home-Anbindung",
+      "Netzwerk-Verkabelung"
+    ],
+    "sortOrder": 10,
+    "isPublished": true,
+    "category": "Netzwerk",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "abcdef12-3456-7890-abcd-ef1234567890",
+    "slug": "virus-entfernen",
+    "question": "Ich glaube, mein Computer hat einen Virus – was nun?",
+    "answers": [
+      "Keine Panik! Wir entfernen Viren, Trojaner und andere Schadsoftware zuverlässig von Ihrem System.",
+      "Anschließend installieren wir einen aktuellen Virenschutz und zeigen Ihnen, wie Sie sich zukünftig schützen."
+    ],
+    "listItems": [
+      "Virenentfernung",
+      "Malware-Bereinigung",
+      "Virenschutz-Installation",
+      "Sicherheitsberatung"
+    ],
+    "sortOrder": 11,
+    "isPublished": true,
+    "category": "Sicherheit",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "bcdef123-4567-890a-bcde-f12345678901",
+    "slug": "webseite-erstellen-lassen",
+    "question": "Können Sie mir eine Webseite erstellen?",
+    "answers": [
+      "Ja, wir erstellen professionelle Webseiten für Privatpersonen, Vereine und kleine Unternehmen.",
+      "Von der einfachen Visitenkarten-Seite bis zur komplexen Webanwendung – wir setzen Ihre Wünsche um."
+    ],
+    "listItems": [
+      "Responsive Design",
+      "Moderne Technologien",
+      "Suchmaschinenoptimierung",
+      "Wartung und Updates"
+    ],
+    "sortOrder": 12,
+    "isPublished": true,
+    "category": "Webentwicklung",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "cdef1234-5678-90ab-cdef-123456789012",
+    "slug": "webseite-kosten",
+    "question": "Was kostet eine Webseite bei Ihnen?",
+    "answers": [
+      "Die Kosten hängen vom Umfang ab. Eine einfache Visitenkarten-Seite gibt es bereits ab wenigen hundert Euro.",
+      "Wir erstellen Ihnen gerne ein individuelles Angebot nach einem kostenlosen Beratungsgespräch."
+    ],
+    "listItems": [
+      "Individuelle Angebote",
+      "Transparente Preisgestaltung",
+      "Verschiedene Pakete verfügbar"
+    ],
+    "sortOrder": 13,
+    "isPublished": true,
+    "category": "Webentwicklung",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "def12345-6789-0abc-def1-234567890123",
+    "slug": "smart-home-einrichten",
+    "question": "Können Sie mir bei der Smart-Home-Einrichtung helfen?",
+    "answers": [
+      "Ja, wir beraten Sie bei der Auswahl kompatibler Geräte und richten Ihr Smart Home komplett ein.",
+      "Egal ob Beleuchtung, Heizung, Sicherheit oder Sprachassistenten – wir bringen alles zum Laufen."
+    ],
+    "listItems": [
+      "Produktberatung",
+      "Installation und Einrichtung",
+      "App-Konfiguration",
+      "Automatisierungen erstellen"
+    ],
+    "sortOrder": 14,
+    "isPublished": true,
+    "category": "Smart Home",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "ef123456-7890-abcd-ef12-345678901234",
+    "slug": "drucker-einrichten",
+    "question": "Mein Drucker will nicht drucken – können Sie helfen?",
+    "answers": [
+      "Druckerprobleme sind oft frustrierend, aber meist lösbar.",
+      "Wir richten Ihren Drucker ein, beheben Verbindungsprobleme und konfigurieren auch Netzwerkdrucker."
+    ],
+    "listItems": [
+      "Drucker-Installation",
+      "Treiber-Updates",
+      "Netzwerkdrucker einrichten",
+      "WLAN-Drucker konfigurieren"
+    ],
+    "sortOrder": 15,
+    "isPublished": true,
+    "category": "Hardware",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "f1234567-890a-bcde-f123-456789012345",
+    "slug": "windows-neu-installieren",
+    "question": "Können Sie Windows neu installieren?",
+    "answers": [
+      "Ja, wir installieren Windows komplett neu und richten alle Treiber und wichtigen Programme ein.",
+      "Auf Wunsch sichern wir vorher Ihre Daten und spielen sie nach der Installation wieder zurück."
+    ],
+    "listItems": [
+      "Windows-Installation",
+      "Treiber und Updates",
+      "Grundprogramme einrichten",
+      "Datensicherung und -wiederherstellung"
+    ],
+    "sortOrder": 16,
+    "isPublished": true,
+    "category": "Betriebssysteme",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "12345678-90ab-cdef-1234-567890abcdef",
+    "slug": "backup-erstellen",
+    "question": "Wie kann ich meine Daten sichern?",
+    "answers": [
+      "Wir richten für Sie eine automatische Backup-Lösung ein – lokal oder in der Cloud.",
+      "So sind Ihre wichtigen Daten immer geschützt und im Notfall schnell wiederherstellbar."
+    ],
+    "listItems": [
+      "Lokale Backups",
+      "Cloud-Backup",
+      "Automatische Sicherung",
+      "NAS als Backup-Ziel"
+    ],
+    "sortOrder": 17,
+    "isPublished": true,
+    "category": "Datensicherung",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "23456789-0abc-def1-2345-67890abcdef1",
+    "slug": "smartphone-hilfe",
+    "question": "Helfen Sie auch bei Smartphone-Problemen?",
+    "answers": [
+      "Ja, wir unterstützen Sie bei der Einrichtung und Problemlösung von Android- und iOS-Geräten.",
+      "Von der Ersteinrichtung bis zur Datenübertragung auf ein neues Handy – wir helfen gerne."
+    ],
+    "listItems": [
+      "Smartphone-Einrichtung",
+      "Datenübertragung",
+      "App-Installation",
+      "E-Mail-Konfiguration"
+    ],
+    "sortOrder": 18,
+    "isPublished": true,
+    "category": "Smartphones",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "34567890-abcd-ef12-3456-7890abcdef12",
+    "slug": "email-einrichten",
+    "question": "Können Sie mir bei der E-Mail-Einrichtung helfen?",
+    "answers": [
+      "Selbstverständlich. Wir richten E-Mail-Konten auf allen Geräten ein – PC, Laptop, Tablet und Smartphone.",
+      "Auch bei Problemen mit bestehenden E-Mail-Konten oder dem Wechsel zu einem neuen Anbieter helfen wir."
+    ],
+    "listItems": [
+      "E-Mail auf allen Geräten",
+      "Outlook-Konfiguration",
+      "Thunderbird-Einrichtung",
+      "Webmail-Zugang"
+    ],
+    "sortOrder": 19,
+    "isPublished": true,
+    "category": "E-Mail",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "4567890a-bcde-f123-4567-890abcdef123",
+    "slug": "unternehmen-it-support",
+    "question": "Bieten Sie auch IT-Support für Unternehmen?",
+    "answers": [
+      "Ja, wir betreuen kleine und mittelständische Unternehmen mit regelmäßigem IT-Support.",
+      "Von der Wartung über Problemlösung bis zur Beratung bei IT-Entscheidungen – wir sind Ihr verlässlicher Partner."
+    ],
+    "listItems": [
+      "Regelmäßige Wartung",
+      "Schnelle Problemlösung",
+      "IT-Beratung",
+      "Flexible Support-Verträge"
+    ],
+    "sortOrder": 20,
+    "isPublished": true,
+    "category": "Business",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "567890ab-cdef-1234-5678-90abcdef1234",
+    "slug": "fernwartung",
+    "question": "Bieten Sie auch Fernwartung an?",
+    "answers": [
+      "Ja, viele Probleme können wir per Fernwartung lösen – schnell und ohne Anfahrt.",
+      "Sie müssen lediglich unser Fernwartungstool herunterladen, und wir können direkt auf Ihrem Bildschirm helfen."
+    ],
+    "listItems": [
+      "Schnelle Hilfe ohne Wartezeit",
+      "Keine Anfahrtskosten",
+      "Sichere Verbindung",
+      "Sie behalten die Kontrolle"
+    ],
+    "sortOrder": 21,
+    "isPublished": true,
+    "category": "Service",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "67890abc-def1-2345-6789-0abcdef12345",
+    "slug": "wie-erreiche-ich-sie",
+    "question": "Wie kann ich Sie am besten erreichen?",
+    "answers": [
+      "Sie erreichen uns telefonisch, per E-Mail oder über unser Kontaktformular auf der Webseite.",
+      "Wir melden uns schnellstmöglich bei Ihnen zurück und vereinbaren einen Termin."
+    ],
+    "listItems": [
+      "Telefon",
+      "E-Mail",
+      "Kontaktformular",
+      "Social Media"
+    ],
+    "sortOrder": 22,
+    "isPublished": true,
+    "category": "Kontakt",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "7890abcd-ef12-3456-7890-abcdef123456",
+    "slug": "wartezeit-termin",
+    "question": "Wie lange muss ich auf einen Termin warten?",
+    "answers": [
+      "Das hängt von der aktuellen Auslastung ab, aber wir versuchen stets, zeitnah zu helfen.",
+      "Bei dringenden Problemen bemühen wir uns um einen Termin innerhalb weniger Tage."
+    ],
+    "listItems": [
+      "Schnelle Terminvergabe",
+      "Notfälle priorisiert",
+      "Flexible Zeiten"
+    ],
+    "sortOrder": 23,
+    "isPublished": true,
+    "category": "Service",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "890abcde-f123-4567-890a-bcdef1234567",
+    "slug": "zahlung-bar-karte",
+    "question": "Welche Zahlungsmöglichkeiten gibt es?",
+    "answers": [
+      "Sie können bar, per Überweisung oder auf Rechnung bezahlen.",
+      "Für Geschäftskunden bieten wir auch monatliche Abrechnungen an."
+    ],
+    "listItems": [
+      "Barzahlung",
+      "Überweisung",
+      "Rechnung",
+      "Monatliche Abrechnung für Unternehmen"
+    ],
+    "sortOrder": 24,
+    "isPublished": true,
+    "category": "Preise",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "90abcdef-1234-5678-90ab-cdef12345678",
+    "slug": "garantie-auf-arbeit",
+    "question": "Gibt es Garantie auf Ihre Arbeit?",
+    "answers": [
+      "Ja, auf unsere Dienstleistungen geben wir eine Zufriedenheitsgarantie.",
+      "Sollte ein Problem nach unserer Arbeit erneut auftreten, beheben wir es kostenlos."
+    ],
+    "listItems": [
+      "Zufriedenheitsgarantie",
+      "Kostenlose Nachbesserung",
+      "Transparente Kommunikation"
+    ],
+    "sortOrder": 25,
+    "isPublished": true,
+    "category": "Service",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "0abcdef1-2345-6789-0abc-def123456789",
+    "slug": "schulung-angeboten",
+    "question": "Bieten Sie auch Schulungen an?",
+    "answers": [
+      "Ja, wir zeigen Ihnen gerne, wie Sie Ihren Computer, Smartphone oder andere Geräte besser nutzen können.",
+      "Unsere Schulungen sind individuell auf Ihre Bedürfnisse zugeschnitten – vom Einsteiger bis zum Fortgeschrittenen."
+    ],
+    "listItems": [
+      "PC-Grundlagen",
+      "Smartphone-Schulung",
+      "Sicherheit im Internet",
+      "Individuelle Themen"
+    ],
+    "sortOrder": 26,
+    "isPublished": true,
+    "category": "Schulung",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "abcdef12-3456-7890-abcd-ef1234567891",
+    "slug": "was-unterscheidet-sie",
+    "question": "Was unterscheidet Sie von großen IT-Dienstleistern?",
+    "answers": [
+      "Wir setzen auf persönlichen Service und kennen unsere Kunden. Bei uns sind Sie keine Nummer.",
+      "Als lokales Unternehmen aus der Region verstehen wir die Bedürfnisse vor Ort und sind schnell erreichbar."
+    ],
+    "listItems": [
+      "Persönlicher Ansprechpartner",
+      "Kurze Wege",
+      "Faire Preise",
+      "Keine Hotline-Warteschleifen"
+    ],
+    "sortOrder": 27,
+    "isPublished": true,
+    "category": "Allgemein",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "bcdef123-4567-890a-bcde-f12345678902",
+    "slug": "apps-entwickeln",
+    "question": "Entwickeln Sie auch Apps?",
+    "answers": [
+      "Ja, wir entwickeln mobile Apps für Android und iOS sowie Web-Applikationen.",
+      "Von der Idee bis zur fertigen App begleiten wir Sie durch den gesamten Entwicklungsprozess."
+    ],
+    "listItems": [
+      "Android-Apps",
+      "iOS-Apps",
+      "Cross-Platform mit Flutter",
+      "Web-Applikationen"
+    ],
+    "sortOrder": 28,
+    "isPublished": true,
+    "category": "Entwicklung",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "cdef1234-5678-90ab-cdef-123456789013",
+    "slug": "server-einrichten",
+    "question": "Können Sie mir einen Server einrichten?",
+    "answers": [
+      "Ja, wir richten Server für verschiedene Zwecke ein – vom NAS zu Hause bis zum Firmenserver.",
+      "Auch Cloud-Lösungen und Hosting-Konfigurationen gehören zu unserem Angebot."
+    ],
+    "listItems": [
+      "NAS-Einrichtung",
+      "Windows Server",
+      "Linux Server",
+      "Cloud-Hosting"
+    ],
+    "sortOrder": 29,
+    "isPublished": true,
+    "category": "Server",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "def12345-6789-0abc-def1-234567890124",
+    "slug": "alte-geraete-entsorgen",
+    "question": "Können Sie alte Geräte entsorgen?",
+    "answers": [
+      "Wir können Ihnen bei der fachgerechten Entsorgung alter IT-Geräte behilflich sein.",
+      "Auf Wunsch löschen wir vorher sicher alle Ihre Daten, sodass nichts in falsche Hände gerät."
+    ],
+    "listItems": [
+      "Sichere Datenlöschung",
+      "Fachgerechte Entsorgung",
+      "Recycling-Hinweise"
+    ],
+    "sortOrder": 30,
+    "isPublished": true,
+    "category": "Service",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "ef123456-7890-abcd-ef12-345678901235",
+    "slug": "gaming-pc-bauen",
+    "question": "Bauen Sie auch Gaming-PCs?",
+    "answers": [
+      "Ja, wir stellen individuelle Gaming-PCs nach Ihren Wünschen und Budget zusammen.",
+      "Von der Komponentenauswahl bis zum fertigen System mit installiertem Betriebssystem."
+    ],
+    "listItems": [
+      "Individuelle Konfiguration",
+      "Komponenten-Beratung",
+      "Zusammenbau und Test",
+      "Windows-Installation"
+    ],
+    "sortOrder": 31,
+    "isPublished": true,
+    "category": "Hardware",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "f1234567-890a-bcde-f123-456789012346",
+    "slug": "kabelmanagement",
+    "question": "Können Sie mein Kabelchaos ordnen?",
+    "answers": [
+      "Ja, wir bringen Ordnung in Ihr Kabelchaos – zu Hause oder im Büro.",
+      "Mit durchdachtem Kabelmanagement sieht Ihr Arbeitsplatz nicht nur besser aus, sondern ist auch sicherer."
+    ],
+    "listItems": [
+      "Kabelkanäle",
+      "Beschriftung",
+      "Ordentliche Verlegung",
+      "Schreibtisch-Organisation"
+    ],
+    "sortOrder": 32,
+    "isPublished": true,
+    "category": "Service",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "12345678-90ab-cdef-1234-567890abcde0",
+    "slug": "zoom-teams-einrichten",
+    "question": "Können Sie mir Zoom oder Teams einrichten?",
+    "answers": [
+      "Ja, wir richten Videokonferenz-Tools wie Zoom, Microsoft Teams oder Google Meet für Sie ein.",
+      "Dazu gehören Kamera- und Mikrofon-Tests sowie die Einrichtung auf allen Ihren Geräten."
+    ],
+    "listItems": [
+      "Zoom-Installation",
+      "Microsoft Teams",
+      "Google Meet",
+      "Hardware-Test"
+    ],
+    "sortOrder": 33,
+    "isPublished": true,
+    "category": "Software",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "23456789-0abc-def1-2345-67890abcde01",
+    "slug": "homeoffice-einrichten",
+    "question": "Können Sie mir beim Homeoffice-Setup helfen?",
+    "answers": [
+      "Ja, wir richten Ihr komplettes Homeoffice ein – von der Hardware bis zur Software.",
+      "VPN-Verbindung zum Arbeitgeber, Drucker, zweiter Monitor – wir kümmern uns um alles."
+    ],
+    "listItems": [
+      "VPN-Einrichtung",
+      "Multi-Monitor-Setup",
+      "Drucker und Scanner",
+      "Ergonomie-Beratung"
+    ],
+    "sortOrder": 34,
+    "isPublished": true,
+    "category": "Homeoffice",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "34567890-abcd-ef12-3456-7890abcde012",
+    "slug": "passwort-vergessen",
+    "question": "Ich habe mein Windows-Passwort vergessen – können Sie helfen?",
+    "answers": [
+      "In den meisten Fällen ja. Wir können Windows-Passwörter zurücksetzen, ohne dass Daten verloren gehen.",
+      "Bitte bringen Sie einen Eigentumsnachweis mit, damit wir sicherstellen können, dass es Ihr Gerät ist."
+    ],
+    "listItems": [
+      "Passwort-Zurücksetzung",
+      "Daten bleiben erhalten",
+      "Eigentumsnachweis erforderlich"
+    ],
+    "sortOrder": 35,
+    "isPublished": true,
+    "category": "Betriebssysteme",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "4567890a-bcde-f123-4567-890abcde0123",
+    "slug": "domain-hosting",
+    "question": "Können Sie mir bei Domain und Hosting helfen?",
+    "answers": [
+      "Ja, wir beraten Sie bei der Domain-Auswahl und richten Ihr Hosting-Paket ein.",
+      "Auf Wunsch übernehmen wir auch die laufende Verwaltung Ihrer Domain und Webseite."
+    ],
+    "listItems": [
+      "Domain-Registrierung",
+      "Hosting-Einrichtung",
+      "E-Mail-Hosting",
+      "SSL-Zertifikate"
+    ],
+    "sortOrder": 36,
+    "isPublished": true,
+    "category": "Webentwicklung",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "567890ab-cdef-1234-5678-90abcde01234",
+    "slug": "senioren-support",
+    "question": "Bieten Sie speziellen Support für Senioren an?",
+    "answers": [
+      "Ja, wir haben viel Erfahrung mit älteren Kunden und nehmen uns besonders viel Zeit für Erklärungen.",
+      "Geduld und verständliche Sprache ohne Fachchinesisch sind bei uns selbstverständlich."
+    ],
+    "listItems": [
+      "Geduldige Erklärungen",
+      "Keine Fachbegriffe",
+      "Schritt-für-Schritt-Anleitungen",
+      "Wiederholungen kein Problem"
+    ],
+    "sortOrder": 37,
+    "isPublished": true,
+    "category": "Service",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "67890abc-def1-2345-6789-0abcde012345",
+    "slug": "vpn-einrichten",
+    "question": "Können Sie mir ein VPN einrichten?",
+    "answers": [
+      "Ja, wir richten VPN-Verbindungen für mehr Sicherheit und Privatsphäre ein.",
+      "Ob für den Zugriff auf Ihr Heimnetzwerk von unterwegs oder für sicheres Surfen – wir helfen gerne."
+    ],
+    "listItems": [
+      "VPN für Privatsphäre",
+      "Zugriff auf Heimnetzwerk",
+      "Firmen-VPN einrichten",
+      "VPN auf Router"
+    ],
+    "sortOrder": 38,
+    "isPublished": true,
+    "category": "Sicherheit",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "7890abcd-ef12-3456-7890-abcde0123456",
+    "slug": "raspberry-pi-projekte",
+    "question": "Helfen Sie auch bei Raspberry Pi Projekten?",
+    "answers": [
+      "Ja, wir haben Erfahrung mit Raspberry Pi und unterstützen Sie bei verschiedenen Projekten.",
+      "Von der Einrichtung eines Mediencenters bis zum Smart-Home-Server – wir setzen Ihre Ideen um."
+    ],
+    "listItems": [
+      "Raspberry Pi Einrichtung",
+      "Home-Server",
+      "Mediacenter",
+      "Individuelle Projekte"
+    ],
+    "sortOrder": 39,
+    "isPublished": true,
+    "category": "Projekte",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  },
+  {
+    "id": "890abcde-f123-4567-890a-bcde01234567",
+    "slug": "office-installation",
+    "question": "Können Sie Microsoft Office installieren?",
+    "answers": [
+      "Ja, wir installieren und konfigurieren Microsoft Office oder kostenlose Alternativen wie LibreOffice.",
+      "Auch bei der Einrichtung von Microsoft 365 und der Verknüpfung mit Ihren Geräten helfen wir."
+    ],
+    "listItems": [
+      "Microsoft Office",
+      "Microsoft 365",
+      "LibreOffice",
+      "E-Mail-Einrichtung in Outlook"
+    ],
+    "sortOrder": 40,
+    "isPublished": true,
+    "category": "Software",
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T10:00:00.000Z"
+  }
+]

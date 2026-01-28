@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://Leonards & Brandenburger IT.de/sitemap.xml

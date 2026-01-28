@@ -1,0 +1,70 @@
+<!-- <app-page-title title="Login"></app-page-title> -->
+
+<section class="auth">
+  <div class="container">
+    <div class="auth-card page-animate" [class.login-success]="loginSuccess" [class.login-error]="loginError">
+
+      <!-- Header -->
+      <div class="auth-header">
+        <div class="auth-icon">
+          <span class="material-symbols-outlined ms-fill">lock_open</span>
+        </div>
+        <h1>Anmelden</h1>
+      </div>
+
+      <!-- Form -->
+      <form (ngSubmit)="login()" class="auth-form">
+
+        <!-- Email -->
+        <div class="form-field">
+          <label for="email">E-Mail</label>
+          <div class="input-wrapper">
+            <span class="input-icon material-symbols-outlined">mail</span>
+            <input id="email" type="email" [(ngModel)]="email" name="email" placeholder="max@beispiel.de"
+              [disabled]="loading" required autocomplete="email" />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="form-field">
+          <label for="password">Passwort</label>
+          <div class="input-wrapper">
+            <span class="input-icon material-symbols-outlined">key</span>
+            <input id="password" [type]="showPassword ? 'text' : 'password'" [(ngModel)]="password" name="password"
+              placeholder="••••••••" [disabled]="loading" required autocomplete="current-password" />
+            <button type="button" class="input-action" (click)="showPassword = !showPassword"
+              [attr.aria-label]="showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'">
+              <span class="material-symbols-outlined">
+                {{ showPassword ? 'visibility_off' : 'visibility' }}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div *ngIf="error" class="alert alert--error">
+          <span class="material-symbols-outlined ms-fill">error</span>
+          <span>{{ error }}</span>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn btn--primary flex" [disabled]="loading">
+          <span *ngIf="!loading" class="flex" style="justify-content: center; align-items: center; gap: 10px;">
+            <span class="material-symbols-outlined ms-size-20">login</span>
+            Anmelden
+          </span>
+          <span *ngIf="loading" class="loading-content flex"
+            style="justify-content: center; align-items: center; gap: 10px;">
+            <span class="spinner"></span>
+            Wird angemeldet...
+          </span>
+        </button>
+      </form>
+
+      <!-- Footer -->
+      <div class="auth-footer">
+        <p>Noch kein Account? <a routerLink="/register">Jetzt registrieren</a></p>
+      </div>
+    </div>
+  </div>
+</section>

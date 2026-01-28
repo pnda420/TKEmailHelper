@@ -1,0 +1,33 @@
+<!-- UNDER CONSTRUCTION SEITE -->
+<div class="page page--maintenance" *ngIf="isUnderConstruction">
+  <app-maintenance [message]="maintenanceMessage"></app-maintenance>
+</div>
+
+<!-- NORMALE SEITE -->
+<div class="page" *ngIf="!isUnderConstruction">
+  <app-header class="site-header" [class.scrolled]="isScrolled"></app-header>
+
+  <main id="main" class="site-main" role="main">
+    <div class="main-content">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
+
+  <app-footer class="site-footer" *ngIf="!isAdminRoute"></app-footer>
+
+  <!-- Scroll to Top Button -->
+  <!-- <button class="scroll-to-top" [class.visible]="showScrollTop" (click)="scrollToTop()" aria-label="Nach oben scrollen">
+    <span class="material-symbols-outlined">arrow_upward</span>
+  </button> -->
+</div>
+
+<!-- Toast Container (immer sichtbar) -->
+<app-toast-container></app-toast-container>
+
+<!-- Cookie Banner -->
+<app-cookie-banner></app-cookie-banner>
+
+<app-confirmation [isOpen]="(confirmationState$ | async)?.isOpen || false"
+  [config]="(confirmationState$ | async)?.config || defaultConfig" (confirmed)="onConfirmed()"
+  (cancelled)="onCancelled()">
+</app-confirmation>

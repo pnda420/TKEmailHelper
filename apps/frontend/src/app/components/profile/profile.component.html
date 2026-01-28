@@ -1,0 +1,176 @@
+<section class="profile-page">
+    <div class="container">
+
+        <!-- Profile Card -->
+        <div class="profile-card" *ngIf="user">
+
+            <!-- Header Section -->
+            <div class="profile-header">
+                <div class="avatar-wrapper">
+                    <div class="avatar">
+                        {{ user.name.charAt(0).toUpperCase() }}
+                    </div>
+                    <div class="avatar-status" [class.verified]="user.isVerified"></div>
+                </div>
+                <div class="profile-info">
+                    <h2>{{ user.name }}</h2>
+                    <p class="email">{{ user.email }}</p>
+                    <div class="badges">
+                        <span class="role-badge" [ngClass]="getRoleBadgeClass()">
+                            <span class="material-symbols-outlined ms-size-18 ms-fill">{{ getRoleIcon() }}</span>
+                            {{ getRoleLabel() }}
+                        </span>
+                        <span class="verified-badge" *ngIf="user.isVerified">
+                            <span class="material-symbols-outlined ms-size-18 ms-fill">verified</span>
+                            Verifiziert
+                        </span>
+                    </div>
+                </div>
+                <button class="edit-btn" (click)="toggleEditMode()" *ngIf="!editMode">
+                    <span class="material-symbols-outlined">edit</span>
+                </button>
+            </div>
+
+            <!-- Edit Mode -->
+            <div class="edit-section" *ngIf="editMode" @slideDown>
+                <h3>
+                    <span class="material-symbols-outlined">edit</span>
+                    Profil bearbeiten
+                </h3>
+                <form (ngSubmit)="saveProfile()" class="edit-form">
+                    <div class="form-group">
+                        <label for="editName">Name</label>
+                        <input 
+                            type="text" 
+                            id="editName" 
+                            [(ngModel)]="editName" 
+                            name="editName"
+                            placeholder="Dein Name"
+                            required
+                            minlength="2"
+                            maxlength="100"
+                        />
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn--secondary" (click)="cancelEdit()">
+                            Abbrechen
+                        </button>
+                        <button type="submit" class="btn btn--primary" [disabled]="saving">
+                            <span class="material-symbols-outlined ms-size-20" *ngIf="!saving">check</span>
+                            <span class="spinner-small" *ngIf="saving"></span>
+                            {{ saving ? 'Speichern...' : 'Speichern' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="quick-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <span class="material-symbols-outlined ms-fill">calendar_today</span>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-value">{{ formatDate(user.createdAt) }}</span>
+                        <span class="stat-label">Mitglied seit</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon success">
+                        <span class="material-symbols-outlined ms-fill">verified_user</span>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-value">{{ user.isVerified ? 'Verifiziert' : 'Ausstehend' }}</span>
+                        <span class="stat-label">Account-Status</span>
+                    </div>
+                </div>
+                <div class="stat-card clickable" (click)="toggleNewsletter()">
+                    <div class="stat-icon" [class.active]="user.wantsNewsletter">
+                        <span class="material-symbols-outlined ms-fill">{{ user.wantsNewsletter ? 'notifications_active' : 'notifications_off' }}</span>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-value">{{ user.wantsNewsletter ? 'Aktiv' : 'Inaktiv' }}</span>
+                        <span class="stat-label">Newsletter</span>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" [checked]="user.wantsNewsletter" (change)="$event.stopPropagation()" />
+                        <span class="toggle-slider"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Details Accordion -->
+            <div class="details-accordion">
+                <button class="accordion-header" (click)="toggleDetails()" [class.open]="showDetails">
+                    <span class="accordion-title">
+                        <span class="material-symbols-outlined">info</span>
+                        Account-Details
+                    </span>
+                    <span class="material-symbols-outlined accordion-icon">{{ showDetails ? 'expand_less' : 'expand_more' }}</span>
+                </button>
+                <div class="accordion-content" *ngIf="showDetails" @slideDown>
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <span class="material-symbols-outlined">fingerprint</span>
+                            <div class="detail-content">
+                                <span class="detail-label">Benutzer-ID</span>
+                                <span class="detail-value">{{ user.id.substring(0, 8) }}...{{ user.id.substring(user.id.length - 4) }}</span>
+                            </div>
+                            <button class="copy-btn" (click)="copyToClipboard(user.id)" title="ID kopieren">
+                                <span class="material-symbols-outlined">content_copy</span>
+                            </button>
+                        </div>
+                        <div class="detail-item">
+                            <span class="material-symbols-outlined">mail</span>
+                            <div class="detail-content">
+                                <span class="detail-label">E-Mail-Adresse</span>
+                                <span class="detail-value">{{ user.email }}</span>
+                            </div>
+                            <button class="copy-btn" (click)="copyToClipboard(user.email)" title="E-Mail kopieren">
+                                <span class="material-symbols-outlined">content_copy</span>
+                            </button>
+                        </div>
+                        <div class="detail-item">
+                            <span class="material-symbols-outlined">badge</span>
+                            <div class="detail-content">
+                                <span class="detail-label">Vollständiger Name</span>
+                                <span class="detail-value">{{ user.name }}</span>
+                            </div>
+                        </div>
+                        <div class="detail-item">
+                            <span class="material-symbols-outlined">shield_person</span>
+                            <div class="detail-content">
+                                <span class="detail-label">Benutzerrolle</span>
+                                <span class="detail-value">{{ getRoleLabel() }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <a routerLink="/contact" class="action-card">
+                    <span class="material-symbols-outlined">support_agent</span>
+                    <span class="action-label">Support kontaktieren</span>
+                </a>
+                <a routerLink="/faq" class="action-card">
+                    <span class="material-symbols-outlined">help</span>
+                    <span class="action-label">Hilfe & FAQ</span>
+                </a>
+                <button class="action-card danger" (click)="logout()">
+                    <span class="material-symbols-outlined">logout</span>
+                    <span class="action-label">Abmelden</span>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Loading State -->
+        <div class="profile-card profile-card--loading" *ngIf="!user">
+            <div class="spinner"></div>
+            <p>Lade Profil...</p>
+        </div>
+
+    </div>
+</section>

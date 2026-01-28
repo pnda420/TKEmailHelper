@@ -1,0 +1,173 @@
+<app-admin-layout>
+<section class="admin-users">
+  <div class="container">
+
+    <!-- Header mit Stats -->
+    <div class="page-header">
+      <div class="header-content">
+        <h1>Benutzer verwalten</h1>
+        <p class="subtitle">{{ users.length }} Benutzer registriert</p>
+      </div>
+      <div class="header-stats" *ngIf="stats && !loading">
+        <div class="mini-stat">
+          <span class="mini-stat__value">{{ stats.totalUsers }}</span>
+          <span class="mini-stat__label">Gesamt</span>
+        </div>
+        <div class="mini-stat">
+          <span class="mini-stat__value">{{ stats.newsletterSubscribers }}</span>
+          <span class="mini-stat__label">Newsletter</span>
+        </div>
+        <div class="mini-stat highlight">
+          <span class="mini-stat__value">{{ stats.subscriberRate }}%</span>
+          <span class="mini-stat__label">Rate</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compact Filters -->
+    <div class="filters-bar">
+      <div class="search-box">
+        <app-icon icon="search" class="search-icon"></app-icon>
+        <input 
+          type="text" 
+          [(ngModel)]="searchTerm" 
+          placeholder="Suchen..." 
+          class="search-input"
+        >
+        <button 
+          *ngIf="searchTerm" 
+          class="clear-btn" 
+          (click)="searchTerm = ''"
+        >
+          <app-icon icon="close"></app-icon>
+        </button>
+      </div>
+
+      <div class="filter-chips">
+        <button 
+          class="chip" 
+          [class.active]="filterRole === 'all'"
+          (click)="filterRole = 'all'"
+        >Alle</button>
+        <button 
+          class="chip" 
+          [class.active]="filterRole === 'admin'"
+          (click)="filterRole = 'admin'"
+        >
+          <app-icon icon="shield"></app-icon>
+          Admins
+        </button>
+        <button 
+          class="chip" 
+          [class.active]="filterRole === 'user'"
+          (click)="filterRole = 'user'"
+        >
+          <app-icon icon="person"></app-icon>
+          User
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="state-message">
+      <div class="spinner"></div>
+      <p>Lade Benutzer...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error && !loading" class="state-message error">
+      <app-icon icon="error" size="3rem"></app-icon>
+      <p>{{ error }}</p>
+      <button class="btn btn--secondary" (click)="loadData()">Erneut versuchen</button>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading && !error && filteredUsers.length === 0" class="state-message">
+      <app-icon icon="search_off" size="3rem"></app-icon>
+      <p>Keine Benutzer gefunden</p>
+      <button *ngIf="searchTerm || filterRole !== 'all'" class="btn btn--ghost" (click)="clearFilters()">
+        Filter zurücksetzen
+      </button>
+    </div>
+
+    <!-- User List -->
+    <div *ngIf="!loading && !error && filteredUsers.length > 0" class="users-list">
+      <div 
+        *ngFor="let user of filteredUsers" 
+        class="user-card"
+        [class.is-admin]="user.role === UserRole.ADMIN"
+      >
+        <!-- Avatar & Info -->
+        <div class="user-main">
+          <div class="user-avatar" [class.admin]="user.role === UserRole.ADMIN">
+            {{ user.name.charAt(0).toUpperCase() }}
+            <span *ngIf="user.role === UserRole.ADMIN" class="admin-badge">
+              <app-icon icon="shield" size="0.75rem"></app-icon>
+            </span>
+          </div>
+          <div class="user-info">
+            <div class="user-name">{{ user.name }}</div>
+            <div class="user-email" (click)="copyEmail(user.email)" title="Klicken zum Kopieren">
+              {{ user.email }}
+              <app-icon icon="content_copy" class="copy-icon"></app-icon>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meta -->
+        <div class="user-meta">
+          <span class="meta-item" title="Registriert am">
+            <app-icon icon="calendar_today"></app-icon>
+            {{ formatDate(user.createdAt) }}
+          </span>
+          <span *ngIf="user.wantsNewsletter" class="meta-item newsletter" title="Newsletter abonniert">
+            <app-icon icon="mail"></app-icon>
+          </span>
+        </div>
+
+        <!-- Actions -->
+        <div class="user-actions">
+          <button 
+            *ngIf="user.role === UserRole.USER" 
+            class="action-btn promote"
+            (click)="makeAdmin(user)"
+            title="Zum Admin machen"
+            [disabled]="processingUserId === user.id"
+          >
+            <app-icon icon="shield_person"></app-icon>
+          </button>
+          <button 
+            *ngIf="user.role === UserRole.ADMIN" 
+            class="action-btn demote"
+            (click)="removeAdmin(user)"
+            title="Admin-Rechte entfernen"
+            [disabled]="processingUserId === user.id"
+          >
+            <app-icon icon="remove_moderator"></app-icon>
+          </button>
+          <button 
+            class="action-btn delete"
+            (click)="deleteUser(user)"
+            title="Benutzer löschen"
+            [disabled]="processingUserId === user.id"
+          >
+            <app-icon icon="delete"></app-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="list-footer" *ngIf="!loading && !error && filteredUsers.length > 0">
+      {{ filteredUsers.length }} von {{ users.length }} angezeigt
+    </div>
+
+  </div>
+</section>
+</app-admin-layout>
+
+<!-- Toast für Feedback -->
+<div class="toast" [class.visible]="toastMessage" [class.error]="toastType === 'error'">
+  <app-icon [icon]="toastType === 'error' ? 'error' : 'check_circle'"></app-icon>
+  {{ toastMessage }}
+</div>

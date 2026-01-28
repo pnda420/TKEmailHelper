@@ -1,0 +1,31 @@
+<div class="auth-required">
+    <div class="auth-card">
+        <div class="auth-icon">
+            <span class="material-symbols-outlined ms-fill">lock</span>
+        </div>
+
+        <h2>{{ title }}</h2>
+        <p>{{ message }}</p>
+
+        <div class="auth-actions">
+            <button class="btn btn--primary btn--large" [routerLink]="['/login']"
+                [queryParams]="{ returnUrl: fullReturnUrl }">
+                <span class="material-symbols-outlined ms-size-20">login</span>
+                Jetzt anmelden
+            </button>
+
+            <button class="btn btn--secondary btn--large" [routerLink]="['/register']"
+                [queryParams]="{ returnUrl: fullReturnUrl }">
+                <span class="material-symbols-outlined ms-size-20">person_add</span>
+                Konto erstellen
+            </button>
+        </div>
+
+        <div class="auth-footer" *ngIf="showBackButton">
+            <button class="btn btn--ghost" (click)="goBack()">
+                <span class="material-symbols-outlined">arrow_back</span>
+                Zurück
+            </button>
+        </div>
+    </div>
+</div>
