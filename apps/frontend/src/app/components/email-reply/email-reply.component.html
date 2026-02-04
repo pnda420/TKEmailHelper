@@ -1,0 +1,247 @@
+<section class="email-reply-page" *ngIf="!loading && email" @fadeIn>
+  <!-- Progress Bar -->
+  <div class="workflow-progress">
+    <div class="progress-bar">
+      <div class="progress-fill" [style.width.%]="progressPercent"></div>
+    </div>
+    <div class="progress-steps">
+      <button 
+        *ngFor="let step of steps; let i = index" 
+        class="progress-step"
+        [class.active]="currentStep === step"
+        [class.completed]="i < currentStepIndex"
+        [class.disabled]="i > currentStepIndex"
+        (click)="goToStep(step)">
+        <span class="step-number">{{ i + 1 }}</span>
+        <span class="step-label">
+          {{ step === 'select' ? 'Vorbereiten' : 
+             step === 'generate' ? 'Generieren' : 
+             step === 'polish' ? 'Verfeinern' : 'Senden' }}
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <div class="reply-layout">
+    <!-- Left: Original Email -->
+    <div class="original-email-panel">
+      <div class="panel-header">
+        <span class="material-symbols-outlined">mail</span>
+        <h3>Original E-Mail</h3>
+      </div>
+      
+      <div class="email-meta">
+        <div class="meta-row">
+          <span class="meta-label">Von:</span>
+          <span class="meta-value">{{ getSenderDisplay() }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Betreff:</span>
+          <span class="meta-value">{{ email.subject }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Datum:</span>
+          <span class="meta-value">{{ formatDate(email.receivedAt) }}</span>
+        </div>
+      </div>
+
+      <div class="email-body-content">
+        <div *ngIf="email.htmlBody" [innerHTML]="email.htmlBody" class="html-content"></div>
+        <pre *ngIf="!email.htmlBody && email.textBody" class="text-content">{{ email.textBody }}</pre>
+      </div>
+
+      <div class="quick-actions">
+        <button class="btn-trash" (click)="markAsNoReplyNeeded()">
+          <span class="material-symbols-outlined">delete</span>
+          Keine Antwort noetig
+        </button>
+      </div>
+    </div>
+
+    <!-- Right: Reply Composer -->
+    <div class="reply-composer-panel">
+      <div class="panel-header">
+        <span class="material-symbols-outlined">edit_note</span>
+        <h3>Deine Antwort</h3>
+        <div class="header-actions" *ngIf="canUndo">
+          <button class="btn-undo" (click)="undoGeneration()" title="Letzte Version">
+            <span class="material-symbols-outlined">undo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 1: Select Template & Settings -->
+      <div class="workflow-step" *ngIf="currentStep === 'select'">
+        <h4>Waehle eine Vorlage oder starte mit KI</h4>
+        
+        <div class="template-section">
+          <label>Vorlage verwenden (optional)</label>
+          <select [(ngModel)]="selectedTemplateId" class="template-select">
+            <option value="">-- Ohne Vorlage --</option>
+            <option *ngFor="let t of templates" [value]="t.id">{{ t.name }}</option>
+          </select>
+          <button *ngIf="selectedTemplateId" class="btn-apply-template" (click)="applyTemplate()">
+            <span class="material-symbols-outlined">content_paste</span>
+            Vorlage einfuegen
+          </button>
+        </div>
+
+        <div class="tone-section">
+          <label>Tonalitaet der Antwort</label>
+          <div class="tone-grid">
+            <button 
+              *ngFor="let tone of toneOptions" 
+              class="tone-card"
+              [class.selected]="gptTone === tone.value"
+              (click)="setTone($any(tone.value))">
+              <span class="material-symbols-outlined">{{ tone.icon }}</span>
+              <span class="tone-label">{{ tone.label }}</span>
+              <span class="tone-desc">{{ tone.description }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="instructions-section">
+          <label>Zusaetzliche Anweisungen fuer die KI (optional)</label>
+          <textarea 
+            [(ngModel)]="gptInstructions"
+            placeholder="z.B. 'Erwaehne dass wir am Montag verfuegbar sind' oder 'Frag nach dem Budget'"
+            rows="3">
+          </textarea>
+        </div>
+
+        <div class="step-actions">
+          <button class="btn-secondary" (click)="cancel()">
+            <span class="material-symbols-outlined">close</span>
+            Abbrechen
+          </button>
+          <button class="btn-primary btn-generate" (click)="generateWithGPT()" [disabled]="generatingGPT">
+            <span class="material-symbols-outlined" [class.spinning]="generatingGPT">
+              {{ generatingGPT ? 'hourglass_empty' : 'auto_awesome' }}
+            </span>
+            {{ generatingGPT ? 'Generiere...' : 'Mit KI generieren' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: Review Generated Content -->
+      <div class="workflow-step" *ngIf="currentStep === 'generate'">
+        <h4>Ueberpruefe den generierten Text</h4>
+        
+        <div class="compose-field">
+          <label>Betreff</label>
+          <input type="text" [(ngModel)]="replySubject" placeholder="Betreff eingeben">
+        </div>
+
+        <div class="compose-field compose-body">
+          <label>
+            Nachricht
+            <span class="word-count">{{ getWordCount() }} Woerter</span>
+          </label>
+          <textarea 
+            [(ngModel)]="replyBody"
+            placeholder="Deine Antwort..."
+            rows="15">
+          </textarea>
+        </div>
+
+        <div class="step-actions">
+          <button class="btn-secondary" (click)="prevStep()">
+            <span class="material-symbols-outlined">arrow_back</span>
+            Zurück
+          </button>
+          <button class="btn-regenerate" (click)="generateWithGPT()" [disabled]="generatingGPT">
+            <span class="material-symbols-outlined" [class.spinning]="generatingGPT">refresh</span>
+            Neu generieren
+          </button>
+          <button class="btn-primary" (click)="nextStep()" [disabled]="!canProceed()">
+            Weiter zum Verfeinern
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3: Polish & Refine -->
+      <div class="workflow-step" *ngIf="currentStep === 'polish'">
+        <h4>Verfeinere deine Antwort</h4>
+        
+        <div class="polish-actions">
+          <button class="btn-polish" (click)="polishWithGPT()" [disabled]="polishingGPT">
+            <span class="material-symbols-outlined" [class.spinning]="polishingGPT">auto_fix_high</span>
+            {{ polishingGPT ? 'Poliere...' : 'Mit KI polieren' }}
+          </button>
+          <p class="polish-hint">Die KI verbessert Grammatik, Stil und Formulierungen</p>
+        </div>
+
+        <div class="compose-field">
+          <label>Betreff</label>
+          <input type="text" [(ngModel)]="replySubject" placeholder="Betreff eingeben">
+        </div>
+
+        <div class="compose-field compose-body">
+          <label>
+            Nachricht
+            <span class="word-count">{{ getWordCount() }} Woerter</span>
+          </label>
+          <textarea 
+            [(ngModel)]="replyBody"
+            placeholder="Deine Antwort..."
+            rows="15">
+          </textarea>
+        </div>
+
+        <div class="step-actions">
+          <button class="btn-secondary" (click)="prevStep()">
+            <span class="material-symbols-outlined">arrow_back</span>
+            Zurück
+          </button>
+          <button class="btn-primary" (click)="nextStep()" [disabled]="!canProceed()">
+            Weiter zum Senden
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 4: Final Review & Send -->
+      <div class="workflow-step" *ngIf="currentStep === 'send'">
+        <h4>Bereit zum Senden</h4>
+        
+        <div class="send-preview">
+          <div class="preview-meta">
+            <div class="meta-row">
+              <span class="meta-label">An:</span>
+              <span class="meta-value">{{ email.fromAddress }}</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-label">Betreff:</span>
+              <span class="meta-value">{{ replySubject }}</span>
+            </div>
+          </div>
+          
+          <div class="preview-body">
+            <pre>{{ replyBody }}</pre>
+          </div>
+        </div>
+
+        <div class="step-actions step-actions--send">
+          <button class="btn-secondary" (click)="prevStep()">
+            <span class="material-symbols-outlined">arrow_back</span>
+            Zurück bearbeiten
+          </button>
+          <button class="btn-send" (click)="sendReply()" [disabled]="sendingReply || !canProceed()">
+            <span class="material-symbols-outlined" [class.spinning]="sendingReply">
+              {{ sendingReply ? 'hourglass_empty' : 'send' }}
+            </span>
+            {{ sendingReply ? 'Sende...' : 'Jetzt senden' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Loading State -->
+<div class="loading-state" *ngIf="loading">
+  <span class="material-symbols-outlined spinning">hourglass_empty</span>
+  <p>Lade E-Mail...</p>
+</div>

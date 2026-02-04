@@ -1,0 +1,128 @@
+<section class="sent-history-page">
+  <app-page-title 
+    title="Gesendete E-Mails" 
+    subtitle="Deine beantworteten E-Mails und versendeten Antworten">
+  </app-page-title>
+
+  <div class="content-wrapper">
+    <!-- Loading State -->
+    <div class="loading-state" *ngIf="loading">
+      <span class="material-symbols-outlined spinning">hourglass_empty</span>
+      <p>Lade gesendete E-Mails...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="!loading && emails.length === 0">
+      <span class="material-symbols-outlined">send</span>
+      <h3>Keine gesendeten E-Mails</h3>
+      <p>Sobald du E-Mails beantwortest, erscheinen sie hier.</p>
+      <a routerLink="/emails" class="btn-primary">
+        <span class="material-symbols-outlined">inbox</span>
+        Zum Posteingang
+      </a>
+    </div>
+
+    <!-- Email List & Detail -->
+    <div class="email-layout" *ngIf="!loading && emails.length > 0">
+      <!-- Email List -->
+      <div class="email-list" [@listAnimation]="emails.length">
+        <div class="list-header">
+          <span class="count-badge">{{ totalEmails }} gesendet</span>
+        </div>
+
+        <div 
+          class="email-item" 
+          *ngFor="let email of emails"
+          [class.selected]="selectedEmail?.id === email.id"
+          (click)="selectEmail(email)">
+          
+          <div class="email-icon sent">
+            <span class="material-symbols-outlined">reply</span>
+          </div>
+          
+          <div class="email-content">
+            <div class="email-header">
+              <span class="sender">An: {{ email.fromAddress }}</span>
+              <span class="date">{{ formatDate(email.repliedAt || email.updatedAt) }}</span>
+            </div>
+            <div class="subject">{{ email.replySentSubject || email.subject }}</div>
+            <div class="preview">{{ email.replySentBody | slice:0:100 }}...</div>
+          </div>
+        </div>
+
+        <button *ngIf="hasMore" class="load-more-btn" (click)="loadMore()">
+          Mehr laden
+        </button>
+      </div>
+
+      <!-- Email Detail -->
+      <div class="email-detail" *ngIf="selectedEmail" @fadeSlide>
+        <div class="detail-header">
+          <h2>Gesendete Antwort</h2>
+          <button class="close-btn" (click)="closeDetail()">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div class="detail-content">
+          <!-- Sent Reply -->
+          <div class="reply-section">
+            <h3>
+              <span class="material-symbols-outlined">reply</span>
+              Deine Antwort
+            </h3>
+            <div class="meta-info">
+              <div class="meta-row">
+                <span class="meta-label">An:</span>
+                <span class="meta-value">{{ selectedEmail.fromAddress }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Betreff:</span>
+                <span class="meta-value">{{ selectedEmail.replySentSubject }}</span>
+              </div>
+              <div class="meta-row" *ngIf="selectedEmail.repliedAt">
+                <span class="meta-label">Gesendet:</span>
+                <span class="meta-value">{{ formatFullDate(selectedEmail.repliedAt) }}</span>
+              </div>
+            </div>
+            <div class="reply-body">
+              <pre>{{ selectedEmail.replySentBody }}</pre>
+            </div>
+          </div>
+
+          <!-- Original Email -->
+          <div class="original-section">
+            <h3>
+              <span class="material-symbols-outlined">mail</span>
+              Original E-Mail
+            </h3>
+            <div class="meta-info">
+              <div class="meta-row">
+                <span class="meta-label">Von:</span>
+                <span class="meta-value">{{ getSenderName(selectedEmail) }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Betreff:</span>
+                <span class="meta-value">{{ selectedEmail.subject }}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Empfangen:</span>
+                <span class="meta-value">{{ formatFullDate(selectedEmail.receivedAt) }}</span>
+              </div>
+            </div>
+            <div class="original-body">
+              <div *ngIf="selectedEmail.htmlBody" [innerHTML]="selectedEmail.htmlBody"></div>
+              <pre *ngIf="!selectedEmail.htmlBody && selectedEmail.textBody">{{ selectedEmail.textBody }}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- No Selection -->
+      <div class="no-selection" *ngIf="!selectedEmail">
+        <span class="material-symbols-outlined">touch_app</span>
+        <p>Wähle eine E-Mail aus um die Details zu sehen</p>
+      </div>
+    </div>
+  </div>
+</section>

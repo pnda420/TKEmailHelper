@@ -1,5 +1,5 @@
 <!-- ============================================ -->
-<!-- HERO - Emotionaler Einstieg mit klarem Value -->
+<!-- HERO - Email Helper Dashboard -->
 <!-- ============================================ -->
 <section class="hero">
   <div class="hero__bg">
@@ -7,95 +7,82 @@
     <div class="hero__grid"></div>
     <div class="hero__orb hero__orb--1"></div>
     <div class="hero__orb hero__orb--2"></div>
-    <div class="hero__orb hero__orb--3"></div>
   </div>
 
   <div class="container">
     <div class="hero__content">
-      <!-- Trust Badge -->
+      <!-- Badge -->
       <div class="hero__badge anim-fade-up anim-delay-1">
         <span class="badge__dot"></span>
-        <span>Westerwald & Umgebung</span>
+        <span>E-Mail Management Tool</span>
       </div>
 
       <!-- Headline -->
       <h1 class="hero__headline anim-fade-up anim-delay-2">
-        <span class="hero__line-1">IT-Stress?</span>
-        <span class="hero__line-2">Wir regeln das.</span>
+        <span class="hero__line-1">E-Mails</span>
+        <span class="hero__line-2">Smarter beantworten.</span>
       </h1>
 
       <!-- Subheadline -->
       <p class="hero__sub anim-fade-up anim-delay-3">
-        PC kaputt? Website gebraucht? Software-Chaos?<br class="hide-mobile">
-        Wir helfen. Vor Ort oder remote. <strong>Festpreis, kein Bullshit.</strong>
+        Alle E-Mails an einem Ort. Mit KI-Unterstützung und<br class="hide-mobile">
+        fertigen Vorlagen in Sekunden professionell antworten.
       </p>
 
-      <!-- CTA Buttons - Kontakt primär, Leistungen sekundär -->
+      <!-- CTA Buttons -->
       <div class="hero__actions anim-fade-up anim-delay-4">
-        <button class="btn-primary" (click)="router.navigate(['/contact'])">
+        <button class="btn-primary" (click)="router.navigate(['/emails'])">
           <span class="material-symbols-outlined">mail</span>
-           Kontakt aufnehmen
+          Postfach öffnen
         </button>
-        <button class="btn-secondary" (click)="router.navigate(['/services'])">
-          Unsere Leistungen
-          <span class="material-symbols-outlined">arrow_forward</span>
+        <button class="btn-secondary" (click)="router.navigate(['/templates'])">
+          <span class="material-symbols-outlined">description</span>
+          Vorlagen verwalten
         </button>
-      </div>
-
-      <!-- Micro Trust -->
-      <div class="hero__trust anim-fade-up anim-delay-5">
-        <div class="trust-item">
-          <span class="material-symbols-outlined">location_on</span>
-          <span>Westerwald & Umgebung</span>
-        </div>
-        <div class="trust-item">
-          <span class="material-symbols-outlined">euro</span>
-          <span>Faire Festpreise</span>
-        </div>
-        <div class="trust-item">
-          <span class="material-symbols-outlined">bolt</span>
-          <span>Schnelle Reaktion</span>
-        </div>
       </div>
     </div>
 
-    <!-- Visual Card -->
-    <div class="hero__visual anim-fade-left anim-delay-3">
-      <div class="visual-card">
-        <div class="visual-card__header">
-          <div class="dots"><span></span><span></span><span></span></div>
-          <span class="visual-card__title">L&B IT-Service</span>
+    <!-- Stats Cards -->
+    <div class="hero__stats anim-fade-up anim-delay-5">
+      <div class="stat-card" (click)="router.navigate(['/emails'])">
+        <div class="stat-card__icon">
+          <span class="material-symbols-outlined">inbox</span>
         </div>
-        <div class="visual-card__body">
-          <div class="stat-row">
-            <span class="material-symbols-outlined">build</span>
-            <div>
-              <strong>Reparatur & Wartung</strong>
-              <small>PC, Laptop, Smartphone</small>
-            </div>
-          </div>
-          <div class="stat-row">
-            <span class="material-symbols-outlined">code</span>
-            <div>
-              <strong>Webentwicklung</strong>
-              <small>Websites & Web-Apps</small>
-            </div>
-          </div>
-          <div class="stat-row">
-            <span class="material-symbols-outlined">support_agent</span>
-            <div>
-              <strong>IT-Support</strong>
-              <small>Remote & Vor-Ort</small>
-            </div>
-          </div>
+        <div class="stat-card__content">
+          <span class="stat-card__value">{{ emailStats.inbox }}</span>
+          <span class="stat-card__label">Im Posteingang</span>
         </div>
       </div>
-      
-      <!-- Floating Elements -->
-      <div class="floating floating--1"><span class="material-symbols-outlined">computer</span></div>
-      <div class="floating floating--2"><span class="material-symbols-outlined">code</span></div>
-      <div class="floating floating--3"><span class="material-symbols-outlined">build</span></div>
+
+      <div class="stat-card stat-card--unread" (click)="router.navigate(['/emails'])">
+        <div class="stat-card__icon">
+          <span class="material-symbols-outlined">mark_email_unread</span>
+        </div>
+        <div class="stat-card__content">
+          <span class="stat-card__value">{{ emailStats.unread }}</span>
+          <span class="stat-card__label">Ungelesen</span>
+        </div>
+      </div>
+
+      <div class="stat-card stat-card--success" (click)="router.navigate(['/sent'])">
+        <div class="stat-card__icon">
+          <span class="material-symbols-outlined">send</span>
+        </div>
+        <div class="stat-card__content">
+          <span class="stat-card__value">{{ emailStats.sent }}</span>
+          <span class="stat-card__label">Beantwortet</span>
+        </div>
+      </div>
+
+      <div class="stat-card" (click)="router.navigate(['/templates'])">
+        <div class="stat-card__icon">
+          <span class="material-symbols-outlined">description</span>
+        </div>
+        <div class="stat-card__content">
+          <span class="stat-card__value">{{ templateCount }}</span>
+          <span class="stat-card__label">Vorlagen</span>
+        </div>
+      </div>
     </div>
   </div>
-
 </section>

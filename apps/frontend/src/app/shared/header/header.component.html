@@ -3,7 +3,7 @@
 
     <!-- Logo als Button für besseres Touch-Handling -->
     <button type="button" class="brand-btn" (click)="routeTo('/', $event)" aria-label="Zur Startseite">
-      <img class="brand" src="assets/logos/blue_logo_transparent_name_big.png" alt="LeonardsMedia"
+      <img class="brand" src="assets/logos/lm.png" alt="LeonardsMedia"
         decoding="async" loading="eager" fetchpriority="high" />
     </button>
 
@@ -16,13 +16,21 @@
           Dashboard
         </a>
 
-        <a routerLink="/contact" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
-          <span class="material-symbols-outlined ms-size-18">mail</span>
-          Email-Helper
+        <a routerLink="/emails" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
+          <span class="material-symbols-outlined ms-size-18">inbox</span>
+          Posteingang
         </a>
-        <a routerLink="/remote-support" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
-          <span class="material-symbols-outlined ms-size-18">settings</span>
-          Einstellungen
+        <a routerLink="/sent" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
+          <span class="material-symbols-outlined ms-size-18">send</span>
+          Gesendet
+        </a>
+        <a routerLink="/trash" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
+          <span class="material-symbols-outlined ms-size-18">delete</span>
+          Papierkorb
+        </a>
+        <a routerLink="/templates" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
+          <span class="material-symbols-outlined ms-size-18">description</span>
+          Vorlagen
         </a>
         <a *ngIf="user?.role === UserRole.ADMIN" routerLink="/admin" routerLinkActive="active"
           class="nav-link--admin-main" (click)="servicesDropdownOpen = false; closeMenu()">

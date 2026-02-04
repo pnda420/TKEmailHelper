@@ -1,0 +1,126 @@
+<app-page-title 
+  title="E-Mail Vorlagen" >
+</app-page-title>
+
+<div class="templates-container">
+  <!-- Toolbar -->
+  <div class="templates-toolbar">
+    <div class="toolbar-left">
+      <span class="template-count">{{ templates.length }} Vorlagen</span>
+    </div>
+    <div class="toolbar-right">
+      <button class="btn btn--primary" (click)="openNewForm()">
+        <span class="material-symbols-outlined">add</span>
+        Neue Vorlage
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="loading">
+    <span class="material-symbols-outlined spin">progress_activity</span>
+    <p>Vorlagen werden geladen...</p>
+  </div>
+
+  <!-- Templates Grid -->
+  <div class="templates-grid" *ngIf="!loading && templates.length > 0">
+    <div class="template-card" *ngFor="let template of templates">
+      <div class="template-card__header">
+        <h3 class="template-card__name">{{ template.name }}</h3>
+        <span class="template-card__category" *ngIf="template.category">
+          {{ template.category }}
+        </span>
+      </div>
+      
+      <div class="template-card__subject" *ngIf="template.subject">
+        <strong>Betreff:</strong> {{ template.subject }}
+      </div>
+      
+      <div class="template-card__body">
+        {{ getPreview(template.body) }}
+      </div>
+      
+      <div class="template-card__footer">
+        <span class="template-card__usage">
+          <span class="material-symbols-outlined">trending_up</span>
+          {{ template.usageCount }}x verwendet
+        </span>
+        <div class="template-card__actions">
+          <button class="btn btn--icon" (click)="openEditForm(template)" title="Bearbeiten">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button class="btn btn--icon btn--danger" (click)="deleteTemplate(template)" title="Löschen">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!loading && templates.length === 0">
+    <span class="material-symbols-outlined">description</span>
+    <p>Noch keine Vorlagen vorhanden</p>
+    <button class="btn btn--primary" (click)="openNewForm()">
+      Erste Vorlage erstellen
+    </button>
+  </div>
+</div>
+
+<!-- Modal Form -->
+<div class="modal-backdrop" *ngIf="showForm" (click)="closeForm()"></div>
+<div class="modal" *ngIf="showForm">
+  <div class="modal__header">
+    <h2>{{ editingTemplate ? 'Vorlage bearbeiten' : 'Neue Vorlage' }}</h2>
+    <button class="btn btn--icon" (click)="closeForm()">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
+  
+  <div class="modal__body">
+    <div class="form-group">
+      <label for="name">Name *</label>
+      <input 
+        type="text" 
+        id="name" 
+        [(ngModel)]="formData.name" 
+        placeholder="z.B. Begrüßung Support"
+        class="form-control">
+    </div>
+
+    <div class="form-group">
+      <label for="category">Kategorie</label>
+      <select id="category" [(ngModel)]="formData.category" class="form-control">
+        <option value="">Keine Kategorie</option>
+        <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="subject">Betreff (optional)</label>
+      <input 
+        type="text" 
+        id="subject" 
+        [(ngModel)]="formData.subject" 
+        placeholder="Betreff der Antwort"
+        class="form-control">
+    </div>
+
+    <div class="form-group">
+      <label for="body">Text *</label>
+      <textarea 
+        id="body" 
+        [(ngModel)]="formData.body" 
+        placeholder="Der Vorlagentext..."
+        class="form-control"
+        rows="10"></textarea>
+    </div>
+  </div>
+  
+  <div class="modal__footer">
+    <button class="btn btn--secondary" (click)="closeForm()">Abbrechen</button>
+    <button class="btn btn--primary" (click)="saveTemplate()">
+      {{ editingTemplate ? 'Speichern' : 'Erstellen' }}
+    </button>
+  </div>
+</div>

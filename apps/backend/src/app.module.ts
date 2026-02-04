@@ -7,7 +7,11 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerBehindProxyGuard } from './guards/throttler-behind-proxy.guard';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { EmailsModule } from './emails/emails.module';
+import { EmailTemplatesModule } from './email-templates/email-templates.module';
 import { User } from './users/users.entity';
+import { Email } from './emails/emails.entity';
+import { EmailTemplate } from './email-templates/email-templates.entity';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -41,13 +45,15 @@ import { User } from './users/users.entity';
       username: process.env.DB_USER ?? 'app',
       password: process.env.DB_PASS ?? 'secret',
       database: process.env.DB_NAME ?? 'appdb',
-      entities: [User],
+      entities: [User, Email, EmailTemplate],
       synchronize: true,
       logging: process.env.NODE_ENV === 'development',
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
     }),
     UsersModule,
     AuthModule,
+    EmailsModule,
+    EmailTemplatesModule,
   ],
   providers: [
     // 🛡️ Global Rate Limit Guard mit Proxy-Support und Headers

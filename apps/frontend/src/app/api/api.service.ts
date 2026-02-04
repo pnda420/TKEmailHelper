@@ -347,6 +347,111 @@ export interface ImportServicesCatalogResultDto {
   errors: string[];
 }
 
+// ==================== EMAIL INTERFACES ====================
+
+export type EmailStatus = 'inbox' | 'sent' | 'trash';
+
+export interface Email {
+  id: string;
+  messageId: string;
+  subject: string;
+  fromAddress: string;
+  fromName: string | null;
+  toAddresses: string[];
+  textBody: string | null;
+  htmlBody: string | null;
+  preview: string | null;
+  receivedAt: Date;
+  isRead: boolean;
+  hasAttachments: boolean;
+  attachments: { filename: string; contentType: string; size: number }[] | null;
+  status: EmailStatus;
+  repliedAt: Date | null;
+  replySentSubject: string | null;
+  replySentBody: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EmailListResponse {
+  emails: Email[];
+  total: number;
+}
+
+export interface UnreadCountResponse {
+  unreadCount: number;
+}
+
+export interface RefreshEmailsResponse {
+  message: string;
+  fetched: number;
+  stored: number;
+}
+
+export interface EmailStats {
+  inbox: number;
+  sent: number;
+  trash: number;
+  unread: number;
+}
+
+// ==================== EMAIL TEMPLATE INTERFACES ====================
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string | null;
+  body: string;
+  category: string | null;
+  usageCount: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateTemplateDto {
+  name: string;
+  subject?: string;
+  body: string;
+  category?: string;
+}
+
+export interface UpdateTemplateDto {
+  name?: string;
+  subject?: string;
+  body?: string;
+  category?: string;
+  isActive?: boolean;
+}
+
+export interface GenerateEmailDto {
+  originalEmail: {
+    subject: string;
+    from: string;
+    body: string;
+  };
+  instructions?: string;
+  tone?: 'professional' | 'friendly' | 'formal' | 'casual';
+  templateId?: string;
+}
+
+export interface GeneratedEmailResponse {
+  subject: string;
+  body: string;
+}
+
+export interface SendReplyDto {
+  to: string;
+  subject: string;
+  body: string;
+  inReplyTo?: string;
+}
+
+export interface SendReplyResponse {
+  success: boolean;
+  messageId?: string;
+}
+
 
 // ==================== SERVICE ====================
 
@@ -869,6 +974,184 @@ importFaqs(dto: BulkImportFaqDto): Observable<ImportFaqResultDto> {
  */
 exportFaqs(): Observable<Faq[]> {
   return this.http.get<Faq[]>(`${this.apiUrl}/faq/admin/export`, {
+    headers: this.getHeaders()
+  });
+}
+
+// ==================== EMAIL ENDPOINTS ====================
+
+/**
+ * Alle E-Mails abrufen (mit Pagination)
+ */
+getEmails(limit = 50, offset = 0): Observable<EmailListResponse> {
+  const params = new HttpParams()
+    .set('limit', limit.toString())
+    .set('offset', offset.toString());
+  return this.http.get<EmailListResponse>(`${this.apiUrl}/emails`, {
+    headers: this.getHeaders(),
+    params
+  });
+}
+
+/**
+ * Einzelne E-Mail abrufen
+ */
+getEmailById(id: string): Observable<Email> {
+  return this.http.get<Email>(`${this.apiUrl}/emails/${id}`, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * Anzahl ungelesener E-Mails
+ */
+getUnreadEmailCount(): Observable<UnreadCountResponse> {
+  return this.http.get<UnreadCountResponse>(`${this.apiUrl}/emails/unread-count`, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * E-Mails vom Server aktualisieren (IMAP fetch)
+ */
+refreshEmails(): Observable<RefreshEmailsResponse> {
+  return this.http.post<RefreshEmailsResponse>(`${this.apiUrl}/emails/refresh`, {}, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * E-Mail als gelesen markieren
+ */
+markEmailAsRead(id: string): Observable<Email> {
+  return this.http.post<Email>(`${this.apiUrl}/emails/${id}/read`, {}, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * Gesendete E-Mails abrufen
+ */
+getSentEmails(limit = 50, offset = 0): Observable<EmailListResponse> {
+  const params = new HttpParams()
+    .set('limit', limit.toString())
+    .set('offset', offset.toString());
+  return this.http.get<EmailListResponse>(`${this.apiUrl}/emails/sent`, {
+    headers: this.getHeaders(),
+    params
+  });
+}
+
+/**
+ * Papierkorb-E-Mails abrufen
+ */
+getTrashedEmails(limit = 50, offset = 0): Observable<EmailListResponse> {
+  const params = new HttpParams()
+    .set('limit', limit.toString())
+    .set('offset', offset.toString());
+  return this.http.get<EmailListResponse>(`${this.apiUrl}/emails/trash`, {
+    headers: this.getHeaders(),
+    params
+  });
+}
+
+/**
+ * E-Mail-Statistiken abrufen
+ */
+getEmailStats(): Observable<EmailStats> {
+  return this.http.get<EmailStats>(`${this.apiUrl}/emails/stats`, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * E-Mail als gesendet markieren (nach Antwort)
+ */
+markEmailAsSent(id: string, subject: string, body: string): Observable<Email> {
+  return this.http.post<Email>(`${this.apiUrl}/emails/${id}/sent`, { subject, body }, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * E-Mail in Papierkorb verschieben
+ */
+moveEmailToTrash(id: string): Observable<Email> {
+  return this.http.post<Email>(`${this.apiUrl}/emails/${id}/trash`, {}, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * E-Mail aus Papierkorb wiederherstellen
+ */
+restoreEmailFromTrash(id: string): Observable<Email> {
+  return this.http.post<Email>(`${this.apiUrl}/emails/${id}/restore`, {}, {
+    headers: this.getHeaders()
+  });
+}
+
+// ==================== EMAIL TEMPLATE ENDPOINTS ====================
+
+/**
+ * Alle Templates abrufen
+ */
+getEmailTemplates(): Observable<EmailTemplate[]> {
+  return this.http.get<EmailTemplate[]>(`${this.apiUrl}/email-templates`, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * Einzelnes Template abrufen
+ */
+getEmailTemplateById(id: string): Observable<EmailTemplate> {
+  return this.http.get<EmailTemplate>(`${this.apiUrl}/email-templates/${id}`, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * Neues Template erstellen
+ */
+createEmailTemplate(dto: CreateTemplateDto): Observable<EmailTemplate> {
+  return this.http.post<EmailTemplate>(`${this.apiUrl}/email-templates`, dto, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * Template aktualisieren
+ */
+updateEmailTemplate(id: string, dto: UpdateTemplateDto): Observable<EmailTemplate> {
+  return this.http.put<EmailTemplate>(`${this.apiUrl}/email-templates/${id}`, dto, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * Template löschen
+ */
+deleteEmailTemplate(id: string): Observable<{ success: boolean }> {
+  return this.http.delete<{ success: boolean }>(`${this.apiUrl}/email-templates/${id}`, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * E-Mail mit GPT generieren
+ */
+generateEmailWithGPT(dto: GenerateEmailDto): Observable<GeneratedEmailResponse> {
+  return this.http.post<GeneratedEmailResponse>(`${this.apiUrl}/email-templates/generate`, dto, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * E-Mail senden
+ */
+sendEmailReply(dto: SendReplyDto): Observable<SendReplyResponse> {
+  return this.http.post<SendReplyResponse>(`${this.apiUrl}/email-templates/send`, dto, {
     headers: this.getHeaders()
   });
 }

@@ -1,47 +1,77 @@
-import { Component, OnDestroy, OnInit, AfterViewInit } from '@angular/core';
-import { Router } from '@angular/router';
-import { IconComponent } from '../../shared/icon/icon.component';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { ApiService, EmailStats } from '../../api/api.service';
+import { ToastService } from '../../shared/toasts/toast.service';
 
 @Component({
   selector: 'app-home',
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule, RouterModule]
 })
-export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
+export class HomeComponent implements OnInit, OnDestroy {
+  emailStats: EmailStats = {
+    inbox: 0,
+    sent: 0,
+    trash: 0,
+    unread: 0
+  };
+  templateCount = 0;
+  refreshing = false;
 
-  constructor(public router: Router) { }
-
-  private mouseX = 0;
-  private mouseY = 0;
-  private currentX = 0;
-  private currentY = 0;
-  private animationFrame: number | null = null;
   private intersectionObserver: IntersectionObserver | null = null;
 
-  ngOnInit(): void {
-    // Maus-Tracking starten
-    this.initMouseTracking();
-  }
+  constructor(
+    public router: Router,
+    private api: ApiService,
+    private toasts: ToastService
+  ) { }
 
-  ngAfterViewInit(): void {
-    // Scroll-Animationen initialisieren
+  ngOnInit(): void {
+    this.loadStats();
     this.initScrollAnimations();
   }
 
   ngOnDestroy(): void {
-    // Cleanup
-    if (this.animationFrame) {
-      cancelAnimationFrame(this.animationFrame);
-    }
-    document.removeEventListener('mousemove', this.handleMouseMove);
-    
     if (this.intersectionObserver) {
       this.intersectionObserver.disconnect();
     }
+  }
+
+  loadStats(): void {
+    // Load email stats
+    this.api.getEmailStats().subscribe({
+      next: (stats) => {
+        this.emailStats = stats;
+      },
+      error: () => {}
+    });
+
+    // Load templates count
+    this.api.getEmailTemplates().subscribe({
+      next: (templates) => {
+        this.templateCount = templates.length;
+      },
+      error: () => {}
+    });
+  }
+
+  refreshEmails(): void {
+    this.refreshing = true;
+    this.api.refreshEmails().subscribe({
+      next: (res) => {
+        this.toasts.success(`${res.stored} neue E-Mails abgerufen`);
+        this.refreshing = false;
+        this.loadStats();
+      },
+      error: (err) => {
+        console.error('Fehler:', err);
+        this.toasts.error('Fehler beim Abrufen der E-Mails');
+        this.refreshing = false;
+      }
+    });
   }
 
   private initScrollAnimations(): void {
@@ -65,42 +95,4 @@ export class HomeComponent implements OnInit, OnDestroy, AfterViewInit {
       this.intersectionObserver?.observe(section);
     });
   }
-
-  private initMouseTracking(): void {
-    const heroSection = document.querySelector('.hero') as HTMLElement;
-    if (!heroSection) return;
-
-    // Maus-Position tracken
-    document.addEventListener('mousemove', this.handleMouseMove.bind(this));
-
-    // Smooth animation loop
-    this.animate();
-  }
-
-  private handleMouseMove = (e: MouseEvent): void => {
-    this.mouseX = e.clientX;
-    this.mouseY = e.clientY;
-  };
-
-  private animate = (): void => {
-    // Smooth lerp für flüssige Bewegung
-    const ease = 0.1;
-    this.currentX += (this.mouseX - this.currentX) * ease;
-    this.currentY += (this.mouseY - this.currentY) * ease;
-
-    // Lava-Blob positionieren
-    const heroSection = document.querySelector('.hero') as HTMLElement;
-    if (heroSection) {
-      heroSection.style.setProperty('--mouse-x', `${this.currentX}px`);
-      heroSection.style.setProperty('--mouse-y', `${this.currentY}px`);
-    }
-
-    this.animationFrame = requestAnimationFrame(this.animate);
-  };
-
-
-  routeTo(path: string) {
-    this.router.navigate([path]);
-  }
-
 }

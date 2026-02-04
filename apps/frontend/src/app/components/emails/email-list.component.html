@@ -1,0 +1,132 @@
+<app-page-title title="Posteingang" subtitle="Deine unbearbeiteten E-Mails"></app-page-title>
+
+<div class="email-container">
+    <!-- Toolbar -->
+    <div class="email-toolbar">
+        <div class="toolbar-left">
+            <span class="email-count">
+                <span class="material-symbols-outlined">inbox</span>
+                {{ totalEmails }} E-Mails
+            </span>
+        </div>
+        <div class="toolbar-right">
+            <button class="btn btn--primary" (click)="refreshEmails()" [disabled]="refreshing">
+                <span class="material-symbols-outlined" [class.spin]="refreshing">refresh</span>
+                {{ refreshing ? 'Lädt...' : 'Aktualisieren' }}
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-state" *ngIf="loading">
+        <span class="material-symbols-outlined spin">progress_activity</span>
+        <p>E-Mails werden geladen...</p>
+    </div>
+
+    <!-- Email List & Detail Split View -->
+    <div class="email-split" *ngIf="!loading">
+        <!-- Email List -->
+        <div class="email-list" [class.has-selection]="selectedEmail" [@listAnimation]="emails.length">
+            <div class="email-item" *ngFor="let email of emails" 
+                [class.unread]="!email.isRead"
+                [class.selected]="selectedEmail?.id === email.id" 
+                (click)="selectEmail(email)">
+
+                <div class="email-item__indicator" *ngIf="!email.isRead"></div>
+
+                <div class="email-item__content">
+                    <div class="email-item__header">
+                        <span class="email-item__sender">{{ getSenderName(email) }}</span>
+                        <span class="email-item__date">{{ formatDate(email.receivedAt) }}</span>
+                    </div>
+                    <div class="email-item__subject">{{ email.subject }}</div>
+                    <div class="email-item__preview">{{ email.preview || '(Kein Inhalt)' }}</div>
+                </div>
+
+                <div class="email-item__icons">
+                    <span class="material-symbols-outlined" *ngIf="email.hasAttachments" title="Anhänge">
+                        attach_file
+                    </span>
+                </div>
+            </div>
+
+            <!-- Load More -->
+            <div class="load-more" *ngIf="hasMore">
+                <button class="btn btn--secondary" (click)="loadMore()">
+                    Mehr laden
+                </button>
+            </div>
+
+            <!-- Empty State -->
+            <div class="empty-state" *ngIf="emails.length === 0">
+                <span class="material-symbols-outlined">inbox</span>
+                <p>Keine unbearbeiteten E-Mails</p>
+                <button class="btn btn--primary" (click)="refreshEmails()">
+                    E-Mails abrufen
+                </button>
+            </div>
+        </div>
+
+        <!-- Email Detail -->
+        <div class="email-detail" *ngIf="selectedEmail" @slideIn>
+            <div class="email-detail__header">
+                <div class="email-detail__actions-left">
+                    <button class="btn btn--success btn--large" (click)="openReplyPage()" title="Antworten">
+                        <span class="material-symbols-outlined">reply</span>
+                        Antworten
+                    </button>
+                    <button class="btn btn--danger-outline" (click)="moveToTrash()" title="Keine Antwort nötig">
+                        <span class="material-symbols-outlined">delete</span>
+                        Keine Antwort nötig
+                    </button>
+                </div>
+                <button class="btn btn--icon" (click)="closeDetail()" title="Schließen">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <div class="email-detail__meta">
+                <h2 class="email-detail__subject">{{ selectedEmail.subject }}</h2>
+                <div class="email-detail__from">
+                    <strong>Von:</strong>
+                    {{ selectedEmail.fromName ? selectedEmail.fromName + ' <' + selectedEmail.fromAddress + '>' : selectedEmail.fromAddress }}
+                </div>
+                <div class="email-detail__to">
+                    <strong>An:</strong> {{ selectedEmail.toAddresses.join(', ') }}
+                </div>
+                <div class="email-detail__date">
+                    <strong>Datum:</strong>
+                    {{ selectedEmail.receivedAt | date:'dd.MM.yyyy HH:mm' }}
+                </div>
+            </div>
+
+            <!-- Attachments -->
+            <div class="email-detail__attachments" *ngIf="selectedEmail.attachments?.length">
+                <strong>Anhaenge:</strong>
+                <div class="attachment-list">
+                    <span class="attachment" *ngFor="let att of selectedEmail.attachments">
+                        <span class="material-symbols-outlined">attachment</span>
+                        {{ att.filename }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Email Body -->
+            <div class="email-detail__body">
+                <div *ngIf="selectedEmail.htmlBody" class="email-html-body" [innerHTML]="selectedEmail.htmlBody">
+                </div>
+                <pre *ngIf="!selectedEmail.htmlBody && selectedEmail.textBody"
+                    class="email-text-body">{{ selectedEmail.textBody }}</pre>
+                <p *ngIf="!selectedEmail.htmlBody && !selectedEmail.textBody" class="no-content">
+                    (Kein Inhalt)
+                </p>
+            </div>
+        </div>
+
+        <!-- No Selection -->
+        <div class="no-selection" *ngIf="!selectedEmail">
+            <span class="material-symbols-outlined">touch_app</span>
+            <p>Wähle eine E-Mail aus um sie zu lesen und zu beantworten</p>
+        </div>
+    </div>
+</div>

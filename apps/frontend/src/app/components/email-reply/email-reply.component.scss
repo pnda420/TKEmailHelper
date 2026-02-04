@@ -1,0 +1,711 @@
+@use '../../utils/shared-styles.scss' as *;
+
+// ==================== PAGE LAYOUT ====================
+
+.email-reply-page {
+  min-height: calc(100vh - 80px);
+  background: $color-background-secondary;
+  padding: 0;
+}
+
+// ==================== PROGRESS BAR ====================
+
+.workflow-progress {
+  background: $color-white;
+  border-bottom: 1px solid $color-gray-200;
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.progress-bar {
+  height: 4px;
+  background: $color-gray-200;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: $gradient-primary;
+  border-radius: 2px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progress-steps {
+  display: flex;
+  justify-content: space-between;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: $radius-sm;
+  transition: all $transition-base;
+
+  &:hover:not(.disabled) {
+    background: $color-gray-100;
+  }
+
+  &.disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  &.active {
+    .step-number {
+      background: $color-brand-primary;
+      color: $color-white;
+      transform: scale(1.1);
+    }
+    .step-label {
+      color: $color-brand-primary;
+      font-weight: 600;
+    }
+  }
+
+  &.completed {
+    .step-number {
+      background: $color-success;
+      color: $color-white;
+    }
+  }
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: $color-gray-200;
+  color: $color-text-secondary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all $transition-base;
+}
+
+.step-label {
+  font-size: 0.75rem;
+  color: $color-text-secondary;
+  transition: all $transition-base;
+}
+
+// ==================== LAYOUT ====================
+
+.reply-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  min-height: calc(100vh - 140px);
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+}
+
+// ==================== PANELS ====================
+
+.original-email-panel,
+.reply-composer-panel {
+  padding: 2rem;
+  overflow-y: auto;
+  max-height: calc(100vh - 140px);
+
+  @media (max-width: 1024px) {
+    max-height: none;
+  }
+}
+
+.original-email-panel {
+  background: $color-white;
+  border-right: 1px solid $color-gray-200;
+
+  @media (max-width: 1024px) {
+    border-right: none;
+    border-bottom: 1px solid $color-gray-200;
+    max-height: 40vh;
+  }
+}
+
+.reply-composer-panel {
+  background: $color-background-secondary;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid $color-gray-200;
+
+  .material-symbols-outlined {
+    font-size: 24px;
+    color: $color-brand-primary;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    flex: 1;
+    color: $color-text-primary;
+  }
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-undo {
+  background: $color-white;
+  border: 1px solid $color-gray-200;
+  border-radius: $radius-sm;
+  padding: 0.5rem;
+  cursor: pointer;
+  color: $color-text-secondary;
+  transition: all $transition-base;
+
+  &:hover {
+    color: $color-brand-primary;
+    border-color: $color-brand-primary;
+  }
+}
+
+// ==================== EMAIL META ====================
+
+.email-meta {
+  background: $color-gray-50;
+  border-radius: $radius-md;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.meta-row {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid $color-gray-200;
+  }
+}
+
+.meta-label {
+  font-size: 0.75rem;
+  color: $color-text-secondary;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 60px;
+}
+
+.meta-value {
+  font-size: 0.875rem;
+  color: $color-text-primary;
+  word-break: break-word;
+}
+
+// ==================== EMAIL BODY ====================
+
+.email-body-content {
+  background: $color-white;
+  border-radius: $radius-md;
+  padding: 1.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid $color-gray-200;
+
+  @media (max-width: 1024px) {
+    max-height: 200px;
+  }
+}
+
+.html-content {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: $color-text-primary;
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+.text-content {
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  color: $color-text-primary;
+}
+
+// ==================== QUICK ACTIONS ====================
+
+.quick-actions {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid $color-gray-200;
+}
+
+.btn-trash {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: 1px solid $color-error;
+  color: $color-error;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all $transition-base;
+
+  &:hover {
+    background: $color-error;
+    color: $color-white;
+  }
+}
+
+// ==================== WORKFLOW STEPS ====================
+
+.workflow-step {
+  h4 {
+    margin: 0 0 1.5rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: $color-text-primary;
+  }
+}
+
+// ==================== TEMPLATE SECTION ====================
+
+.template-section {
+  margin-bottom: 2rem;
+
+  label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: $color-text-primary;
+    margin-bottom: 0.5rem;
+  }
+
+  .template-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid $color-gray-200;
+    border-radius: $radius-sm;
+    background: $color-white;
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+    color: $color-text-primary;
+
+    &:focus {
+      outline: none;
+      border-color: $color-brand-primary;
+      box-shadow: 0 0 0 3px rgba($color-brand-primary, 0.1);
+    }
+  }
+}
+
+.btn-apply-template {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: $color-white;
+  border: 1px solid $color-gray-200;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: $color-text-primary;
+  transition: all $transition-base;
+
+  &:hover {
+    border-color: $color-brand-primary;
+    color: $color-brand-primary;
+  }
+}
+
+// ==================== TONE SECTION ====================
+
+.tone-section {
+  margin-bottom: 2rem;
+
+  > label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: $color-text-primary;
+    margin-bottom: 0.75rem;
+  }
+}
+
+.tone-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tone-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: $color-white;
+  border: 2px solid $color-gray-200;
+  border-radius: $radius-md;
+  cursor: pointer;
+  transition: all $transition-base;
+
+  &:hover {
+    border-color: $color-brand-primary;
+    transform: translateY(-2px);
+  }
+
+  &.selected {
+    border-color: $color-brand-primary;
+    background: rgba($color-brand-primary, 0.05);
+    
+    .material-symbols-outlined {
+      color: $color-brand-primary;
+    }
+  }
+
+  .material-symbols-outlined {
+    font-size: 28px;
+    color: $color-text-secondary;
+    transition: color $transition-base;
+  }
+}
+
+.tone-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: $color-text-primary;
+}
+
+.tone-desc {
+  font-size: 0.75rem;
+  color: $color-text-secondary;
+  text-align: center;
+}
+
+// ==================== INSTRUCTIONS ====================
+
+.instructions-section {
+  margin-bottom: 2rem;
+
+  label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: $color-text-primary;
+    margin-bottom: 0.5rem;
+  }
+
+  textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid $color-gray-200;
+    border-radius: $radius-sm;
+    background: $color-white;
+    font-size: 0.875rem;
+    resize: vertical;
+    font-family: inherit;
+    color: $color-text-primary;
+
+    &:focus {
+      outline: none;
+      border-color: $color-brand-primary;
+      box-shadow: 0 0 0 3px rgba($color-brand-primary, 0.1);
+    }
+
+    &::placeholder {
+      color: $color-text-tertiary;
+    }
+  }
+}
+
+// ==================== COMPOSE FIELDS ====================
+
+.compose-field {
+  margin-bottom: 1.5rem;
+
+  label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: $color-text-primary;
+    margin-bottom: 0.5rem;
+  }
+
+  input, textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid $color-gray-200;
+    border-radius: $radius-sm;
+    background: $color-white;
+    font-size: 0.875rem;
+    font-family: inherit;
+    color: $color-text-primary;
+
+    &:focus {
+      outline: none;
+      border-color: $color-brand-primary;
+      box-shadow: 0 0 0 3px rgba($color-brand-primary, 0.1);
+    }
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 300px;
+  }
+}
+
+.word-count {
+  font-size: 0.75rem;
+  color: $color-text-secondary;
+  font-weight: 400;
+}
+
+// ==================== POLISH SECTION ====================
+
+.polish-actions {
+  background: linear-gradient(135deg, rgba($color-brand-primary, 0.1), rgba(#8b5cf6, 0.1));
+  border-radius: $radius-md;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.btn-polish {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, $color-brand-primary, #8b5cf6);
+  border: none;
+  border-radius: $radius-sm;
+  color: $color-white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all $transition-base;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba($color-brand-primary, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+
+.polish-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  color: $color-text-secondary;
+}
+
+// ==================== SEND PREVIEW ====================
+
+.send-preview {
+  background: $color-white;
+  border: 1px solid $color-gray-200;
+  border-radius: $radius-md;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.preview-meta {
+  background: $color-gray-50;
+  padding: 1rem;
+  border-bottom: 1px solid $color-gray-200;
+}
+
+.preview-body {
+  padding: 1.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+
+  pre {
+    margin: 0;
+    font-family: inherit;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: $color-text-primary;
+  }
+}
+
+// ==================== STEP ACTIONS ====================
+
+.step-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid $color-gray-200;
+  flex-wrap: wrap;
+
+  &--send {
+    justify-content: space-between;
+  }
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: $color-white;
+  border: 1px solid $color-gray-200;
+  border-radius: $radius-sm;
+  color: $color-text-primary;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all $transition-base;
+
+  &:hover {
+    border-color: $color-brand-primary;
+    color: $color-brand-primary;
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: $color-brand-primary;
+  border: none;
+  border-radius: $radius-sm;
+  color: $color-white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all $transition-base;
+  margin-left: auto;
+
+  &:hover:not(:disabled) {
+    background: $color-brand-dark;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-generate {
+  background: $gradient-primary;
+}
+
+.btn-regenerate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: transparent;
+  border: 1px solid $color-brand-primary;
+  border-radius: $radius-sm;
+  color: $color-brand-primary;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all $transition-base;
+
+  &:hover:not(:disabled) {
+    background: $color-brand-primary;
+    color: $color-white;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-send {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, $color-success, darken($color-success, 10%));
+  border: none;
+  border-radius: $radius-sm;
+  color: $color-white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all $transition-base;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba($color-success, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+
+// ==================== ANIMATIONS ====================
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// ==================== LOADING STATE ====================
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: 1rem;
+  color: $color-text-secondary;
+
+  .material-symbols-outlined {
+    font-size: 48px;
+    color: $color-brand-primary;
+  }
+
+  p {
+    font-size: 1rem;
+    color: $color-text-secondary;
+  }
+}

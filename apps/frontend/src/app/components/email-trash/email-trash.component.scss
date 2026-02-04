@@ -1,0 +1,380 @@
+@use '../../utils/shared-styles' as *;
+
+.email-trash-page {
+  min-height: calc(100vh - 80px);
+  background: var(--bg-alt);
+}
+
+.content-wrapper {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+}
+
+// ==================== LOADING & EMPTY STATES ====================
+
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 1rem;
+  color: var(--text-muted);
+  text-align: center;
+
+  .material-symbols-outlined {
+    font-size: 64px;
+    opacity: 0.5;
+  }
+
+  h3 {
+    margin: 0;
+    color: var(--text);
+  }
+
+  p {
+    margin: 0;
+    max-width: 300px;
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--primary);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+
+  &:hover {
+    filter: brightness(1.1);
+  }
+}
+
+// ==================== EMAIL LAYOUT ====================
+
+.email-layout {
+  display: grid;
+  grid-template-columns: 450px 1fr;
+  gap: 1.5rem;
+  background: var(--bg-card);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  min-height: 600px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ==================== EMAIL LIST ====================
+
+.email-list {
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  max-height: calc(100vh - 250px);
+
+  @media (max-width: 900px) {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 400px;
+  }
+}
+
+.list-header {
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  z-index: 10;
+}
+
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--danger, #ef4444);
+  color: white;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.email-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  align-items: center;
+
+  &:hover {
+    background: var(--bg-alt);
+
+    .restore-btn-inline {
+      opacity: 1;
+    }
+  }
+
+  &.selected {
+    background: rgba(var(--primary-rgb, 59, 130, 246), 0.1);
+    border-left: 3px solid var(--primary);
+  }
+}
+
+.email-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  
+  &.trash {
+    background: rgba(var(--danger-rgb, 239, 68, 68), 0.1);
+    color: var(--danger, #ef4444);
+  }
+
+  .material-symbols-outlined {
+    font-size: 20px;
+  }
+}
+
+.email-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.email-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.sender {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.subject {
+  font-size: 0.875rem;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.restore-btn-inline {
+  opacity: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--success, #10b981);
+    color: white;
+    border-color: var(--success, #10b981);
+  }
+}
+
+.load-more-btn {
+  width: 100%;
+  padding: 1rem;
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: var(--bg-alt);
+  }
+}
+
+// ==================== EMAIL DETAIL ====================
+
+.email-detail {
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(100vh - 250px);
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+
+  h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    flex: 1;
+    word-break: break-word;
+  }
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.restore-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--success, #10b981);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    filter: brightness(1.1);
+  }
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--bg-alt);
+    color: var(--text);
+  }
+}
+
+.detail-meta {
+  background: var(--bg-alt);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.meta-row {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+.meta-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 80px;
+}
+
+.meta-value {
+  font-size: 0.875rem;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.detail-body {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.html-content {
+  font-size: 0.875rem;
+  line-height: 1.6;
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+.text-content {
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+// ==================== NO SELECTION ====================
+
+.no-selection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: var(--text-muted);
+
+  .material-symbols-outlined {
+    font-size: 64px;
+    opacity: 0.3;
+  }
+}
+
+// ==================== ANIMATIONS ====================
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

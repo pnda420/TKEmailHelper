@@ -1,0 +1,107 @@
+<section class="email-trash-page">
+  <app-page-title 
+    title="Papierkorb" 
+    subtitle="E-Mails, die keine Antwort benötigen">
+  </app-page-title>
+
+  <div class="content-wrapper">
+    <!-- Loading State -->
+    <div class="loading-state" *ngIf="loading">
+      <span class="material-symbols-outlined spinning">hourglass_empty</span>
+      <p>Lade Papierkorb...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="!loading && emails.length === 0">
+      <span class="material-symbols-outlined">delete_sweep</span>
+      <h3>Papierkorb ist leer</h3>
+      <p>E-Mails, die keine Antwort benötigen, landen hier.</p>
+      <a routerLink="/emails" class="btn-primary">
+        <span class="material-symbols-outlined">inbox</span>
+        Zum Posteingang
+      </a>
+    </div>
+
+    <!-- Email List & Detail -->
+    <div class="email-layout" *ngIf="!loading && emails.length > 0">
+      <!-- Email List -->
+      <div class="email-list" [@listAnimation]="emails.length">
+        <div class="list-header">
+          <span class="count-badge">{{ totalEmails }} im Papierkorb</span>
+        </div>
+
+        <div 
+          class="email-item" 
+          *ngFor="let email of emails"
+          [class.selected]="selectedEmail?.id === email.id"
+          (click)="selectEmail(email)">
+          
+          <div class="email-icon trash">
+            <span class="material-symbols-outlined">delete</span>
+          </div>
+          
+          <div class="email-content">
+            <div class="email-header">
+              <span class="sender">{{ getSenderName(email) }}</span>
+              <span class="date">{{ formatDate(email.receivedAt) }}</span>
+            </div>
+            <div class="subject">{{ email.subject }}</div>
+            <div class="preview">{{ email.preview || email.textBody | slice:0:100 }}...</div>
+          </div>
+
+          <button class="restore-btn-inline" (click)="restoreEmail(email); $event.stopPropagation()" title="Wiederherstellen">
+            <span class="material-symbols-outlined">restore</span>
+          </button>
+        </div>
+
+        <button *ngIf="hasMore" class="load-more-btn" (click)="loadMore()">
+          Mehr laden
+        </button>
+      </div>
+
+      <!-- Email Detail -->
+      <div class="email-detail" *ngIf="selectedEmail" @fadeSlide>
+        <div class="detail-header">
+          <h2>{{ selectedEmail.subject }}</h2>
+          <div class="header-actions">
+            <button class="restore-btn" (click)="restoreEmail(selectedEmail)">
+              <span class="material-symbols-outlined">restore</span>
+              Wiederherstellen
+            </button>
+            <button class="close-btn" (click)="closeDetail()">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="detail-meta">
+          <div class="meta-row">
+            <span class="meta-label">Von:</span>
+            <span class="meta-value">
+              {{ selectedEmail.fromName ? selectedEmail.fromName + ' <' + selectedEmail.fromAddress + '>' : selectedEmail.fromAddress }}
+            </span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Betreff:</span>
+            <span class="meta-value">{{ selectedEmail.subject }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Empfangen:</span>
+            <span class="meta-value">{{ formatFullDate(selectedEmail.receivedAt) }}</span>
+          </div>
+        </div>
+
+        <div class="detail-body">
+          <div *ngIf="selectedEmail.htmlBody" [innerHTML]="selectedEmail.htmlBody" class="html-content"></div>
+          <pre *ngIf="!selectedEmail.htmlBody && selectedEmail.textBody" class="text-content">{{ selectedEmail.textBody }}</pre>
+        </div>
+      </div>
+
+      <!-- No Selection -->
+      <div class="no-selection" *ngIf="!selectedEmail">
+        <span class="material-symbols-outlined">touch_app</span>
+        <p>Wähle eine E-Mail aus um die Details zu sehen</p>
+      </div>
+    </div>
+  </div>
+</section>
