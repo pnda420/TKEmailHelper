@@ -8,13 +8,16 @@ import {
     Delete, 
     HttpCode, 
     HttpStatus,
-    UseGuards 
+    UseGuards,
+    ForbiddenException
   } from '@nestjs/common';
   import { Throttle } from '@nestjs/throttler';
   import { UsersService } from './users.service';
 import { CreateUserDto, LoginDto, NewsletterSubscribeDto, UpdateUserDto } from './users.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { User } from './users.entity';
   
   @Controller('users')
   @Throttle({ default: { limit: 30, ttl: 60000 } }) // 🛡️ Basis: 30 Requests/Minute
@@ -84,13 +87,44 @@ import { AdminGuard } from 'src/auth/guards/admin.guard';
     async findAll() {
       return this.usersService.findAll();
     }
-  
+
+    // ==================== EIGENES PROFIL (OHNE ADMIN) ====================
+    // NOTE: These routes MUST be defined BEFORE the generic /:id routes!
+
+    /**
+     * PATCH /users/me - Update own profile (no admin required)
+     * Users can update their own: name, wantsNewsletter, signature fields, emailSignature
+     * Users CANNOT update: role, email, password (separate endpoints needed)
+     */
+    @UseGuards(JwtAuthGuard)
+    @Patch('me')
+    async updateOwnProfile(
+      @CurrentUser() user: User,
+      @Body() dto: UpdateUserDto
+    ) {
+      // Security: Remove fields that users should not change themselves
+      delete dto.role; // Only admins can change roles
+      
+      return this.usersService.update(user.id, dto);
+    }
+
+    /**
+     * GET /users/me - Get own profile
+     */
+    @UseGuards(JwtAuthGuard)
+    @Get('me')
+    async getOwnProfile(@CurrentUser() user: User) {
+      return this.usersService.findOne(user.id);
+    }
+
+    // ==================== ADMIN ROUTES FOR USER BY ID ====================
+
     @UseGuards(JwtAuthGuard, AdminGuard)
     @Get(':id')
     async findOne(@Param('id') id: string) {
       return this.usersService.findOne(id);
     }
-  
+
     @UseGuards(JwtAuthGuard, AdminGuard)
     @Patch(':id')
     async update(
@@ -99,18 +133,11 @@ import { AdminGuard } from 'src/auth/guards/admin.guard';
     ) {
       return this.usersService.update(id, dto);
     }
-  
+
     @UseGuards(JwtAuthGuard, AdminGuard)
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     async delete(@Param('id') id: string) {
       return this.usersService.delete(id);
     }
-  
-    // Eigenes Profil abrufen (wenn eingeloggt)
-    // @UseGuards(JwtAuthGuard)
-    // @Get('me')
-    // async getProfile(@CurrentUser() user: User) {
-    //   return this.usersService.findOne(user.id);
-    // }
   }

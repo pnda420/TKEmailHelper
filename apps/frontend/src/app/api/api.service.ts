@@ -34,6 +34,14 @@ export interface UpdateUserDto {
   name?: string;
   wantsNewsletter?: boolean;
   role?: UserRole;
+  // AI Context Signature fields (for AI to know who the user is)
+  signatureName?: string | null;
+  signaturePosition?: string | null;
+  signatureCompany?: string | null;
+  signaturePhone?: string | null;
+  signatureWebsite?: string | null;
+  // Real HTML Email Signature (like Outlook)
+  emailSignature?: string | null;
 }
 
 export interface UserStats {
@@ -521,10 +529,19 @@ export class ApiService {
   }
 
   /**
-   * User aktualisieren
+   * User aktualisieren (Admin only)
    */
   updateUser(id: string, dto: UpdateUserDto): Observable<User> {
     return this.http.patch<User>(`${this.apiUrl}/users/${id}`, dto, {
+      headers: this.getHeaders()
+    });
+  }
+
+  /**
+   * Eigenes Profil aktualisieren (kein Admin erforderlich)
+   */
+  updateMe(dto: UpdateUserDto): Observable<User> {
+    return this.http.patch<User>(`${this.apiUrl}/users/me`, dto, {
       headers: this.getHeaders()
     });
   }
@@ -1143,6 +1160,25 @@ deleteEmailTemplate(id: string): Observable<{ success: boolean }> {
  */
 generateEmailWithGPT(dto: GenerateEmailDto): Observable<GeneratedEmailResponse> {
   return this.http.post<GeneratedEmailResponse>(`${this.apiUrl}/email-templates/generate`, dto, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * KI-Template-Empfehlung für eine E-Mail
+ */
+getAITemplateRecommendation(subject: string, body: string): Observable<{
+  templateId: string | null;
+  templateName: string | null;
+  reason: string;
+  confidence: number;
+}> {
+  return this.http.post<{
+    templateId: string | null;
+    templateName: string | null;
+    reason: string;
+    confidence: number;
+  }>(`${this.apiUrl}/email-templates/recommend`, { subject, body }, {
     headers: this.getHeaders()
   });
 }

@@ -1,7 +1,6 @@
 <section class="email-trash-page">
   <app-page-title 
-    title="Papierkorb" 
-    subtitle="E-Mails, die keine Antwort benötigen">
+    title="Papierkorb">
   </app-page-title>
 
   <div class="content-wrapper">
@@ -91,6 +90,27 @@
           </div>
         </div>
 
+        <!-- Attachments -->
+        <div class="attachments-box" *ngIf="selectedEmail.attachments?.length">
+          <div class="attachments-title">
+            <span class="material-symbols-outlined">attach_file</span>
+            {{ selectedEmail.attachments!.length }} Anhang{{ selectedEmail.attachments!.length > 1 ? 'e' : '' }}
+          </div>
+          <div class="attachments-list">
+            <div 
+              class="attachment-item"
+              *ngFor="let att of selectedEmail.attachments; let i = index"
+              (click)="openAttachmentPreview(att, i)">
+              <span class="material-symbols-outlined file-icon">{{ getFileIcon(att.contentType) }}</span>
+              <div class="attachment-info">
+                <span class="attachment-name">{{ att.filename }}</span>
+                <span class="attachment-size">{{ formatFileSize(att.size) }}</span>
+              </div>
+              <span class="material-symbols-outlined preview-icon">visibility</span>
+            </div>
+          </div>
+        </div>
+
         <div class="detail-body">
           <div *ngIf="selectedEmail.htmlBody" [innerHTML]="selectedEmail.htmlBody" class="html-content"></div>
           <pre *ngIf="!selectedEmail.htmlBody && selectedEmail.textBody" class="text-content">{{ selectedEmail.textBody }}</pre>
@@ -105,3 +125,12 @@
     </div>
   </div>
 </section>
+
+<!-- Attachment Preview Modal -->
+<app-attachment-preview
+  [attachment]="selectedAttachment"
+  [attachments]="currentAttachments"
+  [isOpen]="attachmentPreviewOpen"
+  (close)="closeAttachmentPreview()"
+  (download)="downloadAttachment($event)">
+</app-attachment-preview>

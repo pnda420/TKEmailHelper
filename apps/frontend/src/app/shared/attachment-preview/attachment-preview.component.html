@@ -1,0 +1,92 @@
+<div class="modal-backdrop" 
+     *ngIf="isOpen && attachment" 
+     @modalAnimation
+     (click)="onBackdropClick($event)"
+     (keydown)="onKeydown($event)"
+     tabindex="0">
+    
+    <div class="modal-content" @contentAnimation>
+        <!-- Header -->
+        <div class="modal-header">
+            <div class="file-info">
+                <span class="material-symbols-outlined file-icon">{{ fileIcon }}</span>
+                <div class="file-details">
+                    <span class="file-name">{{ attachment.filename }}</span>
+                    <span class="file-meta">{{ attachment.contentType }} • {{ formattedSize }}</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn-action" (click)="onDownload()" title="Herunterladen">
+                    <span class="material-symbols-outlined">download</span>
+                </button>
+                <button class="btn-action btn-close" (click)="onClose()" title="Schließen">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Counter -->
+        <div class="nav-counter" *ngIf="canNavigate">
+            {{ currentIndex + 1 }} / {{ attachments.length }}
+        </div>
+
+        <!-- Preview Area -->
+        <div class="preview-area">
+            <!-- Loading -->
+            <div class="preview-loading" *ngIf="loading">
+                <span class="material-symbols-outlined spinning">hourglass_empty</span>
+                <span>Lade Vorschau...</span>
+            </div>
+
+            <!-- Error -->
+            <div class="preview-error" *ngIf="error && !loading">
+                <span class="material-symbols-outlined">error</span>
+                <span>Vorschau konnte nicht geladen werden</span>
+                <button class="btn-retry" (click)="loadPreview()">
+                    <span class="material-symbols-outlined">refresh</span>
+                    Erneut versuchen
+                </button>
+            </div>
+
+            <!-- Image Preview -->
+            <div class="preview-image" *ngIf="isImage && !loading && !error">
+                <img [src]="previewUrl" 
+                     [alt]="attachment.filename"
+                     (load)="onImageLoad()"
+                     (error)="onImageError()">
+            </div>
+
+            <!-- PDF Preview -->
+            <div class="preview-pdf" *ngIf="isPdf && !loading && !error">
+                <iframe [src]="previewUrl" 
+                        [title]="attachment.filename"
+                        type="application/pdf">
+                </iframe>
+            </div>
+
+            <!-- Non-previewable File -->
+            <div class="preview-fallback" *ngIf="!isPreviewable && !loading && !error">
+                <span class="material-symbols-outlined large-icon">{{ fileIcon }}</span>
+                <span class="fallback-text">Vorschau für diesen Dateityp nicht verfügbar</span>
+                <button class="btn-download" (click)="onDownload()">
+                    <span class="material-symbols-outlined">download</span>
+                    Datei herunterladen
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Arrows -->
+        <button class="nav-arrow nav-prev" 
+                *ngIf="canNavigate && hasPrevious" 
+                (click)="navigatePrevious()"
+                title="Vorherige">
+            <span class="material-symbols-outlined">chevron_left</span>
+        </button>
+        <button class="nav-arrow nav-next" 
+                *ngIf="canNavigate && hasNext" 
+                (click)="navigateNext()"
+                title="Nächste">
+            <span class="material-symbols-outlined">chevron_right</span>
+        </button>
+    </div>
+</div>

@@ -2,16 +2,19 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { trigger, transition, style, animate, stagger, query } from '@angular/animations';
 import { ApiService, Email } from '../../api/api.service';
 import { ToastService } from '../../shared/toasts/toast.service';
 import { PageTitleComponent } from '../../shared/page-title/page-title.component';
+import { AttachmentPreviewComponent, AttachmentInfo } from '../../shared/attachment-preview/attachment-preview.component';
+import { ConfigService } from '../../services/config.service';
 
 @Component({
   selector: 'app-email-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, PageTitleComponent],
+  imports: [CommonModule, RouterModule, FormsModule, PageTitleComponent, AttachmentPreviewComponent],
   templateUrl: './email-list.component.html',
   styleUrl: './email-list.component.scss',
   animations: [
@@ -43,6 +46,11 @@ export class EmailListComponent implements OnInit, OnDestroy {
   refreshing = false;
   selectedEmail: Email | null = null;
   
+  // Attachment Preview
+  attachmentPreviewOpen = false;
+  selectedAttachment: AttachmentInfo | null = null;
+  currentAttachments: AttachmentInfo[] = [];
+  
   private limit = 50;
   private offset = 0;
   private sub?: Subscription;
@@ -50,7 +58,9 @@ export class EmailListComponent implements OnInit, OnDestroy {
   constructor(
     private api: ApiService,
     private toasts: ToastService,
-    private router: Router
+    private router: Router,
+    private configService: ConfigService,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
@@ -173,5 +183,79 @@ export class EmailListComponent implements OnInit, OnDestroy {
 
   get hasMore(): boolean {
     return this.emails.length < this.totalEmails;
+  }
+
+  // ==================== ATTACHMENT PREVIEW ====================
+
+  openAttachmentPreview(attachment: { filename: string; contentType: string; size: number }, index: number): void {
+    if (!this.selectedEmail) return;
+
+    this.currentAttachments = this.getAttachmentInfos(this.selectedEmail);
+    this.selectedAttachment = this.currentAttachments[index];
+    this.attachmentPreviewOpen = true;
+  }
+
+  getAttachmentInfos(email: Email): AttachmentInfo[] {
+    if (!email.attachments) return [];
+    
+    return email.attachments.map((att, index) => ({
+      filename: att.filename,
+      contentType: att.contentType,
+      size: att.size,
+      emailId: email.id,
+      index: index,
+      url: `${this.configService.apiUrl}/emails/${email.id}/attachments/${index}`
+    }));
+  }
+
+  closeAttachmentPreview(): void {
+    this.attachmentPreviewOpen = false;
+    this.selectedAttachment = null;
+  }
+
+  downloadAttachment(attachment: AttachmentInfo): void {
+    if (!attachment.url) return;
+    
+    const token = localStorage.getItem('auth_token');
+    const headers = new HttpHeaders({
+      'Authorization': token ? `Bearer ${token}` : ''
+    });
+
+    this.http.get(attachment.url, {
+      headers,
+      responseType: 'blob'
+    }).subscribe({
+      next: (blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = attachment.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+        this.toasts.success('Download gestartet');
+      },
+      error: (err) => {
+        console.error('Download failed:', err);
+        this.toasts.error('Download fehlgeschlagen');
+      }
+    });
+  }
+
+  getAttachmentIcon(contentType: string): string {
+    const type = contentType.toLowerCase();
+    if (type.startsWith('image/')) return 'image';
+    if (type === 'application/pdf') return 'picture_as_pdf';
+    if (type.includes('word') || type.includes('document')) return 'description';
+    if (type.includes('excel') || type.includes('spreadsheet')) return 'table_chart';
+    if (type.includes('zip') || type.includes('archive')) return 'folder_zip';
+    return 'attach_file';
+  }
+
+  formatFileSize(size: number): string {
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   }
 }

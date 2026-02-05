@@ -21,6 +21,14 @@ export interface LoginResponse {
         name: string;
         role: UserRole;
         createdAt: Date;
+        wantsNewsletter?: boolean;
+        isVerified?: boolean;
+        signatureName?: string | null;
+        signaturePosition?: string | null;
+        signatureCompany?: string | null;
+        signaturePhone?: string | null;
+        signatureWebsite?: string | null;
+        emailSignature?: string | null;
     };
 }
 
@@ -93,7 +101,7 @@ export class AuthService {
     async validateUser(userId: string): Promise<User | null> {
         return this.userRepo.findOne({
             where: { id: userId },
-            select: ['id', 'email', 'name', 'role', 'wantsNewsletter', 'isVerified', 'createdAt']
+            select: ['id', 'email', 'name', 'role', 'wantsNewsletter', 'isVerified', 'createdAt', 'signatureName', 'signaturePosition', 'signatureCompany', 'signaturePhone', 'signatureWebsite', 'emailSignature']
         });
     }
 
@@ -116,6 +124,14 @@ export class AuthService {
                 name: user.name,
                 role: user.role,
                 createdAt: user.createdAt,
+                wantsNewsletter: user.wantsNewsletter,
+                isVerified: user.isVerified,
+                signatureName: user.signatureName,
+                signaturePosition: user.signaturePosition,
+                signatureCompany: user.signatureCompany,
+                signaturePhone: user.signaturePhone,
+                signatureWebsite: user.signatureWebsite,
+                emailSignature: user.emailSignature,
             },
         };
     }

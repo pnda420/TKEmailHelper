@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { EmailTemplatesService, CreateTemplateDto, UpdateTemplateDto, GenerateEmailDto, SendReplyDto } from './email-templates.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { User } from '../users/users.entity';
 
 @Controller('email-templates')
 @UseGuards(JwtAuthGuard)
@@ -47,14 +49,21 @@ export class EmailTemplatesController {
   // ==================== GPT GENERATION ====================
 
   @Post('generate')
-  async generateEmail(@Body() dto: GenerateEmailDto) {
-    return this.templatesService.generateEmailWithGPT(dto);
+  async generateEmail(@Body() dto: GenerateEmailDto, @CurrentUser() user: User) {
+    return this.templatesService.generateEmailWithGPT(dto, user);
+  }
+
+  // ==================== AI TEMPLATE RECOMMENDATION ====================
+
+  @Post('recommend')
+  async recommendTemplate(@Body() body: { subject: string; body: string }) {
+    return this.templatesService.recommendTemplate(body.subject, body.body);
   }
 
   // ==================== SEND EMAIL ====================
 
   @Post('send')
-  async sendReply(@Body() dto: SendReplyDto) {
-    return this.templatesService.sendReply(dto);
+  async sendReply(@Body() dto: SendReplyDto, @CurrentUser() user: User) {
+    return this.templatesService.sendReply(dto, user);
   }
 }

@@ -1,4 +1,4 @@
-<app-page-title title="Posteingang" subtitle="Deine unbearbeiteten E-Mails"></app-page-title>
+<app-page-title title="Posteingang"></app-page-title>
 
 <div class="email-container">
     <!-- Toolbar -->
@@ -102,12 +102,21 @@
 
             <!-- Attachments -->
             <div class="email-detail__attachments" *ngIf="selectedEmail.attachments?.length">
-                <strong>Anhaenge:</strong>
+                <strong>
+                    <span class="material-symbols-outlined">attach_file</span>
+                    Anhänge ({{ selectedEmail.attachments!.length }})
+                </strong>
                 <div class="attachment-list">
-                    <span class="attachment" *ngFor="let att of selectedEmail.attachments">
-                        <span class="material-symbols-outlined">attachment</span>
-                        {{ att.filename }}
-                    </span>
+                    <button class="attachment-item" 
+                            *ngFor="let att of selectedEmail.attachments; let i = index"
+                            (click)="openAttachmentPreview(att, i)">
+                        <span class="material-symbols-outlined attachment-icon">{{ getAttachmentIcon(att.contentType) }}</span>
+                        <div class="attachment-info">
+                            <span class="attachment-name">{{ att.filename }}</span>
+                            <span class="attachment-size">{{ formatFileSize(att.size) }}</span>
+                        </div>
+                        <span class="material-symbols-outlined preview-icon">visibility</span>
+                    </button>
                 </div>
             </div>
 
@@ -130,3 +139,12 @@
         </div>
     </div>
 </div>
+
+<!-- Attachment Preview Modal -->
+<app-attachment-preview
+    [attachment]="selectedAttachment"
+    [attachments]="currentAttachments"
+    [isOpen]="attachmentPreviewOpen"
+    (close)="closeAttachmentPreview()"
+    (download)="downloadAttachment($event)">
+</app-attachment-preview>

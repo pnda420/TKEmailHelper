@@ -8,6 +8,9 @@
   box-sizing: border-box;
 }
 
+// Header height from app.component
+$header-height: 57px;
+
 :host {
   display: block;
   width: 100%;
@@ -279,11 +282,11 @@ $transition-bounce: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 // ============================================
 .hero {
   position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: calc(100vh - $header-height);
+  min-height: calc(100dvh - $header-height);
   display: flex;
   align-items: center;
-  padding: 6rem 0 4rem;
+  padding: 4rem 0 3rem;
   overflow: hidden;
 
   @media (min-width: 768px) {

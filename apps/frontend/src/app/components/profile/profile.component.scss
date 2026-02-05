@@ -2,7 +2,7 @@
 
 .container {
   width: 100%;
-  max-width: 800px;
+  max-width: 1000px;
   margin-inline: auto;
   padding-inline: clamp(1rem, 4vw, 2rem);
 }
@@ -649,4 +649,505 @@
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ===== EMAIL SIGNATURE SECTION ===== */
+
+.signature-accordion {
+  
+  .signature-status {
+    margin-left: auto;
+    padding: 0.25rem 0.625rem;
+    border-radius: $radius-full;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: rgba($color-error, 0.1);
+    color: $color-error;
+    
+    &.configured {
+      background: rgba($color-success, 0.1);
+      color: $color-success;
+    }
+  }
+}
+
+.signature-view {
+  display: grid;
+  gap: 1rem;
+}
+
+.signature-preview {
+  background: $color-white;
+  border: 1px solid $glass-border;
+  border-radius: $radius-md;
+  padding: 1rem 1.25rem;
+}
+
+.signature-text {
+  margin: 0;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: $color-text-secondary;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.signature-edit {
+  display: grid;
+  gap: 1rem;
+}
+
+.signature-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: rgba($color-brand-primary, 0.05);
+  border: 1px solid rgba($color-brand-primary, 0.15);
+  border-radius: $radius-md;
+  font-size: 0.8125rem;
+  color: $color-brand-primary;
+  margin: 0;
+  
+  .material-symbols-outlined {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+}
+
+.signature-form {
+  display: grid;
+  gap: 0.875rem;
+  
+  .form-group {
+    label {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      
+      .material-symbols-outlined {
+        color: $color-text-tertiary;
+      }
+    }
+    
+    input {
+      &::placeholder {
+        color: $color-text-tertiary;
+        font-weight: 400;
+      }
+    }
+  }
+}
+
+.signature-live-preview {
+  margin-top: 0.5rem;
+  padding: 1rem;
+  background: $color-white;
+  border: 1px dashed $color-gray-300;
+  border-radius: $radius-md;
+  
+  .preview-label {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $color-text-tertiary;
+    margin-bottom: 0.5rem;
+  }
+  
+  .preview-text {
+    margin: 0;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    color: $color-text-secondary;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    padding: 0.75rem;
+    background: $color-gray-50;
+    border-radius: $radius-sm;
+    border-left: 3px solid $color-brand-primary;
+  }
+  
+  .preview-html-live {
+    padding: 0.75rem;
+    background: $color-gray-50;
+    border-radius: $radius-sm;
+    border-left: 3px solid $color-brand-primary;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    
+    // Reset some styles for HTML content
+    p, div {
+      margin: 0;
+    }
+    
+    a {
+      color: $color-brand-primary;
+    }
+  }
+}
+
+/* ===== REAL EMAIL SIGNATURE (HTML) ===== */
+
+.real-signature-accordion {
+  margin-top: 0;
+}
+
+.section-description {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba($color-brand-primary, 0.05);
+  border: 1px solid rgba($color-brand-primary, 0.15);
+  border-radius: $radius-md;
+  font-size: 0.8125rem;
+  color: $color-brand-primary;
+  margin: 0 0 1rem;
+  
+  .material-symbols-outlined {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+}
+
+.html-preview {
+  max-height: 300px;
+  overflow-y: auto;
+  
+  .preview-html {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    
+    p, div {
+      margin: 0;
+    }
+    
+    a {
+      color: $color-brand-primary;
+    }
+  }
+}
+
+.empty-preview {
+  .no-signature-text {
+    margin: 0;
+    color: $color-text-tertiary;
+    font-style: italic;
+    font-size: 0.875rem;
+  }
+}
+
+/* ===== IMPROVED HTML EDITOR ===== */
+
+.html-editor-container {
+  .html-editor-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, $color-gray-100 0%, $color-gray-50 100%);
+  border: 1px solid $color-gray-200;
+  border-radius: $radius-md $radius-md 0 0;
+  
+  .editor-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: $color-text-primary;
+    
+    .material-symbols-outlined {
+      color: $color-brand-primary;
+    }
+  }
+}
+
+.formatting-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  background: $color-gray-50;
+  border: 1px solid $color-gray-200;
+  border-top: none;
+  
+  .toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+  }
+  
+  .toolbar-divider {
+    width: 1px;
+    height: 1.5rem;
+    background: $color-gray-300;
+    margin: 0 0.375rem;
+  }
+  
+  .toolbar-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+    border-radius: $radius-sm;
+    color: $color-text-secondary;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    
+    &:hover {
+      background: $color-gray-200;
+      color: $color-brand-primary;
+    }
+    
+    &:active {
+      background: $color-gray-300;
+      transform: scale(0.95);
+    }
+    
+    .material-symbols-outlined {
+      font-size: 1.125rem;
+    }
+  }
+  
+  .toolbar-select {
+    height: 2rem;
+    padding: 0 0.5rem;
+    font-size: 0.75rem;
+    border: 1px solid $color-gray-300;
+    border-radius: $radius-sm;
+    background: white;
+    color: $color-text-secondary;
+    cursor: pointer;
+    
+    &:hover {
+      border-color: $color-brand-primary;
+    }
+    
+    &:focus {
+      outline: none;
+      border-color: $color-brand-primary;
+      box-shadow: 0 0 0 2px rgba($color-brand-primary, 0.15);
+    }
+  }
+  
+  .color-picker-wrapper {
+    position: relative;
+    
+    .toolbar-btn {
+      position: relative;
+    }
+    
+    .color-indicator {
+      position: absolute;
+      bottom: 0.25rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1rem;
+      height: 0.1875rem;
+      border-radius: 1px;
+    }
+    
+    .hidden-color-picker {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+  }
+}
+
+.split-editor-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid $color-gray-200;
+  border-top: none;
+  border-radius: 0 0 $radius-md $radius-md;
+  overflow: hidden;
+}
+
+.editor-panel,
+.preview-panel {
+  display: flex;
+  flex-direction: column;
+  
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    background: $color-gray-100;
+    border-bottom: 1px solid $color-gray-200;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $color-text-tertiary;
+    
+    .material-symbols-outlined {
+      font-size: 1rem;
+    }
+  }
+}
+
+.editor-panel {
+  border-bottom: 1px solid $color-gray-200;
+  
+  .html-textarea {
+    min-height: 250px;
+    flex: 1;
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    resize: none;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    color: $color-text-primary;
+    background: $color-gray-50;
+    
+    &::placeholder {
+      color: $color-text-tertiary;
+      opacity: 0.6;
+    }
+    
+    &:focus {
+      outline: none;
+      background: white;
+    }
+  }
+  
+  .editor-footer {
+    padding: 0.375rem 0.75rem;
+    background: $color-gray-100;
+    border-top: 1px solid $color-gray-200;
+    
+    .char-count {
+      display: block;
+      text-align: right;
+      font-size: 0.6875rem;
+      color: $color-text-tertiary;
+    }
+  }
+}
+
+.preview-panel {
+  background: white;
+  min-height: 150px;
+  
+  .preview-content {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    max-height: 300px;
+  }
+  
+  .email-preview-wrapper {
+    width: 100%;
+  }
+  
+  .email-preview-frame {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: $color-text-primary;
+    
+    // Email-like styling
+    p, div {
+      margin: 0;
+    }
+    
+    a {
+      color: $color-brand-primary;
+      text-decoration: underline;
+    }
+    
+    strong, b {
+      font-weight: 700;
+    }
+    
+    em, i {
+      font-style: italic;
+    }
+    
+    u {
+      text-decoration: underline;
+    }
+    
+    hr {
+      border: none;
+      border-top: 1px solid $color-gray-300;
+      margin: 0.75rem 0;
+    }
+    
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: $radius-sm;
+    }
+  }
+  
+  .empty-preview-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 200px;
+    color: $color-text-tertiary;
+    text-align: center;
+    
+    .material-symbols-outlined {
+      font-size: 3rem;
+      margin-bottom: 0.75rem;
+      opacity: 0.4;
+    }
+    
+    p {
+      margin: 0;
+      font-size: 0.875rem;
+    }
+  }
+}
+
+.btn--ghost {
+  background: transparent;
+  border: 1px solid $color-gray-300;
+  color: $color-text-secondary;
+  
+  &:hover {
+    background: $color-gray-100;
+    border-color: $color-brand-primary;
+    color: $color-brand-primary;
+  }
+}
+
+.html-editor-container {
+  .form-actions {
+    margin-top: 1rem;
+  }
+}
+
+.btn--sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
 }

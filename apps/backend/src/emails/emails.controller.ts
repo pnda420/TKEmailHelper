@@ -8,7 +8,10 @@ import {
   UseGuards,
   ParseIntPipe,
   DefaultValuePipe,
+  Res,
+  NotFoundException,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { EmailsService } from './emails.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -77,6 +80,57 @@ export class EmailsController {
       message: 'E-Mails erfolgreich abgerufen',
       ...result,
     };
+  }
+
+  /**
+   * GET /emails/:id/attachments/:index - Get attachment content by index
+   * NOTE: This route MUST be defined BEFORE the generic /:id route!
+   */
+  @Get(':id/attachments/:index')
+  async getAttachment(
+    @Param('id') id: string,
+    @Param('index', ParseIntPipe) index: number,
+    @Res() res: Response,
+  ) {
+    const email = await this.emailsService.getEmailById(id);
+    if (!email) {
+      throw new NotFoundException('E-Mail nicht gefunden');
+    }
+
+    if (!email.attachments || index >= email.attachments.length) {
+      throw new NotFoundException('Anhang nicht gefunden');
+    }
+
+    const attachmentMeta = email.attachments[index];
+    
+    try {
+      const attachmentData = await this.emailsService.getAttachmentContent(
+        email.messageId,
+        index,
+      );
+
+      if (!attachmentData) {
+        throw new NotFoundException('Anhang konnte nicht geladen werden');
+      }
+
+      // Set headers for download/preview
+      res.setHeader('Content-Type', attachmentMeta.contentType);
+      res.setHeader('Content-Length', attachmentData.length);
+      
+      // For images and PDFs, allow inline display; others force download
+      const isPreviewable = 
+        attachmentMeta.contentType.startsWith('image/') || 
+        attachmentMeta.contentType === 'application/pdf';
+      
+      res.setHeader(
+        'Content-Disposition',
+        `${isPreviewable ? 'inline' : 'attachment'}; filename="${encodeURIComponent(attachmentMeta.filename)}"`,
+      );
+
+      res.send(attachmentData);
+    } catch (error) {
+      throw new NotFoundException('Fehler beim Laden des Anhangs');
+    }
   }
 
   /**

@@ -40,7 +40,7 @@ export class UsersService {
     async findAll(): Promise<User[]> {
         const users = await this.userRepo.find({
             order: { createdAt: 'DESC' },
-            select: ['id', 'email', 'name', 'wantsNewsletter', 'isVerified', 'createdAt', 'updatedAt', 'role',],
+            select: ['id', 'email', 'name', 'wantsNewsletter', 'isVerified', 'createdAt', 'updatedAt', 'role', 'signatureName', 'signaturePosition', 'signatureCompany', 'signaturePhone', 'signatureWebsite', 'emailSignature'],
         });
         return users;
     }
@@ -48,7 +48,7 @@ export class UsersService {
     async findOne(id: string): Promise<User> {
         const user = await this.userRepo.findOne({
             where: { id },
-            select: ['id', 'email', 'name', 'wantsNewsletter', 'isVerified', 'createdAt', 'updatedAt', 'role',],
+            select: ['id', 'email', 'name', 'wantsNewsletter', 'isVerified', 'createdAt', 'updatedAt', 'role', 'signatureName', 'signaturePosition', 'signatureCompany', 'signaturePhone', 'signatureWebsite', 'emailSignature'],
             relations: ['generatedPages', 'contactRequests'],
         });
 

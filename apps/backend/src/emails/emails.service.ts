@@ -356,4 +356,168 @@ export class EmailsService {
     this.initImapConnection();
     return this.fetchAndStoreEmails();
   }
+
+  /**
+   * Get attachment content from IMAP server
+   */
+  async getAttachmentContent(messageId: string, attachmentIndex: number): Promise<Buffer | null> {
+    // Try source folder first
+    let result = await this.fetchAttachmentWithNewConnection(this.SOURCE_FOLDER, messageId, attachmentIndex);
+    
+    if (!result) {
+      // Try done folder if not found in source
+      this.logger.log(`Attachment not found in ${this.SOURCE_FOLDER}, trying ${this.DONE_FOLDER}`);
+      result = await this.fetchAttachmentWithNewConnection(this.DONE_FOLDER, messageId, attachmentIndex);
+    }
+    
+    return result;
+  }
+
+  /**
+   * Fetch attachment with a fresh IMAP connection for a specific folder
+   */
+  private async fetchAttachmentWithNewConnection(
+    folder: string,
+    messageId: string,
+    attachmentIndex: number,
+  ): Promise<Buffer | null> {
+    return new Promise((resolve) => {
+      // Create a fresh IMAP connection for this request
+      const user = this.configService.get<string>('MAIL');
+      const password = this.configService.get<string>('MAIL_PASS');
+      const host = this.configService.get<string>('MAIL_EINGANG');
+
+      const imapConnection = new Imap({
+        user: user,
+        password: password,
+        host: host,
+        port: 993,
+        tls: true,
+        tlsOptions: { rejectUnauthorized: false },
+        authTimeout: 10000,
+      });
+
+      let resolved = false;
+      const cleanup = () => {
+        if (!resolved) {
+          resolved = true;
+          try {
+            imapConnection.end();
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        }
+      };
+
+      // Set a timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        this.logger.warn(`Timeout fetching attachment from ${folder}`);
+        cleanup();
+        resolve(null);
+      }, 30000);
+
+      imapConnection.once('ready', () => {
+        this.logger.log(`IMAP ready for attachment fetch from ${folder}`);
+        
+        imapConnection.openBox(folder, true, (err) => {
+          if (err) {
+            this.logger.warn(`Could not open folder ${folder}:`, err.message);
+            clearTimeout(timeout);
+            cleanup();
+            return resolve(null);
+          }
+
+          this.logger.log(`Opened folder ${folder}, searching for messageId: ${messageId}`);
+
+          // Search for the email by message-id
+          imapConnection.search([['HEADER', 'MESSAGE-ID', messageId]], (searchErr, uids) => {
+            if (searchErr) {
+              this.logger.error(`Search error in ${folder}:`, searchErr.message);
+              clearTimeout(timeout);
+              cleanup();
+              return resolve(null);
+            }
+
+            if (!uids || uids.length === 0) {
+              this.logger.log(`No email found with messageId ${messageId} in ${folder}`);
+              clearTimeout(timeout);
+              cleanup();
+              return resolve(null);
+            }
+
+            const uid = uids[0];
+            this.logger.log(`Found email with UID ${uid} in ${folder}, fetching attachment ${attachmentIndex}`);
+            
+            const fetch = imapConnection.fetch(uid, { bodies: '' });
+            
+            // Track parsing promise to wait for it before resolving
+            let parsePromise: Promise<Buffer | null> | null = null;
+
+            fetch.on('message', (msg) => {
+              msg.on('body', (stream: Readable) => {
+                // Store the parsing promise so we can wait for it
+                parsePromise = (async () => {
+                  try {
+                    const parsed = await simpleParser(stream);
+                    
+                    this.logger.log(`Email parsed, attachments count: ${parsed.attachments?.length || 0}`);
+                    
+                    if (parsed.attachments && parsed.attachments[attachmentIndex]) {
+                      const attachment = parsed.attachments[attachmentIndex];
+                      this.logger.log(`Found attachment: ${attachment.filename}, size: ${attachment.size}`);
+                      return attachment.content;
+                    } else {
+                      this.logger.warn(`Attachment index ${attachmentIndex} not found, available: ${parsed.attachments?.length || 0}`);
+                      return null;
+                    }
+                  } catch (e) {
+                    this.logger.error('Parse error:', e);
+                    return null;
+                  }
+                })();
+              });
+            });
+
+            fetch.once('end', async () => {
+              // Wait for parsing to complete before checking result
+              if (parsePromise) {
+                const result = await parsePromise;
+                if (result) {
+                  this.logger.log(`Successfully retrieved attachment from ${folder}`);
+                  clearTimeout(timeout);
+                  resolved = true;
+                  imapConnection.end();
+                  resolve(result);
+                  return;
+                }
+              }
+              
+              if (!resolved) {
+                this.logger.log(`Fetch ended without finding attachment in ${folder}`);
+                clearTimeout(timeout);
+                cleanup();
+                resolve(null);
+              }
+            });
+
+            fetch.once('error', (fetchErr: Error) => {
+              this.logger.error(`Fetch error in ${folder}:`, fetchErr.message);
+              clearTimeout(timeout);
+              cleanup();
+              resolve(null);
+            });
+          });
+        });
+      });
+
+      imapConnection.once('error', (err: Error) => {
+        this.logger.error(`IMAP connection error for ${folder}:`, err.message);
+        clearTimeout(timeout);
+        cleanup();
+        resolve(null);
+      });
+
+      imapConnection.connect();
+    });
+  }
 }

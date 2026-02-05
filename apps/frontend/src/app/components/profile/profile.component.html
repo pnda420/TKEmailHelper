@@ -65,7 +65,7 @@
             </div>
 
             <!-- Quick Stats -->
-            <div class="quick-stats">
+            <!-- <div class="quick-stats">
                 <div class="stat-card">
                     <div class="stat-icon">
                         <span class="material-symbols-outlined ms-fill">calendar_today</span>
@@ -97,7 +97,7 @@
                         <span class="toggle-slider"></span>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Account Details Accordion -->
             <div class="details-accordion">
@@ -148,20 +148,300 @@
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="quick-actions">
-                <a routerLink="/contact" class="action-card">
-                    <span class="material-symbols-outlined">support_agent</span>
-                    <span class="action-label">Support kontaktieren</span>
-                </a>
-                <a routerLink="/faq" class="action-card">
-                    <span class="material-symbols-outlined">help</span>
-                    <span class="action-label">Hilfe & FAQ</span>
-                </a>
-                <button class="action-card danger" (click)="logout()">
-                    <span class="material-symbols-outlined">logout</span>
-                    <span class="action-label">Abmelden</span>
+            <!-- KI-Kontext / Signatur-Daten Accordion -->
+            <div class="details-accordion signature-accordion">
+                <button class="accordion-header" (click)="toggleSignatureSection()" [class.open]="showSignature">
+                    <span class="accordion-title">
+                        <span class="material-symbols-outlined">psychology</span>
+                        KI-Kontext / Signatur-Daten
+                        <span class="signature-status" [class.configured]="hasSignature()">
+                            {{ hasSignature() ? 'Konfiguriert' : 'Nicht konfiguriert' }}
+                        </span>
+                    </span>
+                    <span class="material-symbols-outlined accordion-icon">{{ showSignature ? 'expand_less' : 'expand_more' }}</span>
                 </button>
+                <div class="accordion-content" *ngIf="showSignature" @slideDown>
+                    <p class="section-description">
+                        <span class="material-symbols-outlined ms-size-18">info</span>
+                        Diese Daten werden der KI übergeben, damit sie weiß wer du bist und personalisierte Antworten generieren kann.
+                    </p>
+                    
+                    <!-- Signature View Mode -->
+                    <div class="signature-view" *ngIf="!signatureEditMode">
+                        <div class="signature-preview">
+                            <pre class="signature-text">{{ getSignaturePreview() }}</pre>
+                        </div>
+                        <button class="btn btn--primary btn--sm" (click)="toggleSignatureEditMode()">
+                            <span class="material-symbols-outlined ms-size-20">edit</span>
+                            Daten bearbeiten
+                        </button>
+                    </div>
+
+                    <!-- Signature Edit Mode -->
+                    <div class="signature-edit" *ngIf="signatureEditMode">
+                        <p class="signature-hint">
+                            <span class="material-symbols-outlined ms-size-18">info</span>
+                            Diese Daten helfen der KI, personalisierte Antworten zu erstellen und werden für die Signatur verwendet.
+                        </p>
+                        
+                        <form (ngSubmit)="saveSignature()" class="signature-form">
+                            <div class="form-group">
+                                <label for="sigName">
+                                    <span class="material-symbols-outlined ms-size-18">person</span>
+                                    Name
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="sigName" 
+                                    [(ngModel)]="editSignature.name" 
+                                    name="sigName"
+                                    placeholder="z.B. Max Mustermann"
+                                    maxlength="100"
+                                />
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="sigPosition">
+                                    <span class="material-symbols-outlined ms-size-18">work</span>
+                                    Position / Titel
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="sigPosition" 
+                                    [(ngModel)]="editSignature.position" 
+                                    name="sigPosition"
+                                    placeholder="z.B. Geschäftsführer"
+                                    maxlength="100"
+                                />
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="sigCompany">
+                                    <span class="material-symbols-outlined ms-size-18">business</span>
+                                    Firma
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="sigCompany" 
+                                    [(ngModel)]="editSignature.company" 
+                                    name="sigCompany"
+                                    placeholder="z.B. Muster GmbH"
+                                    maxlength="100"
+                                />
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="sigPhone">
+                                    <span class="material-symbols-outlined ms-size-18">phone</span>
+                                    Telefon
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="sigPhone" 
+                                    [(ngModel)]="editSignature.phone" 
+                                    name="sigPhone"
+                                    placeholder="z.B. +49 123 456789"
+                                    maxlength="50"
+                                />
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="sigWebsite">
+                                    <span class="material-symbols-outlined ms-size-18">language</span>
+                                    Website
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="sigWebsite" 
+                                    [(ngModel)]="editSignature.website" 
+                                    name="sigWebsite"
+                                    placeholder="z.B. www.muster.de"
+                                    maxlength="100"
+                                />
+                            </div>
+
+                            <div class="signature-live-preview">
+                                <span class="preview-label">So sieht die KI dich:</span>
+                                <pre class="preview-text">{{ getSignaturePreview() }}</pre>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn--secondary" (click)="cancelSignatureEdit()">
+                                    Abbrechen
+                                </button>
+                                <button type="submit" class="btn btn--primary" [disabled]="signatureSaving">
+                                    <span class="material-symbols-outlined ms-size-20" *ngIf="!signatureSaving">check</span>
+                                    <span class="spinner-small" *ngIf="signatureSaving"></span>
+                                    {{ signatureSaving ? 'Speichern...' : 'Speichern' }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real Email Signature Accordion (HTML, like Outlook) -->
+            <div class="details-accordion signature-accordion real-signature-accordion">
+                <button class="accordion-header" (click)="toggleRealSignatureSection()" [class.open]="showRealSignature">
+                    <span class="accordion-title">
+                        <span class="material-symbols-outlined">draw</span>
+                        E-Mail-Signatur (HTML)
+                        <span class="signature-status" [class.configured]="hasRealSignature()">
+                            {{ hasRealSignature() ? 'Konfiguriert' : 'Nicht konfiguriert' }}
+                        </span>
+                    </span>
+                    <span class="material-symbols-outlined accordion-icon">{{ showRealSignature ? 'expand_less' : 'expand_more' }}</span>
+                </button>
+                <div class="accordion-content" *ngIf="showRealSignature" @slideDown>
+                    <p class="section-description">
+                        <span class="material-symbols-outlined ms-size-18">mail</span>
+                        Diese HTML-Signatur wird automatisch an alle ausgehenden E-Mails angehängt, wie bei Outlook.
+                    </p>
+                    
+                    <!-- Real Signature View Mode -->
+                    <div class="signature-view" *ngIf="!realSignatureEditMode">
+                        <div class="signature-preview html-preview" *ngIf="hasRealSignature()">
+                            <div class="preview-html" [innerHTML]="getSafeHtml(user!.emailSignature || '')"></div>
+                        </div>
+                        <div class="signature-preview empty-preview" *ngIf="!hasRealSignature()">
+                            <p class="no-signature-text">Keine E-Mail-Signatur konfiguriert</p>
+                        </div>
+                        <button class="btn btn--primary btn--sm" (click)="toggleRealSignatureEditMode()">
+                            <span class="material-symbols-outlined ms-size-20">edit</span>
+                            Signatur bearbeiten
+                        </button>
+                    </div>
+
+                    <!-- Real Signature Edit Mode -->
+                    <div class="signature-edit html-editor-container" *ngIf="realSignatureEditMode">
+                        <form (ngSubmit)="saveRealSignature()" class="signature-form html-editor-form">
+                            
+                            <!-- Editor Header with Actions -->
+                            <div class="editor-header">
+                                <div class="editor-title">
+                                    <span class="material-symbols-outlined">code</span>
+                                    HTML-Signatur Editor
+                                </div>
+                                <button type="button" class="btn btn--ghost btn--sm" (click)="generateDefaultSignature()" title="Standard-Signatur aus KI-Daten generieren">
+                                    <span class="material-symbols-outlined ms-size-18">auto_awesome</span>
+                                    Aus KI-Daten generieren
+                                </button>
+                            </div>
+
+                            <!-- Formatting Toolbar -->
+                            <div class="formatting-toolbar">
+                                <div class="toolbar-group">
+                                    <button type="button" class="toolbar-btn" (click)="insertHtmlTag('strong')" title="Fett (Strg+B)">
+                                        <span class="material-symbols-outlined">format_bold</span>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" (click)="insertHtmlTag('em')" title="Kursiv (Strg+I)">
+                                        <span class="material-symbols-outlined">format_italic</span>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" (click)="insertHtmlTag('u')" title="Unterstrichen">
+                                        <span class="material-symbols-outlined">format_underlined</span>
+                                    </button>
+                                </div>
+                                <div class="toolbar-divider"></div>
+                                <div class="toolbar-group">
+                                    <button type="button" class="toolbar-btn" (click)="insertLineBreak()" title="Zeilenumbruch">
+                                        <span class="material-symbols-outlined">keyboard_return</span>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" (click)="insertParagraph()" title="Absatz">
+                                        <span class="material-symbols-outlined">notes</span>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" (click)="insertHorizontalRule()" title="Horizontale Linie">
+                                        <span class="material-symbols-outlined">horizontal_rule</span>
+                                    </button>
+                                </div>
+                                <div class="toolbar-divider"></div>
+                                <div class="toolbar-group">
+                                    <button type="button" class="toolbar-btn" (click)="insertLink()" title="Link einfügen">
+                                        <span class="material-symbols-outlined">link</span>
+                                    </button>
+                                    <button type="button" class="toolbar-btn" (click)="insertImage()" title="Bild einfügen">
+                                        <span class="material-symbols-outlined">image</span>
+                                    </button>
+                                </div>
+                                <div class="toolbar-divider"></div>
+                                <div class="toolbar-group">
+                                    <div class="color-picker-wrapper">
+                                        <button type="button" class="toolbar-btn" (click)="colorPicker.click()" title="Textfarbe">
+                                            <span class="material-symbols-outlined">format_color_text</span>
+                                            <span class="color-indicator" [style.background-color]="selectedTextColor"></span>
+                                        </button>
+                                        <input type="color" #colorPicker [value]="selectedTextColor" (change)="insertColorSpan($event)" class="hidden-color-picker">
+                                    </div>
+                                </div>
+                                <div class="toolbar-divider"></div>
+                                <div class="toolbar-group">
+                                    <select class="toolbar-select" (change)="insertFontSize($event)" title="Schriftgröße">
+                                        <option value="">Größe</option>
+                                        <option value="10px">Klein (10px)</option>
+                                        <option value="12px">Normal (12px)</option>
+                                        <option value="14px">Mittel (14px)</option>
+                                        <option value="16px">Groß (16px)</option>
+                                        <option value="18px">Sehr groß (18px)</option>
+                                        <option value="24px">Überschrift (24px)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Split View: Editor + Preview -->
+                            <div class="split-editor-view">
+                                <!-- Code Editor Panel -->
+                                <div class="editor-panel">
+                                    <div class="panel-header">
+                                        <span class="material-symbols-outlined ms-size-16">code</span>
+                                        HTML Code
+                                    </div>
+                                    <textarea 
+                                        #htmlTextarea
+                                        id="emailSignature" 
+                                        [(ngModel)]="editEmailSignature" 
+                                        name="emailSignature"
+                                        placeholder="<div style='font-family: Arial, sans-serif;'>&#10;Mit freundlichen Grüßen,&#10;<br><br>&#10;<strong>Max Mustermann</strong><br>&#10;Geschäftsführer<br>&#10;Tel: +49 123 456789&#10;</div>"
+                                        maxlength="10000"
+                                        class="html-textarea"
+                                        (keydown)="onTextareaKeydown($event)"
+                                    ></textarea>
+                                    <div class="editor-footer">
+                                        <small class="char-count">{{ editEmailSignature.length }} / 10000 Zeichen</small>
+                                    </div>
+                                </div>
+
+                                <!-- Live Preview Panel -->
+                                <div class="preview-panel">
+                                    <div class="panel-header">
+                                        <span class="material-symbols-outlined ms-size-16">visibility</span>
+                                        Live-Vorschau
+                                    </div>
+                                    <div class="preview-content">
+                                        <div class="email-preview-wrapper" *ngIf="editEmailSignature.trim(); else emptyPreview">
+                                            <div class="email-preview-frame" [innerHTML]="getSafeHtml(editEmailSignature)"></div>
+                                        </div>
+                                        <ng-template #emptyPreview>
+                                            <div class="empty-preview-message">
+                                                <span class="material-symbols-outlined">edit_note</span>
+                                                <p>Gib HTML-Code ein, um die Vorschau zu sehen</p>
+                                            </div>
+                                        </ng-template>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn--secondary" (click)="cancelRealSignatureEdit()">
+                                    Abbrechen
+                                </button>
+                                <button type="submit" class="btn btn--primary" [disabled]="realSignatureSaving">
+                                    <span class="material-symbols-outlined ms-size-20" *ngIf="!realSignatureSaving">check</span>
+                                    <span class="spinner-small" *ngIf="realSignatureSaving"></span>
+                                    {{ realSignatureSaving ? 'Speichern...' : 'Signatur speichern' }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
 
         </div>

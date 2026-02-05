@@ -31,6 +31,38 @@ export class UpdateUserDto {
   @IsEnum(UserRole)
   @IsOptional()
   role?: UserRole;
+
+  // Email Signature fields
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  signatureName?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  signaturePosition?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  signatureCompany?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  signaturePhone?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  signatureWebsite?: string;
+
+  // Real email signature (HTML, attached to outgoing emails)
+  @IsString()
+  @IsOptional()
+  @MaxLength(10000)
+  emailSignature?: string;
 }
 
 export class LoginDto {
