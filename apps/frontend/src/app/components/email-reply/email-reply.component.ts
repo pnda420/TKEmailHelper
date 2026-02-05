@@ -6,18 +6,19 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 import { trigger, transition, style, animate, state } from '@angular/animations';
+import { AngularSplitModule } from 'angular-split';
 import { ApiService, Email, EmailTemplate, GenerateEmailDto } from '../../api/api.service';
 import { ToastService } from '../../shared/toasts/toast.service';
 import { AttachmentPreviewComponent, AttachmentInfo } from '../../shared/attachment-preview/attachment-preview.component';
 import { ConfigService } from '../../services/config.service';
 import { AuthService, User } from '../../services/auth.service';
 
-type WorkflowStep = 'select' | 'customize' | 'generate' | 'polish' | 'send';
+type WorkflowStep = 'select' | 'customize' | 'edit' | 'send';
 
 @Component({
   selector: 'app-email-reply',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, AttachmentPreviewComponent],
+  imports: [CommonModule, RouterModule, FormsModule, AttachmentPreviewComponent, AngularSplitModule],
   templateUrl: './email-reply.component.html',
   styleUrls: ['./email-reply.component.scss'],
   animations: [
@@ -56,8 +57,17 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   
   // Workflow State
   currentStep: WorkflowStep = 'select';
-  steps: WorkflowStep[] = ['select', 'customize', 'generate', 'polish', 'send'];
+  allSteps: WorkflowStep[] = ['select', 'customize', 'edit', 'send'];
   useTemplate = false; // Track if user wants to use a template
+
+  // Dynamic steps based on template usage
+  get steps(): WorkflowStep[] {
+    if (this.useTemplate) {
+      return this.allSteps;
+    }
+    // Skip customize step when not using template
+    return ['select', 'edit', 'send'];
+  }
   
   // Templates & AI Settings
   templates: EmailTemplate[] = [];
@@ -90,6 +100,14 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   bestMatchReason = ''; // Why this template was recommended
   showTemplateSuggestions = true;
   analyzingEmail = false;
+  
+  // Email Summary
+  emailSummary = '';
+  emailTags: string[] = [];
+  loadingSummary = false;
+  
+  // Toggle Original vs AI Email View
+  showOriginalEmail = false;
   
   // Current User (for signature)
   currentUser: User | null = null;
@@ -159,8 +177,9 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
           this.currentAttachments = this.getAttachmentInfos(email);
         }
         
-        // Analyze email for template suggestions
+        // Analyze email for template suggestions and get summary
         this.analyzeEmailForSuggestions();
+        this.loadEmailSummary();
       },
       error: (err) => {
         console.error('Fehler beim Laden der E-Mail:', err);
@@ -186,10 +205,50 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
 
   // ==================== SMART TEMPLATE SUGGESTIONS ====================
 
+  loadEmailSummary(): void {
+    if (!this.email) return;
+    
+    // Use stored AI data if available
+    if (this.email.aiProcessedAt) {
+      this.emailSummary = this.email.aiSummary || '';
+      this.emailTags = this.email.aiTags || [];
+      this.loadingSummary = false;
+      return;
+    }
+    
+    // Fallback: Make API call if not processed yet
+    this.loadingSummary = true;
+    const emailBody = this.email.textBody || this.email.preview || '';
+    
+    this.api.getEmailSummary(this.email.subject, emailBody).subscribe({
+      next: (result) => {
+        this.emailSummary = result.summary;
+        this.emailTags = result.tags || [];
+        this.loadingSummary = false;
+      },
+      error: () => {
+        this.emailSummary = '';
+        this.emailTags = [];
+        this.loadingSummary = false;
+      }
+    });
+  }
+
   analyzeEmailForSuggestions(): void {
     if (!this.email || this.templates.length === 0) return;
 
-    // Use AI to recommend best template
+    // Use stored AI data if available
+    if (this.email.aiProcessedAt && this.email.recommendedTemplateId) {
+      const template = this.templates.find(t => t.id === this.email!.recommendedTemplateId);
+      if (template) {
+        this.bestMatchTemplate = template;
+        this.bestMatchReason = this.email.recommendedTemplateReason || 'KI-Empfehlung';
+      }
+      this.analyzingEmail = false;
+      return;
+    }
+
+    // Fallback: Use AI to recommend best template
     this.analyzingEmail = true;
     this.bestMatchTemplate = null;
     this.bestMatchReason = '';
@@ -344,9 +403,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
         return true; // Can always proceed from select
       case 'customize':
         return this.selectedTemplate !== null;
-      case 'generate':
-        return this.replyBody.trim().length > 0;
-      case 'polish':
+      case 'edit':
         return this.replyBody.trim().length > 0;
       case 'send':
         return this.replyBody.trim().length > 0 && this.replySubject.trim().length > 0;
@@ -378,8 +435,48 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     this.useTemplate = false;
     this.selectedTemplate = null;
     this.selectedTemplateId = '';
-    // Skip customize step, generate from scratch
-    this.generateWithGPT();
+    // Generate and go directly to draft step (customize is skipped automatically via getter)
+    this.generateDirectlyToDraft();
+  }
+
+  generateDirectlyToDraft(): void {
+    if (!this.email) return;
+
+    this.generatingGPT = true;
+    
+    // Build instructions including user's signature name
+    let fullInstructions = this.gptInstructions || '';
+    if (this.currentUser?.signatureName) {
+      const nameInstruction = `Beende die E-Mail mit "Mit freundlichen Grüßen" gefolgt von dem Namen "${this.currentUser.signatureName}".`;
+      fullInstructions = fullInstructions ? `${fullInstructions}\n\n${nameInstruction}` : nameInstruction;
+    }
+    
+    const dto: GenerateEmailDto = {
+      originalEmail: {
+        subject: this.email.subject,
+        from: this.email.fromName || this.email.fromAddress,
+        body: this.email.textBody || this.stripHtml(this.email.htmlBody || '')
+      },
+      tone: this.gptTone,
+      instructions: fullInstructions || undefined
+    };
+
+    this.api.generateEmailWithGPT(dto).subscribe({
+      next: (result) => {
+        this.saveToHistory();
+        this.replySubject = result.subject;
+        this.replyBody = result.body;
+        this.generatingGPT = false;
+        this.toasts.success('Antwort wurde generiert');
+        // Go directly to 'edit' step
+        this.currentStep = 'edit';
+      },
+      error: (err) => {
+        console.error('GPT Fehler:', err);
+        this.toasts.error('Fehler bei der Generierung');
+        this.generatingGPT = false;
+      }
+    });
   }
 
   applyTemplate(): void {
@@ -393,8 +490,8 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
         this.replySubject = template.subject;
       }
       this.toasts.success('Vorlage eingefügt');
-      // Skip to generate step (step index 2)
-      this.currentStep = 'generate';
+      // Skip to edit step
+      this.currentStep = 'edit';
     }
   }
 
@@ -434,7 +531,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
         this.replyBody = result.body;
         this.generatingGPT = false;
         this.toasts.success(`Vorlage "${this.selectedTemplate!.name}" angepasst`);
-        this.currentStep = 'generate';
+        this.currentStep = 'edit';
       },
       error: (err) => {
         console.error('GPT Fehler:', err);
@@ -454,7 +551,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
       this.replySubject = this.selectedTemplate.subject;
     }
     this.toasts.success('Vorlage eingefügt (ohne KI-Anpassung)');
-    this.currentStep = 'generate';
+    this.currentStep = 'edit';
   }
 
   // ==================== AI GENERATION ====================

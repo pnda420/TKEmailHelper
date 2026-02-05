@@ -70,6 +70,29 @@ export class Email {
   @Column('text', { nullable: true })
   replySentBody: string;
 
+  // AI Analysis (computed once when email is pulled)
+  @Column('text', { nullable: true })
+  aiSummary: string;
+
+  @Column('text', { array: true, nullable: true })
+  aiTags: string[];
+
+  @Column({ nullable: true })
+  recommendedTemplateId: string;
+
+  @Column('text', { nullable: true })
+  recommendedTemplateReason: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  aiProcessedAt: Date;
+
+  @Column({ default: false })
+  aiProcessing: boolean;
+
+  // Clean body without reply chains
+  @Column('text', { nullable: true })
+  cleanedBody: string;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

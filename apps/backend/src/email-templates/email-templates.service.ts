@@ -257,6 +257,168 @@ ${signatureHtml}
     }
   }
 
+  // ==================== AI EMAIL SUMMARY ====================
+
+  /**
+   * Extract the main/current message from an email, removing quote chains
+   */
+  extractMainContent(body: string): string {
+    if (!body) return '';
+    
+    // Common reply chain patterns to remove
+    const replyPatterns = [
+      // German patterns
+      /(?:^|\n)[-_]+\s*(?:Ursprüngliche Nachricht|Original Message|Von:|From:)[\s\S]*/im,
+      /(?:^|\n)Am\s+\d+[\.\-\/]\d+[\.\-\/]\d+.*schrieb.*:[\s\S]*/im,
+      /(?:^|\n)Von:.*\nGesendet:.*\nAn:.*\n(?:Cc:.*\n)?Betreff:[\s\S]*/im,
+      // English patterns  
+      /(?:^|\n)On\s+.*\d{4}.*wrote:[\s\S]*/im,
+      /(?:^|\n)From:.*\nSent:.*\nTo:.*\n(?:Cc:.*\n)?Subject:[\s\S]*/im,
+      // Generic quote markers
+      /(?:^|\n)>{2,}[\s\S]*/m,
+      // Outlook style separators
+      /(?:^|\n)_{10,}[\s\S]*/m,
+      /(?:^|\n)-{10,}[\s\S]*/m,
+    ];
+
+    let cleaned = body;
+    for (const pattern of replyPatterns) {
+      cleaned = cleaned.replace(pattern, '');
+    }
+
+    // Also clean up excessive whitespace and trim
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+    
+    return cleaned || body.substring(0, 500); // Fallback to first 500 chars if all removed
+  }
+
+  /**
+   * Perform full AI analysis on an email in ONE API call
+   * Returns: summary, tags, recommended template, and cleaned body
+   */
+  async analyzeEmail(emailSubject: string, emailBody: string): Promise<{
+    summary: string;
+    tags: string[];
+    cleanedBody: string;
+    recommendedTemplateId: string | null;
+    recommendedTemplateReason: string;
+  }> {
+    // First extract the main content
+    const cleanedBody = this.extractMainContent(emailBody);
+    
+    // Get all templates for recommendation
+    const templates = await this.getAllTemplates();
+    
+    const templateList = templates.length > 0 
+      ? templates.map((t, i) => `${i + 1}. ID: ${t.id} | "${t.name}" (${t.category || 'Allgemein'}): ${t.body.substring(0, 150)}...`).join('\n')
+      : 'Keine Vorlagen verfügbar';
+
+    const systemPrompt = `Du bist ein E-Mail-Assistent für Kundenanfragen. Analysiere die GESAMTE E-Mail inkl. Reply-Ketten und extrahiere:
+
+1. summary: Fasse den KERN der Anfrage zusammen - was will der Kunde? (max. 100 Zeichen)
+   - Bei Reply-Ketten: Fasse den gesamten Kontext zusammen, nicht nur die letzte Nachricht
+   - Ignoriere Grußformeln, Signaturen, Disclaimer
+   - Nur die wichtigste Information/Frage/Problem
+
+2. tags: Genau 3 Schlagwörter für Kategorisierung (jeweils max. 12 Zeichen)
+
+3. cleanedContent: Extrahiere NUR die Kerninhalte der E-Mail - schön formatiert:
+   - Entferne: Grußformeln, Signaturen, Disclaimer, Werbung, Rechtliches
+   - Entferne: Leere Zeilen, unnötige Whitespaces, Quote-Marker (>)
+   - Behalte: Wichtige Infos, Fragen, Anfragen, Namen, Daten, Nummern
+   - Bei Reply-Ketten: Fasse chronologisch zusammen was passiert ist
+   - Format: Klar strukturiert, kurze Absätze, max 500 Zeichen
+
+4. templateId: ID der best passenden Vorlage ODER null wenn keine passt
+5. templateReason: Kurze Begründung (max. 50 Zeichen)
+
+${templates.length > 0 ? `Verfügbare Vorlagen:\n${templateList}` : ''}
+
+Antworte NUR mit JSON:
+{"summary": "...", "tags": ["...", "...", "..."], "cleanedContent": "...", "templateId": "..." oder null, "templateReason": "..."}`;
+
+    const userPrompt = `E-Mail analysieren (inkl. aller Reply-Nachrichten):
+Betreff: ${emailSubject}
+
+Vollständiger Inhalt:
+${emailBody}`;
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 600,
+        response_format: { type: 'json_object' },
+      });
+
+      const content = response.choices[0]?.message?.content?.trim();
+      if (content) {
+        const parsed = JSON.parse(content);
+        return {
+          summary: parsed.summary || 'Keine Zusammenfassung',
+          tags: parsed.tags || [],
+          cleanedBody: parsed.cleanedContent || cleanedBody,
+          recommendedTemplateId: parsed.templateId || null,
+          recommendedTemplateReason: parsed.templateReason || '',
+        };
+      }
+    } catch (error) {
+      this.logger.error('Email analysis error:', error);
+    }
+    
+    return {
+      summary: 'Analyse fehlgeschlagen',
+      tags: [],
+      cleanedBody,
+      recommendedTemplateId: null,
+      recommendedTemplateReason: '',
+    };
+  }
+
+  async summarizeEmail(emailSubject: string, emailBody: string): Promise<{ summary: string; tags: string[] }> {
+    const systemPrompt = `Du bist ein E-Mail-Assistent. Analysiere die E-Mail und gib zurück:
+1. Eine kurze Zusammenfassung in EINEM Satz (max. 80 Zeichen)
+2. Genau 3 kurze Tags/Schlagwörter die den Inhalt beschreiben (jeweils max. 15 Zeichen)
+
+Antworte NUR mit diesem JSON-Format:
+{"summary": "Die Zusammenfassung", "tags": ["Tag1", "Tag2", "Tag3"]}`;
+
+    const userPrompt = `E-Mail:
+Betreff: ${emailSubject}
+Inhalt:
+${emailBody.substring(0, 1500)}`;
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 150,
+        response_format: { type: 'json_object' },
+      });
+
+      const content = response.choices[0]?.message?.content?.trim();
+      if (content) {
+        const parsed = JSON.parse(content);
+        return { 
+          summary: parsed.summary || 'Zusammenfassung nicht verfügbar',
+          tags: parsed.tags || []
+        };
+      }
+      return { summary: 'Zusammenfassung nicht verfügbar', tags: [] };
+    } catch (error) {
+      this.logger.error('Email summary error:', error);
+      return { summary: 'Zusammenfassung konnte nicht erstellt werden', tags: [] };
+    }
+  }
+
   // ==================== AI TEMPLATE RECOMMENDATION ====================
 
   async recommendTemplate(emailSubject: string, emailBody: string): Promise<{

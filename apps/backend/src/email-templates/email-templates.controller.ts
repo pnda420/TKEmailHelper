@@ -53,6 +53,13 @@ export class EmailTemplatesController {
     return this.templatesService.generateEmailWithGPT(dto, user);
   }
 
+  // ==================== AI EMAIL SUMMARY ====================
+
+  @Post('summarize')
+  async summarizeEmail(@Body() body: { subject: string; body: string }) {
+    return this.templatesService.summarizeEmail(body.subject, body.body);
+  }
+
   // ==================== AI TEMPLATE RECOMMENDATION ====================
 
   @Post('recommend')

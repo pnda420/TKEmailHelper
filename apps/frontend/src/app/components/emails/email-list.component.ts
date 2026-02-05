@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -10,6 +10,7 @@ import { ToastService } from '../../shared/toasts/toast.service';
 import { PageTitleComponent } from '../../shared/page-title/page-title.component';
 import { AttachmentPreviewComponent, AttachmentInfo } from '../../shared/attachment-preview/attachment-preview.component';
 import { ConfigService } from '../../services/config.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-email-list',
@@ -46,6 +47,13 @@ export class EmailListComponent implements OnInit, OnDestroy {
   refreshing = false;
   selectedEmail: Email | null = null;
   
+  // AI Processing status
+  aiProcessing = false;
+  aiStatus: { total: number; processed: number; processing: number; pending: number } | null = null;
+  
+  // Email detail view toggle
+  showAiView = true; // Toggle between AI summary and full email
+  
   // Attachment Preview
   attachmentPreviewOpen = false;
   selectedAttachment: AttachmentInfo | null = null;
@@ -54,21 +62,178 @@ export class EmailListComponent implements OnInit, OnDestroy {
   private limit = 50;
   private offset = 0;
   private sub?: Subscription;
+  private eventSource?: EventSource;
 
   constructor(
     private api: ApiService,
     private toasts: ToastService,
     private router: Router,
     private configService: ConfigService,
-    private http: HttpClient
+    private http: HttpClient,
+    private authService: AuthService,
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
     this.loadEmails();
+    this.loadAiStatus();
   }
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    this.closeEventSource();
+  }
+
+  private closeEventSource(): void {
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = undefined;
+    }
+  }
+
+  loadAiStatus(): void {
+    this.api.getAiStatus().subscribe({
+      next: (status) => {
+        this.aiStatus = status;
+        // Auto-process if there are pending emails
+        if (status.pending > 0 && !this.aiProcessing) {
+          this.processWithAi();
+        }
+      },
+      error: (err) => console.error('AI Status error:', err)
+    });
+  }
+
+  processWithAi(): void {
+    if (this.aiProcessing) return;
+    this.startAiStream('process-stream');
+  }
+
+  recalculateAi(): void {
+    if (this.aiProcessing) return;
+    
+    // Clear AI data from all emails immediately for better UX
+    this.clearAiDataFromEmails();
+    this.aiStatus = { total: this.emails.length, processed: 0, processing: 1, pending: this.emails.length };
+    
+    this.startAiStream('recalculate-stream');
+  }
+
+  private clearAiDataFromEmails(): void {
+    this.emails = this.emails.map(email => ({
+      ...email,
+      aiSummary: null,
+      aiTags: null,
+      aiProcessedAt: null,
+      cleanedBody: null
+    }));
+    // Update selected email too
+    if (this.selectedEmail) {
+      this.selectedEmail = {
+        ...this.selectedEmail,
+        aiSummary: null,
+        aiTags: null,
+        aiProcessedAt: null,
+        cleanedBody: null
+      };
+    }
+  }
+
+  private startAiStream(endpoint: 'process-stream' | 'recalculate-stream'): void {
+    this.closeEventSource();
+    this.aiProcessing = true;
+    
+    const token = this.authService.getToken();
+    const apiUrl = this.configService.apiUrl;
+    const url = `${apiUrl}/emails/ai/${endpoint}?token=${token}`;
+    
+    // Run outside zone to avoid unnecessary change detection during setup
+    this.ngZone.runOutsideAngular(() => {
+      this.eventSource = new EventSource(url);
+      
+      this.eventSource.onmessage = (event) => {
+        // Run inside zone to trigger change detection
+        this.ngZone.run(() => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            switch (data.type) {
+              case 'start':
+                this.aiStatus = { total: data.total, processed: 0, processing: 1, pending: data.total };
+                break;
+                
+              case 'progress':
+                this.aiStatus = { 
+                  total: data.total, 
+                  processed: data.processed, 
+                  processing: data.processed < data.total ? 1 : 0, 
+                  pending: data.total - data.processed 
+                };
+                // Update email in list if returned
+                if (data.email) {
+                  this.updateEmailInList(data.email);
+                }
+                break;
+                
+              case 'complete':
+                this.aiStatus = { total: data.total, processed: data.processed, processing: 0, pending: 0 };
+                this.aiProcessing = false;
+                this.closeEventSource();
+                this.loadEmails();
+                this.toasts.success(`${data.processed} E-Mails analysiert`);
+                break;
+                
+              case 'error':
+                console.error('AI processing error for email:', data.emailId);
+                break;
+            }
+          } catch (e) {
+            console.error('Error parsing SSE data:', e);
+          }
+        });
+      };
+      
+      this.eventSource.onerror = (error) => {
+        this.ngZone.run(() => {
+          console.error('SSE error:', error);
+          this.aiProcessing = false;
+          this.closeEventSource();
+          this.loadAiStatus();
+        });
+      };
+    });
+  }
+
+  private updateEmailInList(emailData: { id: string; aiSummary?: string; aiTags?: string[]; cleanedBody?: string }): void {
+    const idx = this.emails.findIndex(e => e.id === emailData.id);
+    if (idx !== -1) {
+      this.emails[idx] = { 
+        ...this.emails[idx], 
+        aiSummary: emailData.aiSummary ?? null,
+        aiTags: emailData.aiTags ?? null,
+        cleanedBody: emailData.cleanedBody ?? null,
+        aiProcessedAt: new Date()
+      };
+      // Update selected if same
+      if (this.selectedEmail?.id === emailData.id) {
+        this.selectedEmail = this.emails[idx];
+      }
+    }
+  }
+  
+  // Silent reload (no loading spinner)
+  loadEmailsSilent(): void {
+    this.api.getEmails(this.limit, this.offset).subscribe({
+      next: (res) => {
+        this.emails = res.emails;
+        this.totalEmails = res.total;
+        // Update selected email if it was reloaded
+        if (this.selectedEmail) {
+          const updated = this.emails.find(e => e.id === this.selectedEmail!.id);
+          if (updated) this.selectedEmail = updated;
+        }
+      }
+    });
   }
 
   loadEmails(): void {
@@ -94,6 +259,8 @@ export class EmailListComponent implements OnInit, OnDestroy {
         this.toasts.success(`${res.stored} neue E-Mails abgerufen`);
         this.refreshing = false;
         this.loadEmails();
+        // Trigger AI processing for new emails
+        this.loadAiStatus();
       },
       error: (err) => {
         console.error('Fehler beim Aktualisieren:', err);

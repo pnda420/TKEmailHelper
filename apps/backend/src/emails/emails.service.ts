@@ -1,26 +1,31 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, In } from 'typeorm';
+import { Repository, Not, In, IsNull } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as Imap from 'imap';
 import { simpleParser } from 'mailparser';
 import { Readable } from 'stream';
 import { Email, EmailStatus } from './emails.entity';
+import { EmailTemplatesService } from '../email-templates/email-templates.service';
 
 @Injectable()
 export class EmailsService {
   private readonly logger = new Logger(EmailsService.name);
   private imap: Imap;
   
-  // IMAP folder configuration
-  private readonly SOURCE_FOLDER = 'KUNDEN';
-  private readonly DONE_FOLDER = 'KUNDEN_FERTIG';
+  // IMAP folder configuration (from environment)
+  private readonly SOURCE_FOLDER: string;
+  private readonly DONE_FOLDER: string;
 
   constructor(
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
     private configService: ConfigService,
+    @Inject(forwardRef(() => EmailTemplatesService))
+    private emailTemplatesService: EmailTemplatesService,
   ) {
+    this.SOURCE_FOLDER = this.configService.get<string>('IMAP_SOURCE_FOLDER') || 'INBOX';
+    this.DONE_FOLDER = this.configService.get<string>('IMAP_DONE_FOLDER') || 'PROCESSED';
     this.initImapConnection();
   }
 
@@ -519,5 +524,153 @@ export class EmailsService {
 
       imapConnection.connect();
     });
+  }
+
+  // ==================== AI PROCESSING ====================
+
+  /**
+   * Get emails that need AI processing (inbox emails without AI data)
+   */
+  async getUnprocessedEmails(limit = 10): Promise<Email[]> {
+    return this.emailRepository.find({
+      where: {
+        status: EmailStatus.INBOX,
+        aiProcessedAt: IsNull(),
+        aiProcessing: false,
+      },
+      order: { receivedAt: 'DESC' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Get count of emails currently being processed by AI
+   */
+  async getAiProcessingCount(): Promise<number> {
+    return this.emailRepository.count({
+      where: { aiProcessing: true },
+    });
+  }
+
+  /**
+   * Get count of unprocessed emails
+   */
+  async getUnprocessedCount(): Promise<number> {
+    return this.emailRepository.count({
+      where: {
+        status: EmailStatus.INBOX,
+        aiProcessedAt: IsNull(),
+        aiProcessing: false,
+      },
+    });
+  }
+
+  /**
+   * Process a single email with AI analysis
+   */
+  async processEmailWithAi(emailId: string): Promise<Email | null> {
+    const email = await this.emailRepository.findOne({ where: { id: emailId } });
+    if (!email) return null;
+
+    // Mark as processing
+    await this.emailRepository.update(emailId, { aiProcessing: true });
+
+    try {
+      const body = email.textBody || email.htmlBody?.replace(/<[^>]*>/g, ' ') || '';
+      const analysis = await this.emailTemplatesService.analyzeEmail(email.subject, body);
+
+      await this.emailRepository.update(emailId, {
+        aiSummary: analysis.summary,
+        aiTags: analysis.tags,
+        cleanedBody: analysis.cleanedBody,
+        recommendedTemplateId: analysis.recommendedTemplateId,
+        recommendedTemplateReason: analysis.recommendedTemplateReason,
+        aiProcessedAt: new Date(),
+        aiProcessing: false,
+      });
+
+      return this.emailRepository.findOne({ where: { id: emailId } });
+    } catch (error) {
+      this.logger.error(`AI processing error for email ${emailId}:`, error);
+      await this.emailRepository.update(emailId, { aiProcessing: false });
+      return null;
+    }
+  }
+
+  /**
+   * Process all unprocessed inbox emails with AI
+   * Returns immediately with count, processes in background
+   */
+  async processAllWithAi(): Promise<{ started: boolean; total: number }> {
+    const unprocessed = await this.getUnprocessedEmails(50);
+    const total = unprocessed.length;
+    
+    if (total === 0) {
+      return { started: false, total: 0 };
+    }
+
+    // Process in background (fire and forget)
+    this.processEmailsInBackground(unprocessed);
+
+    return { started: true, total };
+  }
+
+  /**
+   * Background processing - not awaited
+   */
+  private async processEmailsInBackground(emails: Email[]): Promise<void> {
+    for (const email of emails) {
+      try {
+        await this.processEmailWithAi(email.id);
+      } catch (error) {
+        this.logger.error(`Failed to process email ${email.id}:`, error);
+      }
+    }
+    this.logger.log(`Background AI processing complete: ${emails.length} emails`);
+  }
+
+  /**
+   * Force recalculate AI analysis for ALL inbox emails
+   * Resets aiProcessedAt and reprocesses everything in background
+   */
+  async recalculateAllWithAi(): Promise<{ started: boolean; total: number }> {
+    // Reset all inbox emails to unprocessed state
+    await this.resetAllAiData();
+
+    // Now process all (returns immediately)
+    return this.processAllWithAi();
+  }
+
+  /**
+   * Reset all AI data for inbox emails (for recalculation)
+   */
+  async resetAllAiData(): Promise<void> {
+    await this.emailRepository.update(
+      { status: EmailStatus.INBOX },
+      { aiProcessedAt: null, aiProcessing: false, aiSummary: null, aiTags: null, cleanedBody: null }
+    );
+  }
+
+  /**
+   * Get AI processing status for all inbox emails
+   */
+  async getAiStatus(): Promise<{
+    total: number;
+    processed: number;
+    processing: number;
+    pending: number;
+  }> {
+    const [total, processed, processing] = await Promise.all([
+      this.emailRepository.count({ where: { status: EmailStatus.INBOX } }),
+      this.emailRepository.count({ where: { status: EmailStatus.INBOX, aiProcessedAt: Not(IsNull()) } }),
+      this.emailRepository.count({ where: { aiProcessing: true } }),
+    ]);
+
+    return {
+      total,
+      processed,
+      processing,
+      pending: total - processed - processing,
+    };
   }
 }

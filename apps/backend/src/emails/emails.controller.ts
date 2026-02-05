@@ -9,9 +9,11 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
   Res,
+  Sse,
   NotFoundException,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { Observable, interval, map, takeWhile, startWith, switchMap, of, concat, delay } from 'rxjs';
 import { EmailsService } from './emails.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -133,6 +135,154 @@ export class EmailsController {
     }
   }
 
+  // ==================== AI PROCESSING ====================
+  // NOTE: These routes MUST be defined BEFORE the generic /:id route!
+
+  /**
+   * GET /emails/ai/status - Get AI processing status
+   */
+  @Get('ai/status')
+  async getAiStatus() {
+    return this.emailsService.getAiStatus();
+  }
+
+  /**
+   * POST /emails/ai/process - Process all unprocessed emails with AI
+   */
+  @Post('ai/process')
+  async processAllWithAi() {
+    return this.emailsService.processAllWithAi();
+  }
+
+  /**
+   * POST /emails/ai/recalculate - Force recalculate AI for ALL inbox emails
+   */
+  @Post('ai/recalculate')
+  async recalculateAllWithAi() {
+    return this.emailsService.recalculateAllWithAi();
+  }
+
+  /**
+   * GET /emails/ai/process-stream - SSE stream for AI processing with real-time updates
+   */
+  @Sse('ai/process-stream')
+  processWithAiStream(): Observable<MessageEvent> {
+    return new Observable((subscriber) => {
+      (async () => {
+        try {
+          // Get unprocessed emails
+          const unprocessed = await this.emailsService.getUnprocessedEmails(50);
+          const total = unprocessed.length;
+          
+          if (total === 0) {
+            subscriber.next({ data: { type: 'complete', processed: 0, total: 0 } } as MessageEvent);
+            subscriber.complete();
+            return;
+          }
+
+          // Send initial status
+          subscriber.next({ data: { type: 'start', total, processed: 0 } } as MessageEvent);
+
+          let processed = 0;
+          for (const email of unprocessed) {
+            try {
+              const result = await this.emailsService.processEmailWithAi(email.id);
+              processed++;
+              
+              // Send progress update with email data
+              subscriber.next({ 
+                data: { 
+                  type: 'progress', 
+                  processed, 
+                  total,
+                  email: result ? {
+                    id: result.id,
+                    aiSummary: result.aiSummary,
+                    aiTags: result.aiTags,
+                    cleanedBody: result.cleanedBody,
+                    recommendedTemplateId: result.recommendedTemplateId
+                  } : null
+                } 
+              } as MessageEvent);
+            } catch (err) {
+              // Continue processing other emails even if one fails
+              processed++;
+              subscriber.next({ 
+                data: { type: 'error', emailId: email.id, processed, total } 
+              } as MessageEvent);
+            }
+          }
+
+          // Send completion
+          subscriber.next({ data: { type: 'complete', processed, total } } as MessageEvent);
+          subscriber.complete();
+        } catch (err) {
+          subscriber.error(err);
+        }
+      })();
+    });
+  }
+
+  /**
+   * GET /emails/ai/recalculate-stream - SSE stream for recalculating ALL emails with AI
+   */
+  @Sse('ai/recalculate-stream')
+  recalculateWithAiStream(): Observable<MessageEvent> {
+    return new Observable((subscriber) => {
+      (async () => {
+        try {
+          // Reset all inbox emails first
+          await this.emailsService.resetAllAiData();
+          
+          // Get all inbox emails (now unprocessed)
+          const unprocessed = await this.emailsService.getUnprocessedEmails(100);
+          const total = unprocessed.length;
+          
+          if (total === 0) {
+            subscriber.next({ data: { type: 'complete', processed: 0, total: 0 } } as MessageEvent);
+            subscriber.complete();
+            return;
+          }
+
+          // Send initial status
+          subscriber.next({ data: { type: 'start', total, processed: 0 } } as MessageEvent);
+
+          let processed = 0;
+          for (const email of unprocessed) {
+            try {
+              const result = await this.emailsService.processEmailWithAi(email.id);
+              processed++;
+              
+              subscriber.next({ 
+                data: { 
+                  type: 'progress', 
+                  processed, 
+                  total,
+                  email: result ? {
+                    id: result.id,
+                    aiSummary: result.aiSummary,
+                    aiTags: result.aiTags,
+                    cleanedBody: result.cleanedBody
+                  } : null
+                } 
+              } as MessageEvent);
+            } catch (err) {
+              processed++;
+              subscriber.next({ 
+                data: { type: 'error', emailId: email.id, processed, total } 
+              } as MessageEvent);
+            }
+          }
+
+          subscriber.next({ data: { type: 'complete', processed, total } } as MessageEvent);
+          subscriber.complete();
+        } catch (err) {
+          subscriber.error(err);
+        }
+      })();
+    });
+  }
+
   /**
    * GET /emails/:id - Get a single email
    */
@@ -192,6 +342,18 @@ export class EmailsController {
     const email = await this.emailsService.restoreFromTrash(id);
     if (!email) {
       return { error: 'E-Mail nicht gefunden' };
+    }
+    return email;
+  }
+
+  /**
+   * POST /emails/:id/ai/process - Process a single email with AI
+   */
+  @Post(':id/ai/process')
+  async processEmailWithAi(@Param('id') id: string) {
+    const email = await this.emailsService.processEmailWithAi(id);
+    if (!email) {
+      return { error: 'E-Mail nicht gefunden oder Verarbeitung fehlgeschlagen' };
     }
     return email;
   }

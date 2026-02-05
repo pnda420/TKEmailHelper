@@ -377,6 +377,14 @@ export interface Email {
   repliedAt: Date | null;
   replySentSubject: string | null;
   replySentBody: string | null;
+  // AI Analysis fields
+  aiSummary: string | null;
+  aiTags: string[] | null;
+  recommendedTemplateId: string | null;
+  recommendedTemplateReason: string | null;
+  aiProcessedAt: Date | null;
+  aiProcessing: boolean;
+  cleanedBody: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -1108,6 +1116,51 @@ restoreEmailFromTrash(id: string): Observable<Email> {
   });
 }
 
+// ==================== AI PROCESSING ENDPOINTS ====================
+
+/**
+ * AI Status - Get processing progress
+ */
+getAiStatus(): Observable<{ total: number; processed: number; processing: number; pending: number }> {
+  return this.http.get<{ total: number; processed: number; processing: number; pending: number }>(
+    `${this.apiUrl}/emails/ai/status`,
+    { headers: this.getHeaders() }
+  );
+}
+
+/**
+ * Process all unprocessed emails with AI (starts background processing)
+ */
+processAllEmailsWithAi(): Observable<{ started: boolean; total: number }> {
+  return this.http.post<{ started: boolean; total: number }>(
+    `${this.apiUrl}/emails/ai/process`,
+    {},
+    { headers: this.getHeaders() }
+  );
+}
+
+/**
+ * Force recalculate AI for ALL inbox emails (resets and reprocesses in background)
+ */
+recalculateAllEmailsWithAi(): Observable<{ started: boolean; total: number }> {
+  return this.http.post<{ started: boolean; total: number }>(
+    `${this.apiUrl}/emails/ai/recalculate`,
+    {},
+    { headers: this.getHeaders() }
+  );
+}
+
+/**
+ * Process a single email with AI
+ */
+processEmailWithAi(id: string): Observable<Email> {
+  return this.http.post<Email>(
+    `${this.apiUrl}/emails/${id}/ai/process`,
+    {},
+    { headers: this.getHeaders() }
+  );
+}
+
 // ==================== EMAIL TEMPLATE ENDPOINTS ====================
 
 /**
@@ -1160,6 +1213,15 @@ deleteEmailTemplate(id: string): Observable<{ success: boolean }> {
  */
 generateEmailWithGPT(dto: GenerateEmailDto): Observable<GeneratedEmailResponse> {
   return this.http.post<GeneratedEmailResponse>(`${this.apiUrl}/email-templates/generate`, dto, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * KI-Zusammenfassung einer E-Mail mit Tags
+ */
+getEmailSummary(subject: string, body: string): Observable<{ summary: string; tags: string[] }> {
+  return this.http.post<{ summary: string; tags: string[] }>(`${this.apiUrl}/email-templates/summarize`, { subject, body }, {
     headers: this.getHeaders()
   });
 }

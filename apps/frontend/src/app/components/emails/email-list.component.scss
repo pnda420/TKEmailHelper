@@ -44,11 +44,119 @@ $gray-900: #111827;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 0;
+  padding-bottom: 1rem;
   flex-shrink: 0;
 }
 
+// ==================== AI PROCESSING BANNER ====================
+.ai-processing-banner {
+  background: linear-gradient(135deg, rgba($primary, 0.15) 0%, rgba(#8b5cf6, 0.15) 100%);
+  border: 1px solid rgba($primary, 0.3);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+  position: relative;
+  overflow: hidden;
+  
+  .ai-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: $primary-dark;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    
+    .material-symbols-outlined {
+      font-size: 24px;
+      color: $primary;
+    }
+  }
+  
+  .ai-banner-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: rgba($primary, 0.2);
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, $primary, #8b5cf6);
+      transition: width 0.3s ease;
+      border-radius: 0 2px 2px 0;
+    }
+  }
+}
+
+.ai-pending-banner {
+  background: $gray-50;
+  border: 1px solid $gray-200;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  
+  .ai-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: $gray-600;
+    font-weight: 500;
+    font-size: 0.875rem;
+    
+    .material-symbols-outlined {
+      font-size: 20px;
+      color: $gray-400;
+    }
+  }
+  
+  .process-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    background: $primary;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    .material-symbols-outlined {
+      font-size: 18px;
+    }
+    
+    &:hover {
+      background: $primary-dark;
+      transform: translateY(-1px);
+    }
+  }
+}
+
+.ai-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: rgba($primary, 0.1);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $primary;
+  
+  .material-symbols-outlined {
+    font-size: 14px;
+  }
+}
+
 .toolbar-left {
+  display: flex;
+  gap: 1rem;
   .email-count {
     display: inline-flex;
     align-items: center;
@@ -67,6 +175,9 @@ $gray-900: #111827;
 }
 
 .toolbar-right {
+  display: flex;
+  gap: 0.75rem;
+  
   .btn {
     display: inline-flex;
     align-items: center;
@@ -91,6 +202,24 @@ $gray-900: #111827;
 
       &:disabled {
         opacity: 0.7;
+        cursor: not-allowed;
+      }
+    }
+
+    &--outline {
+      background: white;
+      border: 1px solid $gray-200;
+      color: $gray-700;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+
+      &:hover:not(:disabled) {
+        border-color: $primary;
+        color: $primary;
+        background: rgba($primary, 0.02);
+      }
+
+      &:disabled {
+        opacity: 0.6;
         cursor: not-allowed;
       }
     }
@@ -264,14 +393,84 @@ $gray-900: #111827;
     line-height: 1.4;
   }
 
+  &__tags {
+    display: flex;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+    
+    .ai-tag {
+      display: inline-flex;
+      padding: 0.125rem 0.5rem;
+      background: linear-gradient(135deg, rgba($primary, 0.1), rgba(#8b5cf6, 0.1));
+      border-radius: 12px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: $primary;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+  }
+
   &__icons {
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
 
     .material-symbols-outlined {
       font-size: 18px;
       color: $gray-400;
     }
+    
+    .ai-icon {
+      color: $primary;
+      font-size: 16px;
+      
+      &.spin {
+        color: $primary;
+        animation: spin 1s linear infinite;
+      }
+    }
   }
+  
+  &.ai-processed {
+    .email-item__preview {
+      color: $gray-600;
+      font-style: normal;
+    }
+  }
+
+  &.ai-pending {
+    .email-item__preview {
+      &.skeleton {
+        .skeleton-text {
+          color: $gray-400;
+          font-style: italic;
+        }
+      }
+    }
+    
+    .skeleton-tags {
+      .ai-tag.skeleton {
+        background: linear-gradient(90deg, $gray-100 25%, $gray-200 50%, $gray-100 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        width: 50px;
+        color: transparent;
+        
+        &::before {
+          content: '...';
+        }
+      }
+    }
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 // ==================== LOAD MORE ====================
@@ -582,6 +781,23 @@ $gray-900: #111827;
       background: $gray-200;
     }
   }
+
+  &--outline {
+    background: white;
+    border: 1px solid $gray-200;
+    color: $gray-700;
+
+    &:hover:not(:disabled) {
+      border-color: $primary;
+      color: $primary;
+      background: rgba($primary, 0.02);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
 }
 
 // ==================== NO SELECTION ====================
@@ -618,4 +834,245 @@ $gray-900: #111827;
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+// ==================== VIEW TOGGLE ====================
+.view-toggle {
+  display: flex;
+  background: $gray-100;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  
+  .toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: $gray-500;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    .material-symbols-outlined {
+      font-size: 16px;
+    }
+    
+    &.active {
+      background: white;
+      color: $primary;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    &:hover:not(.active) {
+      color: $gray-700;
+    }
+  }
+}
+
+// ==================== COMPACT META ROW ====================
+.email-detail__meta-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  background: white;
+  border-bottom: 1px solid $gray-100;
+  font-size: 0.8125rem;
+  
+  .meta-main {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: $gray-600;
+    min-width: 0;
+    flex: 1;
+    
+    .meta-sender {
+      font-weight: 600;
+      color: $gray-800;
+    }
+    
+    .meta-email {
+      color: $gray-400;
+      font-size: 0.75rem;
+    }
+    
+    .meta-separator {
+      color: $gray-300;
+      margin: 0 0.25rem;
+    }
+    
+    .meta-to {
+      color: $gray-500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+  
+  .meta-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+    
+    .meta-date {
+      color: $gray-400;
+      font-size: 0.75rem;
+    }
+    
+    .meta-attachments {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: $gray-500;
+      
+      .material-symbols-outlined {
+        font-size: 16px;
+      }
+    }
+  }
+}
+
+.email-detail__subject {
+  padding: 0.75rem 1.5rem;
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: $gray-900;
+  line-height: 1.3;
+  border-bottom: 1px solid $gray-100;
+}
+
+// ==================== AI SUMMARY VIEW ====================
+.ai-summary-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ai-summary-card {
+  background: linear-gradient(135deg, rgba($primary, 0.05) 0%, rgba(#8b5cf6, 0.05) 100%);
+  border: 1px solid rgba($primary, 0.15);
+  border-radius: 12px;
+  padding: 1rem;
+  
+  .ai-summary-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: $primary;
+    margin-bottom: 0.5rem;
+    
+    .material-symbols-outlined {
+      font-size: 16px;
+    }
+  }
+  
+  .ai-summary-text {
+    margin: 0;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: $gray-700;
+  }
+  
+  .ai-tags {
+    display: flex;
+    gap: 0.375rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+    
+    .ai-tag {
+      padding: 0.25rem 0.625rem;
+      background: rgba($primary, 0.1);
+      border-radius: 12px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: $primary;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+  }
+}
+
+.email-body-clean {
+  flex: 1;
+  min-height: 0;
+  background: $gray-50;
+  border-radius: 12px;
+  padding: 1rem;
+  overflow-y: auto;
+  
+  .email-text-body {
+    font-size: 1rem;
+    line-height: 1.65;
+    color: $gray-700;
+  }
+}
+
+// ==================== COMPACT ATTACHMENTS ====================
+.email-detail__attachments-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: $gray-50;
+  border-top: 1px solid $gray-100;
+  
+  .attachment-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    background: white;
+    border: 1px solid $gray-200;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    
+    .material-symbols-outlined {
+      font-size: 16px;
+      color: $primary;
+    }
+    
+    .att-name {
+      max-width: 100px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: $gray-700;
+    }
+    
+    .att-size {
+      color: $gray-400;
+    }
+    
+    &:hover {
+      border-color: $primary;
+      background: rgba($primary, 0.05);
+    }
+  }
+}
+
+// Small button variant
+.btn--sm {
+  padding: 0.5rem 0.75rem !important;
+  
+  .material-symbols-outlined {
+    font-size: 18px;
+  }
 }
