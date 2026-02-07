@@ -1,0 +1,440 @@
+@use '../../utils/shared-styles' as *;
+
+// Variables
+$primary: #6366f1;
+$primary-dark: #4f46e5;
+$primary-50: #eef2ff;
+$primary-100: #e0e7ff;
+$success: #10b981;
+$danger: #ef4444;
+$gray-50: #f9fafb;
+$gray-100: #f3f4f6;
+$gray-200: #e5e7eb;
+$gray-300: #d1d5db;
+$gray-400: #9ca3af;
+$gray-500: #6b7280;
+$gray-600: #4b5563;
+$gray-700: #374151;
+$gray-800: #1f2937;
+$gray-900: #111827;
+
+// ==================== HOST ====================
+:host {
+  display: block;
+  height: calc(100vh - 57px);
+  overflow: hidden;
+}
+
+// ==================== PAGE CONTAINER ====================
+.sql-test {
+  height: 100%;
+  background: #ECF2FC;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  &__content {
+    max-width: 1800px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 1.5rem 2.5rem 2rem;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    gap: 1.25rem;
+  }
+
+  // ==================== HEADER ====================
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.75rem;
+    background: $color-white;
+    border-radius: $radius-xl;
+    box-shadow: $shadow-md;
+    border: 1px solid $color-gray-100;
+    flex-shrink: 0;
+
+    h1 {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: $color-text-primary;
+      margin: 0;
+
+      .material-symbols-outlined {
+        font-size: 1.5rem;
+        color: $primary;
+      }
+    }
+  }
+
+  &__subtitle {
+    color: $color-text-secondary;
+    font-size: 0.875rem;
+    margin: 0;
+    font-weight: 500;
+  }
+
+  // ==================== INPUT CARD ====================
+  &__input-section {
+    background: $color-white;
+    border-radius: $radius-xl;
+    box-shadow: $shadow-md;
+    border: 1px solid $color-gray-100;
+    padding: 1.5rem 1.75rem;
+    flex-shrink: 0;
+  }
+
+  &__label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.625rem;
+    color: $color-text-primary;
+    font-size: 0.875rem;
+  }
+
+  &__textarea {
+    width: 100%;
+    min-height: 160px;
+    padding: 1rem 1.25rem;
+    border: 1px solid $gray-200;
+    border-radius: $radius-md;
+    background: $gray-50;
+    color: $color-text-primary;
+    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 0.875rem;
+    line-height: 1.7;
+    resize: vertical;
+    transition: all $transition-base;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+      border-color: $primary;
+      box-shadow: 0 0 0 3px rgba($primary, 0.12);
+      background: $color-white;
+    }
+
+    &::placeholder {
+      color: $gray-400;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  &__btn-execute {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    min-height: 44px;
+    background: $gradient-primary;
+    color: $color-white;
+    border: none;
+    border-radius: $radius-md;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all $transition-base;
+    box-shadow: $shadow-brand;
+
+    .material-symbols-outlined {
+      font-size: 1.25rem;
+    }
+
+    &:hover:not(:disabled) {
+      background: $gradient-primary-hover;
+      box-shadow: $shadow-brand-hover;
+      transform: translateY(-2px);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  &__hint {
+    color: $gray-400;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.625rem;
+    border: 1px solid $gray-200;
+    border-radius: $radius-xs;
+    font-family: monospace;
+    background: $gray-50;
+  }
+
+  &__stats {
+    color: $color-text-secondary;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.875rem;
+    background: rgba($success, 0.1);
+    color: $success;
+    border-radius: $radius-full;
+  }
+
+  // ==================== LOADING STATE ====================
+  &__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.875rem;
+    padding: 2rem;
+    color: $color-text-secondary;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    background: $glass-bg;
+    border-radius: $radius-xl;
+    box-shadow: $glass-shadow;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+  }
+
+  &__spinner {
+    width: 22px;
+    height: 22px;
+    border: 2.5px solid $gray-200;
+    border-top-color: $primary;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  // ==================== ERROR STATE ====================
+  &__error {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: $color-error-light;
+    border: 1px solid rgba($danger, 0.25);
+    border-radius: $radius-md;
+    color: $danger;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.5;
+
+    .material-symbols-outlined {
+      font-size: 1.25rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+  }
+
+  // ==================== RESULTS TABLE ====================
+  &__results {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__table-wrapper {
+    overflow: auto;
+    background: $color-white;
+    border: 1px solid $color-gray-200;
+    border-radius: $radius-xl;
+    box-shadow: $shadow-md;
+    max-height: 50vh;
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+
+    th,
+    td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      white-space: nowrap;
+      border-bottom: 1px solid $gray-100;
+    }
+
+    th {
+      background: $gray-50;
+      color: $gray-500;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.6875rem;
+      letter-spacing: 0.06em;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      border-bottom: 2px solid $gray-200;
+    }
+
+    tbody tr {
+      transition: background $transition-fast;
+
+      &:hover {
+        background: $primary-50;
+      }
+
+      &:last-child td {
+        border-bottom: none;
+      }
+    }
+
+    td {
+      color: $color-text-primary;
+      font-weight: 450;
+    }
+  }
+
+  // ==================== NO RESULTS ====================
+  &__no-results {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem;
+    color: $color-text-secondary;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    background: $glass-bg;
+    border-radius: $radius-xl;
+    box-shadow: $glass-shadow;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+
+    .material-symbols-outlined {
+      font-size: 1.25rem;
+      color: $color-brand-primary;
+    }
+  }
+
+  // ==================== QUERY HISTORY ====================
+  &__history {
+    background: $color-white;
+    border-radius: $radius-xl;
+    box-shadow: $shadow-md;
+    border: 1px solid $color-gray-100;
+    padding: 1.25rem 1.75rem;
+    flex-shrink: 0;
+
+    h3 {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: $color-text-secondary;
+      margin: 0 0 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+  }
+
+  &__history-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.625rem 0.875rem;
+    border-radius: $radius-sm;
+    cursor: pointer;
+    transition: all $transition-fast;
+    gap: 1rem;
+
+    &:hover {
+      background: $primary-50;
+    }
+
+    &--error {
+      .sql-test__history-sql {
+        color: $gray-400;
+      }
+      .sql-test__history-meta {
+        color: $danger;
+      }
+    }
+  }
+
+  &__history-sql {
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.8125rem;
+    color: $color-text-primary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+    font-weight: 500;
+  }
+
+  &__history-meta {
+    font-size: 0.75rem;
+    color: $gray-400;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 500;
+
+    .material-symbols-outlined {
+      font-size: 0.875rem;
+    }
+  }
+}
+
+// ==================== RESPONSIVE ====================
+@media (max-width: 768px) {
+  .sql-test {
+    &__content {
+      padding: 1rem;
+    }
+
+    &__header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 1rem 1.25rem;
+    }
+
+    &__input-section {
+      padding: 1.25rem;
+    }
+
+    &__textarea {
+      min-height: 120px;
+    }
+
+    &__stats {
+      margin-left: 0;
+    }
+
+    &__history {
+      padding: 1rem 1.25rem;
+    }
+  }
+}

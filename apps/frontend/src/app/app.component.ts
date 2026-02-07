@@ -61,14 +61,6 @@ export class AppComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
-    // Access Control für Under Construction Mode
-    this.route.queryParams.subscribe(params => {
-      const access = params['pw'];
-      if (access) {
-        // Prüfe Passwort gegen Backend
-        this.checkMaintenancePassword(access);
-      }
-    });
 
     // SEO-Update bei Navigation
     this.router.events
@@ -94,28 +86,6 @@ export class AppComponent implements OnInit {
     // Initial Admin-Route Check
     this.isAdminRoute = this.router.url.startsWith('/admin');
 
-  }
-
-  private checkMaintenancePassword(password: string): void {
-    this.api.checkMaintenancePassword(password).subscribe({
-      next: (response) => {
-        if (response.valid) {
-          this.isUnderConstruction = false;
-          this.router.navigate([], { 
-            queryParams: { pw: null }, 
-            queryParamsHandling: 'merge' 
-          });
-          sessionStorage.setItem('maintenanceBypass', 'true');
-          this.toasts.success('Zugang gewährt');
-        } else {
-          this.toasts.error('Ungültiges Passwort');
-        }
-      },
-      error: (error) => {
-        console.error('Fehler bei Passwort-Prüfung:', error);
-        this.toasts.error('Fehler bei der Überprüfung');
-      }
-    });
   }
 
   onConfirmed(): void {

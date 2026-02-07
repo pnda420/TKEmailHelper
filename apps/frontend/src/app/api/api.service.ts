@@ -468,6 +468,119 @@ export interface SendReplyResponse {
   messageId?: string;
 }
 
+// ==================== LOG INTERFACES ====================
+
+export enum LogLevel {
+  ERROR = 'error',
+  WARN = 'warn',
+  INFO = 'info',
+  DEBUG = 'debug',
+}
+
+export interface AppLog {
+  id: number;
+  level: LogLevel;
+  message: string;
+  stack: string | null;
+  method: string | null;
+  url: string | null;
+  statusCode: number | null;
+  userId: string | null;
+  userEmail: string | null;
+  requestBody: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  source: string | null;
+  duration: number | null;
+  extra: string | null;
+  createdAt: string;
+}
+
+export interface LogQueryParams {
+  page?: number;
+  limit?: number;
+  level?: string;
+  search?: string;
+  userId?: string;
+  from?: string;
+  to?: string;
+  source?: string;
+}
+
+export interface LogsResponse {
+  data: AppLog[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface LogStats {
+  totalErrors: number;
+  totalWarnings: number;
+  totalInfo: number;
+  recentErrorRate: number;
+  topSources: { source: string; count: number }[];
+  topUsers: { userId: string; userEmail: string; count: number }[];
+}
+
+export interface PurgeResponse {
+  deleted: number;
+  message: string;
+}
+
+// ==================== AI USAGE INTERFACES ====================
+
+export interface AiUsageEntry {
+  id: number;
+  feature: string;
+  model: string;
+  userId: string | null;
+  userEmail: string | null;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUsd: number;
+  durationMs: number | null;
+  success: boolean;
+  errorMessage: string | null;
+  context: string | null;
+  createdAt: string;
+}
+
+export interface AiUsageQueryParams {
+  page?: number;
+  limit?: number;
+  feature?: string;
+  userId?: string;
+  model?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface AiUsageResponse {
+  data: AiUsageEntry[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AiUsageStats {
+  totalRequests: number;
+  totalTokens: number;
+  totalCostUsd: number;
+  totalErrors: number;
+  costByModel: { model: string; cost: number; requests: number; tokens: number }[];
+  costByFeature: { feature: string; cost: number; requests: number; tokens: number }[];
+  costByUser: { userId: string; userEmail: string; cost: number; requests: number }[];
+  dailyCost: { date: string; cost: number; requests: number }[];
+}
+
+export interface AiBalance {
+  available: number | null;
+  used: number | null;
+  error?: string;
+}
+
 
 // ==================== SERVICE ====================
 
@@ -604,289 +717,6 @@ export class ApiService {
       headers: this.getHeaders()
     });
   }
-
-  // ==================== CONTACT REQUEST ENDPOINTS ====================
-
-  /**
-   * Kontaktanfrage senden (öffentlich)
-   */
-  createContactRequest(dto: CreateContactRequestDto): Observable<ContactRequest> {
-    return this.http.post<ContactRequest>(`${this.apiUrl}/contact-requests`, dto, {
-      headers: this.getHeaders()
-    });
-  }
-
-  /**
-   * Alle Kontaktanfragen abrufen (Admin)
-   */
-  getAllContactRequests(): Observable<ContactRequest[]> {
-    return this.http.get<ContactRequest[]>(`${this.apiUrl}/contact-requests`, {
-      headers: this.getHeaders()
-    });
-  }
-
-  /**
-   * Unbearbeitete Kontaktanfragen abrufen (Admin)
-   */
-  getUnprocessedContactRequests(): Observable<ContactRequest[]> {
-    return this.http.get<ContactRequest[]>(
-      `${this.apiUrl}/contact-requests/unprocessed`,
-      { headers: this.getHeaders() }
-    );
-  }
-
-  /**
-   * Einzelne Kontaktanfrage abrufen
-   */
-  getContactRequest(id: string): Observable<ContactRequest> {
-    return this.http.get<ContactRequest>(`${this.apiUrl}/contact-requests/${id}`, {
-      headers: this.getHeaders()
-    });
-  }
-
-  /**
-   * Kontaktanfrage aktualisieren (Admin)
-   */
-  updateContactRequest(
-    id: string,
-    dto: UpdateContactRequestDto
-  ): Observable<ContactRequest> {
-    return this.http.patch<ContactRequest>(
-      `${this.apiUrl}/contact-requests/${id}`,
-      dto,
-      { headers: this.getHeaders() }
-    );
-  }
-
-  /**
-   * Kontaktanfrage als bearbeitet markieren (Admin)
-   */
-  markContactRequestAsProcessed(id: string): Observable<ContactRequest> {
-    return this.http.patch<ContactRequest>(
-      `${this.apiUrl}/contact-requests/${id}/process`,
-      {},
-      { headers: this.getHeaders() }
-    );
-  }
-
-  /**
-   * Kontaktanfrage löschen (Admin)
-   */
-  deleteContactRequest(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/contact-requests/${id}`, {
-      headers: this.getHeaders()
-    });
-  }
-
-  // ==================== BOOKING SLOTS ENDPOINTS ====================
-
-  /**
-   * Verfügbare Slots abrufen (öffentlich)
-   */
-  getAvailableBookingSlots(fromDate?: string): Observable<BookingSlot[]> {
-    let params = new HttpParams();
-    if (fromDate) {
-      params = params.set('fromDate', fromDate);
-    }
-    return this.http.get<BookingSlot[]>(`${this.apiUrl}/bookings/slots/available`, { params });
-  }
-
-  /**
-   * Slots für ein bestimmtes Datum abrufen (öffentlich)
-   */
-  getBookingSlotsByDate(date: string): Observable<BookingSlot[]> {
-    return this.http.get<BookingSlot[]>(`${this.apiUrl}/bookings/slots/date/${date}`);
-  }
-
-  /**
-   * Alle Slots abrufen (Admin)
-   */
-  getAllBookingSlots(): Observable<BookingSlot[]> {
-    return this.http.get<BookingSlot[]>(`${this.apiUrl}/bookings/slots`, {
-      headers: this.getHeaders()
-    });
-  }
-
-  /**
-   * Einzelnen Slot erstellen (Admin)
-   */
-  createBookingSlot(dto: CreateBookingSlotDto): Observable<BookingSlot> {
-    return this.http.post<BookingSlot>(`${this.apiUrl}/bookings/slots`, dto, {
-      headers: this.getHeaders()
-    });
-  }
-
-  /**
-   * Mehrere Slots auf einmal erstellen (Admin)
-   */
-  createMultipleBookingSlots(slots: CreateBookingSlotDto[]): Observable<BookingSlot[]> {
-    return this.http.post<BookingSlot[]>(
-      `${this.apiUrl}/bookings/slots/bulk`,
-      { slots },
-      { headers: this.getHeaders() }
-    );
-  }
-
-  /**
-   * Slot aktualisieren (Admin)
-   */
-  updateBookingSlot(id: string, dto: UpdateBookingSlotDto): Observable<BookingSlot> {
-    return this.http.patch<BookingSlot>(`${this.apiUrl}/bookings/slots/${id}`, dto, {
-      headers: this.getHeaders()
-    });
-  }
-
-  /**
-   * Slot löschen (Admin)
-   */
-  deleteBookingSlot(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/bookings/slots/${id}`, {
-      headers: this.getHeaders()
-    });
-  }
-
-  // ==================== BOOKINGS ENDPOINTS ====================
-
-  /**
-   * Booking erstellen (öffentlich)
-   */
-  createBooking(dto: CreateBookingDto): Observable<Booking> {
-    return this.http.post<Booking>(`${this.apiUrl}/bookings`, dto);
-  }
-
-  /**
-   * Alle Bookings abrufen (Admin)
-   */
-  getAllBookings(): Observable<Booking[]> {
-    return this.http.get<Booking[]>(`${this.apiUrl}/bookings`, {
-      headers: this.getHeaders()
-    });
-  }
-
-  /**
-   * Einzelne Booking abrufen (Admin)
-   */
-  getBooking(id: string): Observable<Booking> {
-    return this.http.get<Booking>(`${this.apiUrl}/bookings/${id}`, {
-      headers: this.getHeaders()
-    });
-  }
-
-  /**
-   * Booking aktualisieren (Admin)
-   */
-  updateBooking(id: string, dto: UpdateBookingDto): Observable<Booking> {
-    return this.http.patch<Booking>(`${this.apiUrl}/bookings/${id}`, dto, {
-      headers: this.getHeaders()
-    });
-  }
-
-  /**
-   * Booking stornieren (Admin)
-   */
-  cancelBooking(id: string): Observable<Booking> {
-    return this.http.patch<Booking>(`${this.apiUrl}/bookings/${id}/cancel`, {}, {
-      headers: this.getHeaders()
-    });
-  }
-
-  /**
-   * Booking löschen (Admin)
-   */
-  deleteBooking(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/bookings/${id}`, {
-      headers: this.getHeaders()
-    });
-  }
-
-
-  // ==================== NEWSLETTER ENDPOINTS ====================
-
-  /**
-   * Newsletter abonnieren (öffentlich)
-   */
-  subscribeNewsletter(email: string): Observable<{ success: boolean; message: string; email: string }> {
-    return this.http.post<{ success: boolean; message: string; email: string }>(
-      `${this.apiUrl}/newsletter/subscribe`,
-      { email }
-    );
-  }
-
-  /**
-   * Newsletter abmelden (öffentlich)
-   */
-  unsubscribeNewsletter(email: string): Observable<{ success: boolean; message: string }> {
-    const params = new HttpParams().set('email', email);
-    return this.http.delete<{ success: boolean; message: string }>(
-      `${this.apiUrl}/newsletter/unsubscribe`,
-      { params }
-    );
-  }
-
-  /**
-   * Alle Newsletter-Abonnenten abrufen (Admin)
-   */
-  getNewsletterSubscribers(): Observable<{ total: number; active: number; inactive: number; subscribers: NewsletterSubscriber[] }> {
-    return this.http.get<{ total: number; active: number; inactive: number; subscribers: NewsletterSubscriber[] }>(
-      `${this.apiUrl}/newsletter/subscribers`,
-      { headers: this.getHeaders() }
-    );
-  }
-
-  /**
-   * Newsletter Statistiken (Admin)
-   */
-  getNewsletterStats(): Observable<{ total: number; active: number; inactive: number }> {
-    return this.http.get<{ total: number; active: number; inactive: number }>(
-      `${this.apiUrl}/newsletter/stats`,
-      { headers: this.getHeaders() }
-    );
-  }
-
-  /**
-   * Subscriber Status umschalten (Admin)
-   */
-  toggleNewsletterSubscriber(id: string): Observable<{ success: boolean; message: string; subscriber: NewsletterSubscriber }> {
-    return this.http.patch<{ success: boolean; message: string; subscriber: NewsletterSubscriber }>(
-      `${this.apiUrl}/newsletter/subscribers/${id}/toggle`,
-      {},
-      { headers: this.getHeaders() }
-    );
-  }
-
-  /**
-   * Subscriber löschen (Admin)
-   */
-  deleteNewsletterSubscriber(id: string): Observable<{ success: boolean; message: string }> {
-    return this.http.delete<{ success: boolean; message: string }>(
-      `${this.apiUrl}/newsletter/subscribers/${id}`,
-      { headers: this.getHeaders() }
-    );
-  }
-
-  /**
-   * Registrierte User mit Newsletter abrufen (Admin)
-   */
-  getUserNewsletterSubscribers(): Observable<User[]> {
-    return this.http.get<User[]>(
-      `${this.apiUrl}/users/newsletter/subscribers`,
-      { headers: this.getHeaders() }
-    );
-  }
-
-  getPublicSettings(): Observable<PublicSettings> {
-  return this.http.get<PublicSettings>(`${this.apiUrl}/settings/public`);
-}
-
-/**
- * Maintenance Password prüfen
- */
-checkMaintenancePassword(password: string): Observable<{ valid: boolean }> {
-  return this.http.post<{ valid: boolean }>(
-    `${this.apiUrl}/settings/check-maintenance-password`,
-    { password }
-  );
-}
 
 /**
  * Alle Settings abrufen (Admin)
@@ -1251,6 +1081,95 @@ getAITemplateRecommendation(subject: string, body: string): Observable<{
 sendEmailReply(dto: SendReplyDto): Observable<SendReplyResponse> {
   return this.http.post<SendReplyResponse>(`${this.apiUrl}/email-templates/send`, dto, {
     headers: this.getHeaders()
+  });
+}
+
+// ==================== LOG ENDPOINTS (Admin) ====================
+
+/**
+ * Alle Logs abrufen mit Filtern und Pagination
+ */
+getLogs(params: LogQueryParams = {}): Observable<LogsResponse> {
+  let httpParams = new HttpParams();
+  if (params.page) httpParams = httpParams.set('page', params.page.toString());
+  if (params.limit) httpParams = httpParams.set('limit', params.limit.toString());
+  if (params.level) httpParams = httpParams.set('level', params.level);
+  if (params.search) httpParams = httpParams.set('search', params.search);
+  if (params.userId) httpParams = httpParams.set('userId', params.userId);
+  if (params.from) httpParams = httpParams.set('from', params.from);
+  if (params.to) httpParams = httpParams.set('to', params.to);
+  if (params.source) httpParams = httpParams.set('source', params.source);
+  return this.http.get<LogsResponse>(`${this.apiUrl}/api/logs`, {
+    headers: this.getHeaders(),
+    params: httpParams,
+  });
+}
+
+/**
+ * Log-Statistiken für Dashboard
+ */
+getLogStats(hours = 24): Observable<LogStats> {
+  return this.http.get<LogStats>(`${this.apiUrl}/api/logs/stats`, {
+    headers: this.getHeaders(),
+    params: new HttpParams().set('hours', hours.toString()),
+  });
+}
+
+/**
+ * Einzelnen Log-Eintrag abrufen
+ */
+getLogDetail(id: number): Observable<AppLog> {
+  return this.http.get<AppLog>(`${this.apiUrl}/api/logs/${id}`, {
+    headers: this.getHeaders(),
+  });
+}
+
+/**
+ * Alte Logs löschen
+ */
+purgeLogs(days = 90): Observable<PurgeResponse> {
+  return this.http.delete<PurgeResponse>(`${this.apiUrl}/api/logs/purge`, {
+    headers: this.getHeaders(),
+    params: new HttpParams().set('days', days.toString()),
+  });
+}
+
+// ==================== AI USAGE ENDPOINTS (Admin) ====================
+
+/**
+ * AI Usage Einträge abrufen mit Filtern und Pagination
+ */
+getAiUsage(params: AiUsageQueryParams = {}): Observable<AiUsageResponse> {
+  let httpParams = new HttpParams();
+  if (params.page) httpParams = httpParams.set('page', params.page.toString());
+  if (params.limit) httpParams = httpParams.set('limit', params.limit.toString());
+  if (params.feature) httpParams = httpParams.set('feature', params.feature);
+  if (params.userId) httpParams = httpParams.set('userId', params.userId);
+  if (params.model) httpParams = httpParams.set('model', params.model);
+  if (params.from) httpParams = httpParams.set('from', params.from);
+  if (params.to) httpParams = httpParams.set('to', params.to);
+  return this.http.get<AiUsageResponse>(`${this.apiUrl}/api/ai-usage`, {
+    headers: this.getHeaders(),
+    params: httpParams,
+  });
+}
+
+/**
+ * AI Usage Statistiken
+ */
+getAiUsageStats(days = 30): Observable<AiUsageStats> {
+  return this.http.get<AiUsageStats>(`${this.apiUrl}/api/ai-usage/stats`, {
+    headers: this.getHeaders(),
+    params: new HttpParams().set('days', days.toString()),
+  });
+}
+
+/**
+ * OpenAI Balance / Kosten
+ */
+getAiBalance(): Observable<AiBalance> {
+  return this.http.get<AiBalance>(`${this.apiUrl}/api/ai-usage/balance`, {
+    headers: this.getHeaders(),
   });
 }
 }

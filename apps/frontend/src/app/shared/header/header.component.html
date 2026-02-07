@@ -32,6 +32,10 @@
           <span class="material-symbols-outlined ms-size-18">delete</span>
           Papierkorb
         </a>
+        <a routerLink="/sql" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
+          <span class="material-symbols-outlined ms-size-18">database</span>
+          SQL
+        </a>
         <a *ngIf="user?.role === UserRole.ADMIN" routerLink="/admin" routerLinkActive="active"
           class="nav-link--admin-main" (click)="servicesDropdownOpen = false; closeMenu()">
           <span class="material-symbols-outlined ms-size-18">admin_panel_settings</span>
@@ -49,8 +53,6 @@
         </ng-container>
 
         <ng-container *ngIf="user">
-          <app-admin-notification-center *ngIf="user.role === UserRole.ADMIN"></app-admin-notification-center>
-
           <a routerLink="/profile" routerLinkActive="active" class="nav-link--icon" title="Profil"
             (click)="servicesDropdownOpen = false; closeMenu()">
             <span class="material-symbols-outlined ms-size-22 ms-fill">account_circle</span>
@@ -65,7 +67,6 @@
     </nav>
 
     <div class="header__mobile-actions">
-      <app-admin-notification-center *ngIf="user?.role === UserRole.ADMIN"></app-admin-notification-center>
 
       <button class="nav-toggle" type="button" [attr.aria-expanded]="open"
         [attr.aria-label]="open ? 'Menü schließen' : 'Menü öffnen'" (click)="toggle($event)">

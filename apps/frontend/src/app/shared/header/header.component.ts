@@ -4,7 +4,6 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService, User, UserRole } from '../../services/auth.service';
 import { ToastService } from '../toasts/toast.service';
 import { ConfirmationService } from '../confirmation/confirmation.service';
-import { AdminNotificationCenterComponent } from '../admin-notification-center/admin-notification-center.component';
 import { ApiService, ServiceCategory } from '../../api/api.service';
 import { Subscription } from 'rxjs';
 
@@ -17,7 +16,7 @@ interface NavCategory {
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [RouterModule, CommonModule, AdminNotificationCenterComponent],
+  imports: [RouterModule, CommonModule],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss'
 })

@@ -1,0 +1,234 @@
+import { Injectable, Logger } from '@nestjs/common';
+import * as sql from 'mssql';
+import { DatabaseService } from '../database/database.service';
+
+@Injectable()
+export class JtlToolsService {
+  private readonly logger = new Logger(JtlToolsService.name);
+
+  constructor(private readonly db: DatabaseService) {}
+
+  // ==================== TOOL ROUTER ====================
+
+  async executeTool(name: string, args: Record<string, any>): Promise<any> {
+    this.logger.log(`Executing tool: ${name} with args: ${JSON.stringify(args)}`);
+    switch (name) {
+      case 'find_customer':
+        return this.findCustomer(args.search);
+      case 'find_customer_by_email':
+        return this.findCustomerByEmail(args.email);
+      case 'get_customer_orders':
+        return this.getCustomerOrders(args.kKunde, args.limit);
+      case 'get_order_details':
+        return this.getOrderDetails(args.auftragsNr);
+      case 'get_order_shipping':
+        return this.getOrderShipping(args.auftragsNr);
+      case 'get_order_invoice':
+        return this.getOrderInvoice(args.auftragsNr);
+      case 'get_customer_tickets':
+        return this.getCustomerTickets(args.kKunde);
+      case 'get_customer_full_context':
+        return this.getCustomerFullContext(args.email);
+      default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  }
+
+  // ==================== TOOL 1: find_customer ====================
+
+  async findCustomer(search: string): Promise<any[]> {
+    const result = await this.db.queryWithParams(
+      `SELECT TOP 20
+        k.kKunde, k.cKundenNr,
+        a.cVorname, a.cName, a.cFirma, a.cMail, a.cTel, a.cMobil,
+        a.cStrasse, a.cPLZ, a.cOrt
+      FROM dbo.tkunde k
+      JOIN dbo.tAdresse a ON a.kKunde = k.kKunde AND a.nStandard = 1
+      WHERE a.cName LIKE '%' + @search + '%'
+         OR a.cVorname LIKE '%' + @search + '%'
+         OR a.cFirma LIKE '%' + @search + '%'
+         OR a.cMail LIKE '%' + @search + '%'
+         OR k.cKundenNr LIKE '%' + @search + '%'`,
+      { search: { type: sql.NVarChar(200), value: search } },
+    );
+    return result.recordset;
+  }
+
+  // ==================== TOOL 2: find_customer_by_email ====================
+
+  async findCustomerByEmail(email: string): Promise<any | null> {
+    const result = await this.db.queryWithParams(
+      `SELECT TOP 1
+        k.kKunde, k.cKundenNr,
+        a.cVorname, a.cName, a.cFirma, a.cMail, a.cTel, a.cMobil,
+        a.cStrasse, a.cPLZ, a.cOrt, a.cLand,
+        k.cSperre, k.dErstellt AS KundeSeit
+      FROM dbo.tkunde k
+      JOIN dbo.tAdresse a ON a.kKunde = k.kKunde AND a.nStandard = 1
+      WHERE a.cMail = @email`,
+      { email: { type: sql.NVarChar(200), value: email } },
+    );
+    return result.recordset[0] || null;
+  }
+
+  // ==================== TOOL 3: get_customer_orders ====================
+
+  async getCustomerOrders(kKunde: number, limit = 10): Promise<any[]> {
+    const result = await this.db.queryWithParams(
+      `SELECT TOP (@limit)
+        a.kAuftrag, a.cAuftragsNr, a.dErstellt, a.cWaehrung,
+        ek.fWertBrutto,
+        ek.fWertNetto,
+        ek.fZahlung,
+        ek.fOffenerWert,
+        CASE ek.nZahlungStatus
+          WHEN 0 THEN 'Offen'
+          WHEN 1 THEN 'Teilbezahlt'
+          WHEN 2 THEN 'Bezahlt'
+          ELSE CAST(ek.nZahlungStatus AS NVARCHAR(10))
+        END AS ZahlungStatus,
+        CASE WHEN e.nVersandStatus = 2 THEN 'Versendet'
+             WHEN e.nVersandStatus = 1 THEN 'Teilversendet'
+             WHEN e.nVersandStatus = 0 THEN 'Offen'
+             ELSE 'Unbekannt' END AS VersandStatus,
+        CASE WHEN ek.nRechnungStatus = 1 THEN 'Berechnet'
+             WHEN ek.nRechnungStatus = 0 THEN 'Nicht berechnet'
+             ELSE 'Unbekannt' END AS RechnungStatus,
+        e.dVersendet
+      FROM Verkauf.tAuftrag a
+      LEFT JOIN Verkauf.tAuftragEckdaten ek ON ek.kAuftrag = a.kAuftrag
+      LEFT JOIN dbo.tLieferschein ls ON ls.kBestellung = a.kAuftrag
+      LEFT JOIN dbo.tLieferscheinEckdaten e ON e.kLieferschein = ls.kLieferschein
+      WHERE a.kKunde = @kKunde
+      ORDER BY a.dErstellt DESC`,
+      {
+        kKunde: { type: sql.Int, value: kKunde },
+        limit: { type: sql.Int, value: Math.min(limit, 50) },
+      },
+    );
+    return result.recordset;
+  }
+
+  // ==================== TOOL 4: get_order_details ====================
+
+  async getOrderDetails(auftragsNr: string): Promise<{ header: any; positions: any[] }> {
+    const [headerResult, positionsResult] = await Promise.all([
+      this.db.queryWithParams(
+        `SELECT TOP 1
+          a.kAuftrag, a.cAuftragsNr, a.kKunde, a.dErstellt, a.cWaehrung,
+          ek.fWertBrutto,
+          ek.fWertNetto,
+          ek.fOffenerWert,
+          ek.nZahlungStatus,
+          ek.dBezahlt,
+          ad.cVorname, ad.cName, ad.cFirma, ad.cMail
+        FROM Verkauf.tAuftrag a
+        LEFT JOIN Verkauf.tAuftragEckdaten ek ON ek.kAuftrag = a.kAuftrag
+        JOIN dbo.tAdresse ad ON ad.kKunde = a.kKunde AND ad.nStandard = 1
+        WHERE a.cAuftragsNr = @auftragsNr`,
+        { auftragsNr: { type: sql.NVarChar(50), value: auftragsNr } },
+      ),
+      this.db.queryWithParams(
+        `SELECT
+          p.cArtNr, p.cName, p.fAnzahl, p.fVkNetto, p.fMwSt,
+          ROUND(p.fVkNetto * p.fAnzahl * (1 + p.fMwSt / 100), 2) AS BruttoGesamt,
+          p.cEinheit, p.cHinweis
+        FROM Verkauf.tAuftragPosition p
+        JOIN Verkauf.tAuftrag a ON a.kAuftrag = p.kAuftrag
+        WHERE a.cAuftragsNr = @auftragsNr AND p.nType = 0
+        ORDER BY p.nSort`,
+        { auftragsNr: { type: sql.NVarChar(50), value: auftragsNr } },
+      ),
+    ]);
+
+    return {
+      header: headerResult.recordset[0] || null,
+      positions: positionsResult.recordset,
+    };
+  }
+
+  // ==================== TOOL 5: get_order_shipping ====================
+
+  async getOrderShipping(auftragsNr: string): Promise<any[]> {
+    const result = await this.db.queryWithParams(
+      `SELECT
+        a.cAuftragsNr, ls.cLieferscheinNr,
+        v.cIdentCode AS TrackingNummer,
+        v.cLogistiker AS Versanddienstleister,
+        v.dVersendet AS VersandDatum,
+        CASE v.nStatus
+          WHEN 0 THEN 'Erstellt' WHEN 1 THEN 'Versendet' WHEN 2 THEN 'Zugestellt'
+          ELSE CAST(v.nStatus AS NVARCHAR(10)) END AS VersandStatus,
+        e.nAnzahlPakete, e.nAnzahlVersendetePakete
+      FROM Verkauf.tAuftrag a
+      JOIN dbo.tLieferschein ls ON ls.kBestellung = a.kAuftrag
+      LEFT JOIN dbo.tVersand v ON v.kLieferschein = ls.kLieferschein
+      LEFT JOIN dbo.tLieferscheinEckdaten e ON e.kLieferschein = ls.kLieferschein
+      WHERE a.cAuftragsNr = @auftragsNr
+      ORDER BY v.dErstellt DESC`,
+      { auftragsNr: { type: sql.NVarChar(50), value: auftragsNr } },
+    );
+    return result.recordset;
+  }
+
+  // ==================== TOOL 6: get_order_invoice ====================
+
+  async getOrderInvoice(auftragsNr: string): Promise<any[]> {
+    const result = await this.db.queryWithParams(
+      `SELECT
+        a.cAuftragsNr, r.cRechnungsnr, r.dErstellt AS RechnungsDatum,
+        r.cWaehrung, r.cZahlungsart, r.nZahlungszielTage,
+        CASE r.nRechnungStatus
+          WHEN 0 THEN 'Offen' WHEN 1 THEN 'Bezahlt' WHEN 2 THEN 'Teilbezahlt'
+          ELSE CAST(r.nRechnungStatus AS NVARCHAR(10)) END AS ZahlungsStatus,
+        r.nStorno AS IstStorniert
+      FROM Verkauf.tAuftrag a
+      JOIN Verkauf.tAuftragRechnung ar ON ar.kAuftrag = a.kAuftrag
+      JOIN Rechnung.tRechnung r ON r.kRechnung = ar.kRechnung
+      WHERE a.cAuftragsNr = @auftragsNr
+      ORDER BY r.dErstellt DESC`,
+      { auftragsNr: { type: sql.NVarChar(50), value: auftragsNr } },
+    );
+    return result.recordset;
+  }
+
+  // ==================== TOOL 7: get_customer_tickets ====================
+
+  async getCustomerTickets(kKunde: number): Promise<any[]> {
+    const result = await this.db.queryWithParams(
+      `SELECT
+        t.kTicket, t.cEindeutigeId AS TicketNr, t.nPrioritaet,
+        t.dAenderung AS LetzteAenderung, t.dFaelligAm, t.dLoesung,
+        CASE
+          WHEN t.dLoesung IS NOT NULL THEN 'Gelöst'
+          WHEN t.nIstInPapierkorb = 1 THEN 'Papierkorb'
+          ELSE 'Offen' END AS TicketStatus
+      FROM Ticketsystem.tTicket t
+      WHERE t.kKunde = @kKunde AND t.nIstInPapierkorb = 0
+      ORDER BY t.dAenderung DESC`,
+      { kKunde: { type: sql.Int, value: kKunde } },
+    );
+    return result.recordset;
+  }
+
+  // ==================== TOOL 8: get_customer_full_context ====================
+
+  async getCustomerFullContext(email: string): Promise<any | null> {
+    const result = await this.db.queryWithParams(
+      `SELECT TOP 1
+        k.kKunde, k.cKundenNr,
+        a.cVorname, a.cName, a.cFirma, a.cMail, a.cTel, a.cMobil,
+        a.cStrasse, a.cPLZ, a.cOrt,
+        k.cSperre, k.dErstellt AS KundeSeit,
+        (SELECT COUNT(*) FROM Verkauf.tAuftrag o WHERE o.kKunde = k.kKunde) AS AnzahlAuftraege,
+        (SELECT MAX(o.dErstellt) FROM Verkauf.tAuftrag o WHERE o.kKunde = k.kKunde) AS LetzterAuftrag,
+        (SELECT SUM(ek2.fWertBrutto) FROM Verkauf.tAuftrag o2 JOIN Verkauf.tAuftragEckdaten ek2 ON ek2.kAuftrag = o2.kAuftrag WHERE o2.kKunde = k.kKunde) AS GesamtUmsatz,
+        (SELECT COUNT(*) FROM Ticketsystem.tTicket t WHERE t.kKunde = k.kKunde AND t.dLoesung IS NULL AND t.nIstInPapierkorb = 0) AS OffeneTickets
+      FROM dbo.tkunde k
+      JOIN dbo.tAdresse a ON a.kKunde = k.kKunde AND a.nStandard = 1
+      WHERE a.cMail = @email`,
+      { email: { type: sql.NVarChar(200), value: email } },
+    );
+    return result.recordset[0] || null;
+  }
+}

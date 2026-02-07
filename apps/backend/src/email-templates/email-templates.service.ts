@@ -6,6 +6,8 @@ import * as nodemailer from 'nodemailer';
 import OpenAI from 'openai';
 import { EmailTemplate } from './email-templates.entity';
 import { User } from '../users/users.entity';
+import { AI_MODELS } from '../config/ai-models.config';
+import { AiUsageService } from '../ai-usage/ai-usage.service';
 
 export interface CreateTemplateDto {
   name: string;
@@ -50,6 +52,7 @@ export class EmailTemplatesService {
     @InjectRepository(EmailTemplate)
     private templateRepository: Repository<EmailTemplate>,
     private configService: ConfigService,
+    private aiUsageService: AiUsageService,
   ) {
     // Initialize OpenAI
     this.openai = new OpenAI({
@@ -169,15 +172,31 @@ ${instructions ? `Zusätzliche Anweisungen: ${instructions}` : ''}${baseContent}
 Bitte schreibe eine passende Antwort.`;
 
     try {
+      const callStart = Date.now();
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: AI_MODELS.powerful,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        temperature: 0.7,
         response_format: { type: 'json_object' },
       });
+
+      // Track usage
+      const usage = response.usage;
+      if (usage) {
+        this.aiUsageService.track({
+          feature: 'generate-email',
+          model: AI_MODELS.powerful,
+          userId: user?.id,
+          userEmail: user?.email,
+          promptTokens: usage.prompt_tokens || 0,
+          completionTokens: usage.completion_tokens || 0,
+          totalTokens: usage.total_tokens || 0,
+          durationMs: Date.now() - callStart,
+          context: originalEmail.subject?.substring(0, 200),
+        }).catch(() => {});
+      }
 
       const content = response.choices[0]?.message?.content;
       if (!content) {
@@ -344,16 +363,30 @@ Vollständiger Inhalt:
 ${emailBody}`;
 
     try {
+      const callStart = Date.now();
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: AI_MODELS.fast,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        temperature: 0.3,
-        max_tokens: 600,
+        max_completion_tokens: 600,
         response_format: { type: 'json_object' },
       });
+
+      // Track usage
+      const usage = response.usage;
+      if (usage) {
+        this.aiUsageService.track({
+          feature: 'analyze-email-for-reply',
+          model: AI_MODELS.fast,
+          promptTokens: usage.prompt_tokens || 0,
+          completionTokens: usage.completion_tokens || 0,
+          totalTokens: usage.total_tokens || 0,
+          durationMs: Date.now() - callStart,
+          context: emailSubject?.substring(0, 200),
+        }).catch(() => {});
+      }
 
       const content = response.choices[0]?.message?.content?.trim();
       if (content) {
@@ -393,16 +426,30 @@ Inhalt:
 ${emailBody.substring(0, 1500)}`;
 
     try {
+      const callStart = Date.now();
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: AI_MODELS.fast,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        temperature: 0.3,
-        max_tokens: 150,
+        max_completion_tokens: 150,
         response_format: { type: 'json_object' },
       });
+
+      // Track usage
+      const usage = response.usage;
+      if (usage) {
+        this.aiUsageService.track({
+          feature: 'summarize-email',
+          model: AI_MODELS.fast,
+          promptTokens: usage.prompt_tokens || 0,
+          completionTokens: usage.completion_tokens || 0,
+          totalTokens: usage.total_tokens || 0,
+          durationMs: Date.now() - callStart,
+          context: emailSubject?.substring(0, 200),
+        }).catch(() => {});
+      }
 
       const content = response.choices[0]?.message?.content?.trim();
       if (content) {
@@ -449,9 +496,11 @@ ${emailBody.substring(0, 1500)}`;
 Analysiere die E-Mail und wähle die am besten passende Vorlage aus der Liste.
 
 WICHTIG:
-- Wähle nur eine Vorlage, die thematisch zur E-Mail passt
-- Wenn keine Vorlage gut passt, gib null zurück
-- Bewerte dein Vertrauen von 0-100 (nur über 60 ist eine gute Empfehlung)
+- Wähle nur eine Vorlage, wenn sie WIRKLICH gut zur E-Mail passt
+- Es ist VÖLLIG IN ORDNUNG wenn keine Vorlage passt — gib dann null zurück mit confidence 0
+- Erzwinge KEINE Empfehlung wenn du unsicher bist
+- Bewerte dein Vertrauen von 0-100. Nur über 75 ist eine relevante Empfehlung
+- Bei allgemeinen Anfragen die nicht klar zu einer Vorlage passen: null zurückgeben
 
 Antworte NUR mit diesem JSON-Format:
 {"templateId": "die-id-oder-null", "reason": "Kurze Begründung auf Deutsch", "confidence": 0-100}`;
@@ -467,15 +516,29 @@ ${templateSummary}
 Welche Vorlage passt am besten?`;
 
     try {
+      const callStart = Date.now();
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: AI_MODELS.fast,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        temperature: 0.3, // Lower temperature for more consistent recommendations
         response_format: { type: 'json_object' },
       });
+
+      // Track usage
+      const rUsage = response.usage;
+      if (rUsage) {
+        this.aiUsageService.track({
+          feature: 'recommend-template',
+          model: AI_MODELS.fast,
+          promptTokens: rUsage.prompt_tokens || 0,
+          completionTokens: rUsage.completion_tokens || 0,
+          totalTokens: rUsage.total_tokens || 0,
+          durationMs: Date.now() - callStart,
+          context: emailSubject?.substring(0, 200),
+        }).catch(() => {});
+      }
 
       const content = response.choices[0]?.message?.content;
       if (!content) {

@@ -1,0 +1,105 @@
+<div class="sql-test">
+  <div class="sql-test__content">
+
+  <div class="sql-test__header">
+    <h1>
+      <span class="material-symbols-outlined">database</span>
+      SQL Query Tool
+    </h1>
+  </div>
+
+  <!-- Query Input -->
+  <div class="sql-test__input-section">
+    <label for="sql-textarea" class="sql-test__label">SQL Query:</label>
+    <textarea
+      id="sql-textarea"
+      class="sql-test__textarea"
+      [(ngModel)]="sqlInput"
+      (keydown)="onKeydown($event)"
+      placeholder="SELECT * FROM ..."
+      rows="8"
+      spellcheck="false"
+      autocomplete="off"
+    ></textarea>
+
+    <div class="sql-test__actions">
+      <button
+        class="sql-test__btn-execute"
+        (click)="executeQuery()"
+        [disabled]="loading || !sqlInput.trim()"
+      >
+        <span class="material-symbols-outlined">play_arrow</span>
+        {{ loading ? 'Wird ausgeführt...' : 'Ausführen' }}
+      </button>
+
+      <span class="sql-test__hint">Ctrl + Enter</span>
+
+      <span class="sql-test__stats" *ngIf="result">
+        {{ result.rowCount }} Ergebnis{{ result.rowCount !== 1 ? 'se' : '' }}
+        in {{ result.duration }}ms
+      </span>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="sql-test__loading" *ngIf="loading">
+    <div class="sql-test__spinner"></div>
+    <span>Query wird ausgeführt...</span>
+  </div>
+
+  <!-- Error -->
+  <div class="sql-test__error" *ngIf="error">
+    <span class="material-symbols-outlined">error</span>
+    <span>{{ error }}</span>
+  </div>
+
+  <!-- Results Table -->
+  <div class="sql-test__results" *ngIf="result && result.recordset.length > 0">
+    <div class="sql-test__table-wrapper">
+      <table class="sql-test__table">
+        <thead>
+          <tr>
+            <th *ngFor="let col of columns">{{ col }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of result.recordset">
+            <td *ngFor="let col of columns">{{ row[col] }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- No Results -->
+  <div class="sql-test__no-results" *ngIf="result && result.recordset.length === 0">
+    <span class="material-symbols-outlined">info</span>
+    Keine Ergebnisse gefunden.
+  </div>
+
+  <!-- Query History -->
+  <div class="sql-test__history" *ngIf="history.length > 0">
+    <h3>Letzte Queries:</h3>
+    <ul class="sql-test__history-list">
+      <li
+        *ngFor="let item of history"
+        class="sql-test__history-item"
+        [class.sql-test__history-item--error]="item.error"
+        (click)="loadFromHistory(item)"
+      >
+        <span class="sql-test__history-sql">{{ truncate(item.sql) }}</span>
+        <span class="sql-test__history-meta">
+          <ng-container *ngIf="!item.error">
+            {{ item.rowCount }} Zeilen
+          </ng-container>
+          <ng-container *ngIf="item.error">
+            <span class="material-symbols-outlined ms-size-14">error</span> Fehler
+          </ng-container>
+          &middot; {{ item.timestamp | date:'HH:mm:ss' }}
+        </span>
+      </li>
+    </ul>
+  </div>
+
+  </div>
+</div>

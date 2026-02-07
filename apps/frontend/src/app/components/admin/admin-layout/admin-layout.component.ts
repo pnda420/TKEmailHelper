@@ -58,24 +58,16 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
   };
 
   routes: NavRoute[] = [
-    { path: 'admin', label: 'Dashboard', icon: 'dashboard' },
-    { path: 'admin/analytics', label: 'Analytics', icon: 'bar_chart' },
-    { path: 'admin/requests', label: 'Anfragen', icon: 'mail' },
-    { path: 'admin/booking', label: 'Buchungen', icon: 'calendar_today' },
-    { path: 'admin/newsletter', label: 'Newsletter', icon: 'newspaper' },
-    { path: 'admin/faq', label: 'FAQ', icon: 'quiz' },
-    { path: 'admin/services', label: 'Services', icon: 'build' },
-    { path: 'admin/users', label: 'User', icon: 'group' },
-    { path: 'admin/invoices', label: 'Rechnungen', icon: 'receipt_long' },
-    { path: 'admin/settings', label: 'Settings', icon: 'settings' },
+    { path: 'admin/logs', label: 'Error Logs', icon: 'bug_report' },
+    { path: 'admin/ai-usage', label: 'AI Usage', icon: 'smart_toy' },
+    { path: 'admin/users', label: 'Benutzer', icon: 'group' },
   ];
 
-  // Mobile bottom nav - show only 4 most important + more button
+  // Mobile bottom nav
   mobileNavRoutes: NavRoute[] = [
-    { path: 'admin', label: 'Home', icon: 'dashboard' },
-    { path: 'admin/requests', label: 'Anfragen', icon: 'mail' },
-    { path: 'admin/booking', label: 'Termine', icon: 'calendar_today' },
-    { path: 'admin/analytics', label: 'Stats', icon: 'bar_chart' },
+    { path: 'admin/logs', label: 'Logs', icon: 'bug_report' },
+    { path: 'admin/ai-usage', label: 'AI', icon: 'smart_toy' },
+    { path: 'admin/users', label: 'User', icon: 'group' },
   ];
 
   constructor(private router: Router, private contexts: ChildrenOutletContexts) {}

@@ -1,0 +1,253 @@
+<app-admin-layout>
+<section class="admin-ai-usage">
+  <div class="container">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div class="header-content">
+        <h1>
+          <span class="material-symbols-outlined header-icon">smart_toy</span>
+          AI Usage
+        </h1>
+        <p class="subtitle">{{ total }} API Calls · Auto-Refresh aktiv</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-ghost" (click)="loadAll()" [disabled]="loading">
+          <span class="material-symbols-outlined" [class.spinning]="loading">refresh</span>
+          Aktualisieren
+        </button>
+      </div>
+    </div>
+
+    <!-- Balance Card -->
+    <div class="balance-card" *ngIf="balance && !balanceLoading">
+      <div class="balance-icon">
+        <span class="material-symbols-outlined">account_balance_wallet</span>
+      </div>
+      <div class="balance-content">
+        <span class="balance-label">OpenAI Kosten (30 Tage)</span>
+        <span class="balance-value">{{ formatCost(balance.used || 0) }}</span>
+        <span class="balance-hint" *ngIf="balance.error">{{ balance.error }}</span>
+      </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="stats-grid" *ngIf="stats && !statsLoading">
+      <div class="stat-card stat-requests">
+        <div class="stat-icon"><span class="material-symbols-outlined">api</span></div>
+        <div class="stat-content">
+          <span class="stat-value">{{ stats.totalRequests }}</span>
+          <span class="stat-label">Requests</span>
+        </div>
+      </div>
+      <div class="stat-card stat-tokens">
+        <div class="stat-icon"><span class="material-symbols-outlined">token</span></div>
+        <div class="stat-content">
+          <span class="stat-value">{{ formatTokens(stats.totalTokens) }}</span>
+          <span class="stat-label">Tokens</span>
+        </div>
+      </div>
+      <div class="stat-card stat-cost">
+        <div class="stat-icon"><span class="material-symbols-outlined">payments</span></div>
+        <div class="stat-content">
+          <span class="stat-value">{{ formatCost(stats.totalCostUsd) }}</span>
+          <span class="stat-label">Kosten</span>
+        </div>
+      </div>
+      <div class="stat-card stat-errors">
+        <div class="stat-icon"><span class="material-symbols-outlined">error</span></div>
+        <div class="stat-content">
+          <span class="stat-value">{{ stats.totalErrors }}</span>
+          <span class="stat-label">Fehler</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Time Toggle -->
+    <div class="stats-time-toggle" *ngIf="stats">
+      <span class="toggle-label">Zeitraum:</span>
+      <button class="time-chip" [class.active]="statsDays === 1" (click)="statsDays = 1; loadStats()">1d</button>
+      <button class="time-chip" [class.active]="statsDays === 7" (click)="statsDays = 7; loadStats()">7d</button>
+      <button class="time-chip" [class.active]="statsDays === 30" (click)="statsDays = 30; loadStats()">30d</button>
+      <button class="time-chip" [class.active]="statsDays === 90" (click)="statsDays = 90; loadStats()">90d</button>
+      <button class="time-chip" [class.active]="statsDays === 365" (click)="statsDays = 365; loadStats()">1y</button>
+    </div>
+
+    <!-- Breakdowns -->
+    <div class="breakdowns-row" *ngIf="stats">
+      <!-- Cost by Feature -->
+      <div class="breakdown-card" *ngIf="stats.costByFeature.length">
+        <h3 class="breakdown-title">
+          <span class="material-symbols-outlined">category</span>
+          Kosten pro Feature
+        </h3>
+        <div class="breakdown-list">
+          <div class="breakdown-item" *ngFor="let f of stats.costByFeature">
+            <div class="breakdown-name">
+              <span class="material-symbols-outlined breakdown-icon">{{ getFeatureIcon(f.feature) }}</span>
+              {{ getFeatureLabel(f.feature) }}
+            </div>
+            <div class="breakdown-stats">
+              <span class="breakdown-cost">{{ formatCost(f.cost) }}</span>
+              <span class="breakdown-meta">{{ f.requests }} Req · {{ formatTokens(f.tokens) }} Tok</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cost by Model -->
+      <div class="breakdown-card" *ngIf="stats.costByModel.length">
+        <h3 class="breakdown-title">
+          <span class="material-symbols-outlined">memory</span>
+          Kosten pro Modell
+        </h3>
+        <div class="breakdown-list">
+          <div class="breakdown-item" *ngFor="let m of stats.costByModel">
+            <div class="breakdown-name model-name">{{ m.model }}</div>
+            <div class="breakdown-stats">
+              <span class="breakdown-cost">{{ formatCost(m.cost) }}</span>
+              <span class="breakdown-meta">{{ m.requests }} Req · {{ formatTokens(m.tokens) }} Tok</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cost by User -->
+      <div class="breakdown-card" *ngIf="stats.costByUser.length">
+        <h3 class="breakdown-title">
+          <span class="material-symbols-outlined">group</span>
+          Kosten pro User
+        </h3>
+        <div class="breakdown-list">
+          <div class="breakdown-item" *ngFor="let u of stats.costByUser">
+            <div class="breakdown-name">{{ u.userEmail }}</div>
+            <div class="breakdown-stats">
+              <span class="breakdown-cost">{{ formatCost(u.cost) }}</span>
+              <span class="breakdown-meta">{{ u.requests }} Requests</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily Chart (simple bar visualization) -->
+    <div class="daily-chart-card" *ngIf="stats && stats.dailyCost.length > 1">
+      <h3 class="breakdown-title">
+        <span class="material-symbols-outlined">bar_chart</span>
+        Tägliche Kosten
+      </h3>
+      <div class="daily-bars">
+        <div class="daily-bar-wrapper" *ngFor="let d of stats.dailyCost" [title]="d.date + ': ' + formatCost(d.cost) + ' (' + d.requests + ' Req)'">
+          <div class="daily-bar" [style.height.%]="stats.dailyCost.length > 0 ? (d.cost / getMaxDailyCost()) * 100 : 0"></div>
+          <span class="daily-label">{{ d.date.substring(5) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-bar">
+      <div class="filter-group">
+        <select [(ngModel)]="featureFilter" (change)="applyFilters()" class="filter-select">
+          <option value="">Alle Features</option>
+          <option value="agent-analyze">KI-Agent</option>
+          <option value="agent-analyze-summary">KI-Agent (Summary)</option>
+          <option value="generate-email">E-Mail generieren</option>
+          <option value="analyze-email-for-reply">E-Mail analysieren</option>
+          <option value="summarize-email">Zusammenfassung</option>
+          <option value="recommend-template">Template-Empfehlung</option>
+        </select>
+
+        <select [(ngModel)]="modelFilter" (change)="applyFilters()" class="filter-select">
+          <option value="">Alle Modelle</option>
+          <option value="gpt-5">gpt-5</option>
+          <option value="gpt-5-mini">gpt-5-mini</option>
+        </select>
+
+        <input type="date" [(ngModel)]="dateFrom" (change)="applyFilters()" class="filter-date">
+        <input type="date" [(ngModel)]="dateTo" (change)="applyFilters()" class="filter-date">
+
+        <button *ngIf="hasActiveFilters" class="btn btn-ghost btn-sm" (click)="clearFilters()">
+          <span class="material-symbols-outlined">filter_alt_off</span>
+          Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-state" *ngIf="loading">
+      <div class="spinner"></div>
+      <p>Lade AI Usage Daten...</p>
+    </div>
+
+    <!-- Empty -->
+    <div class="empty-state" *ngIf="!loading && entries.length === 0">
+      <span class="material-symbols-outlined empty-icon">smart_toy</span>
+      <h3>Keine AI Requests</h3>
+      <p>{{ hasActiveFilters ? 'Versuche andere Filter' : 'Noch keine AI API Calls getrackt' }}</p>
+    </div>
+
+    <!-- Entries Table -->
+    <div class="usage-table-container" *ngIf="!loading && entries.length > 0">
+      <table class="usage-table">
+        <thead>
+          <tr>
+            <th class="col-feature">Feature</th>
+            <th class="col-model">Modell</th>
+            <th class="col-time">Zeit</th>
+            <th class="col-user">User</th>
+            <th class="col-tokens">Prompt</th>
+            <th class="col-tokens">Compl.</th>
+            <th class="col-tokens">Total</th>
+            <th class="col-cost">Kosten</th>
+            <th class="col-duration">Dauer</th>
+            <th class="col-status">Status</th>
+            <th class="col-context">Kontext</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let e of entries; let i = index" class="usage-row" [class.error-row]="!e.success" [style.animation-delay.ms]="i * 15">
+            <td class="col-feature">
+              <span class="feature-badge">
+                <span class="material-symbols-outlined feature-icon">{{ getFeatureIcon(e.feature) }}</span>
+                {{ getFeatureLabel(e.feature) }}
+              </span>
+            </td>
+            <td class="col-model"><span class="model-tag">{{ e.model }}</span></td>
+            <td class="col-time">{{ formatDate(e.createdAt) }}</td>
+            <td class="col-user">{{ e.userEmail || '-' }}</td>
+            <td class="col-tokens tok-in">{{ formatTokens(e.promptTokens) }}</td>
+            <td class="col-tokens tok-out">{{ formatTokens(e.completionTokens) }}</td>
+            <td class="col-tokens tok-total">{{ formatTokens(e.totalTokens) }}</td>
+            <td class="col-cost">{{ formatCost(e.costUsd) }}</td>
+            <td class="col-duration">{{ formatDuration(e.durationMs) }}</td>
+            <td class="col-status">
+              <span class="status-dot" [class.success]="e.success" [class.fail]="!e.success"></span>
+              <span *ngIf="!e.success" class="error-msg" [title]="e.errorMessage || ''">Fehler</span>
+            </td>
+            <td class="col-context" [title]="e.context || ''">{{ e.context ? (e.context.length > 40 ? e.context.substring(0, 40) + '…' : e.context) : '-' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" *ngIf="totalPages > 1">
+      <button class="page-btn" [disabled]="page <= 1" (click)="goToPage(1)">
+        <span class="material-symbols-outlined">first_page</span>
+      </button>
+      <button class="page-btn" [disabled]="page <= 1" (click)="goToPage(page - 1)">
+        <span class="material-symbols-outlined">chevron_left</span>
+      </button>
+      <button *ngFor="let p of pageNumbers" class="page-btn" [class.active]="p === page" (click)="goToPage(p)">{{ p }}</button>
+      <button class="page-btn" [disabled]="page >= totalPages" (click)="goToPage(page + 1)">
+        <span class="material-symbols-outlined">chevron_right</span>
+      </button>
+      <button class="page-btn" [disabled]="page >= totalPages" (click)="goToPage(totalPages)">
+        <span class="material-symbols-outlined">last_page</span>
+      </button>
+      <span class="page-info">Seite {{ page }} von {{ totalPages }} ({{ total }})</span>
+    </div>
+
+  </div>
+</section>
+</app-admin-layout>
