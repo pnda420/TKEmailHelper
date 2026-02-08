@@ -1,0 +1,168 @@
+<section class="history-page">
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab" [class.active]="activeTab === 'sent'" (click)="switchTab('sent')">
+      <span class="material-symbols-outlined">send</span>
+      Gesendet
+      <span class="tab-count" *ngIf="activeTab === 'sent' && totalEmails">{{ totalEmails }}</span>
+    </button>
+    <button class="tab" [class.active]="activeTab === 'trash'" (click)="switchTab('trash')">
+      <span class="material-symbols-outlined">delete</span>
+      Papierkorb
+      <span class="tab-count" *ngIf="activeTab === 'trash' && totalEmails">{{ totalEmails }}</span>
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" *ngIf="loading">
+    <div class="skeleton-list">
+      <div class="skeleton-row" *ngFor="let s of [1,2,3,4,5]">
+        <div class="skeleton-avatar"></div>
+        <div class="skeleton-lines">
+          <div class="skeleton-line w60"></div>
+          <div class="skeleton-line w90"></div>
+          <div class="skeleton-line w40"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!loading && emails.length === 0">
+    <span class="material-symbols-outlined">{{ activeTab === 'sent' ? 'send' : 'delete_sweep' }}</span>
+    <h3>{{ activeTab === 'sent' ? 'Keine gesendeten E-Mails' : 'Papierkorb ist leer' }}</h3>
+    <p>{{ activeTab === 'sent' ? 'Sobald du E-Mails beantwortest, erscheinen sie hier.' : 'E-Mails, die keine Antwort benötigen, landen hier.' }}</p>
+    <a routerLink="/emails" class="cta-btn">
+      <span class="material-symbols-outlined">inbox</span>
+      Zum Posteingang
+    </a>
+  </div>
+
+  <!-- Split View -->
+  <div class="split" *ngIf="!loading && emails.length > 0">
+    <!-- List pane -->
+    <div class="list-pane" [class.has-detail]="selectedEmail" [@listAnimation]="emails.length">
+      <div class="mail-item"
+        *ngFor="let email of emails"
+        [class.active]="selectedEmail?.id === email.id"
+        (click)="selectEmail(email)">
+
+        <div class="mail-avatar" [class.sent]="activeTab === 'sent'" [class.trash]="activeTab === 'trash'">
+          {{ getSenderInitials(email) }}
+        </div>
+
+        <div class="mail-content">
+          <div class="mail-top">
+            <span class="mail-sender">
+              {{ activeTab === 'sent' ? email.fromAddress : getSenderName(email) }}
+            </span>
+            <span class="mail-time">
+              {{ formatDate(activeTab === 'sent' ? (email.repliedAt || email.updatedAt) : email.receivedAt) }}
+            </span>
+          </div>
+          <div class="mail-subject">
+            {{ activeTab === 'sent' ? (email.replySentSubject || email.subject) : email.subject }}
+          </div>
+          <div class="mail-snippet">
+            {{ activeTab === 'sent'
+              ? (email.replySentBody | slice:0:100)
+              : (email.preview || email.textBody | slice:0:100) }}
+          </div>
+        </div>
+
+        <div class="mail-meta">
+          <span class="material-symbols-outlined clip-icon" *ngIf="email.attachments?.length">attach_file</span>
+          <button class="restore-inline" *ngIf="activeTab === 'trash'" (click)="restoreEmail(email, $event)" title="Wiederherstellen">
+            <span class="material-symbols-outlined">restore</span>
+          </button>
+        </div>
+      </div>
+
+      <button *ngIf="hasMore" class="load-more" (click)="loadMore()">Mehr laden</button>
+    </div>
+
+    <!-- Detail pane -->
+    <div class="detail-pane" *ngIf="selectedEmail" @fadeSlide>
+      <div class="detail-bar">
+        <button class="back-btn" (click)="closeDetail()">
+          <span class="material-symbols-outlined">arrow_back</span>
+        </button>
+        <div class="detail-bar__spacer"></div>
+        <button class="restore-btn" *ngIf="activeTab === 'trash'" (click)="restoreEmail(selectedEmail)">
+          <span class="material-symbols-outlined">restore</span>
+          Wiederherstellen
+        </button>
+      </div>
+
+      <div class="detail-scroll">
+        <!-- Sent reply section -->
+        <div class="card card--sent" *ngIf="activeTab === 'sent'">
+          <div class="card__label">
+            <span class="material-symbols-outlined">reply</span>
+            Deine Antwort
+          </div>
+          <div class="meta-grid">
+            <span class="meta-key">An</span>
+            <span class="meta-val">{{ selectedEmail.fromAddress }}</span>
+            <span class="meta-key">Betreff</span>
+            <span class="meta-val">{{ selectedEmail.replySentSubject }}</span>
+            <span class="meta-key" *ngIf="selectedEmail.repliedAt">Gesendet</span>
+            <span class="meta-val" *ngIf="selectedEmail.repliedAt">{{ formatFullDate(selectedEmail.repliedAt) }}</span>
+          </div>
+          <pre class="body-text">{{ selectedEmail.replySentBody }}</pre>
+        </div>
+
+        <!-- Original email section -->
+        <div class="card card--original">
+          <div class="card__label">
+            <span class="material-symbols-outlined">mail</span>
+            {{ activeTab === 'sent' ? 'Original E-Mail' : selectedEmail.subject }}
+          </div>
+          <div class="meta-grid">
+            <span class="meta-key">Von</span>
+            <span class="meta-val">{{ getSenderName(selectedEmail) }} &lt;{{ selectedEmail.fromAddress }}&gt;</span>
+            <span class="meta-key">Betreff</span>
+            <span class="meta-val">{{ selectedEmail.subject }}</span>
+            <span class="meta-key">Empfangen</span>
+            <span class="meta-val">{{ formatFullDate(selectedEmail.receivedAt) }}</span>
+          </div>
+
+          <!-- Attachments -->
+          <div class="attachments" *ngIf="selectedEmail.attachments?.length">
+            <div class="att-header">
+              <span class="material-symbols-outlined">attach_file</span>
+              {{ selectedEmail.attachments!.length }} Anhang{{ selectedEmail.attachments!.length > 1 ? 'e' : '' }}
+            </div>
+            <div class="att-list">
+              <div class="att-chip" *ngFor="let att of selectedEmail.attachments; let i = index" (click)="openAttachmentPreview(att, i)">
+                <span class="material-symbols-outlined">{{ getFileIcon(att.contentType) }}</span>
+                <span class="att-name">{{ att.filename }}</span>
+                <span class="att-size">{{ formatFileSize(att.size) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="body-content">
+            <div *ngIf="selectedEmail.htmlBody" [innerHTML]="selectedEmail.htmlBody" class="html-body"></div>
+            <pre *ngIf="!selectedEmail.htmlBody && selectedEmail.textBody" class="body-text">{{ selectedEmail.textBody }}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- No selection -->
+    <div class="detail-empty" *ngIf="!selectedEmail">
+      <span class="material-symbols-outlined">touch_app</span>
+      <p>Wähle eine E-Mail aus</p>
+    </div>
+  </div>
+</section>
+
+<!-- Attachment Preview Modal -->
+<app-attachment-preview
+  [attachment]="selectedAttachment"
+  [attachments]="currentAttachments"
+  [isOpen]="attachmentPreviewOpen"
+  (close)="closeAttachmentPreview()"
+  (download)="downloadAttachment($event)">
+</app-attachment-preview>

@@ -7,6 +7,16 @@ import { User, UserRole } from '../services/auth.service';
 
 // ==================== INTERFACES ====================
 
+export interface AiConfigEntry {
+  id: string;
+  key: string;
+  label: string;
+  description: string;
+  value: string;
+  type: 'rules' | 'prompt';
+  updatedAt: string;
+}
+
 export interface CreateUserDto {
   email: string;
   name: string;
@@ -385,6 +395,12 @@ export interface Email {
   aiProcessedAt: Date | null;
   aiProcessing: boolean;
   cleanedBody: string | null;
+  // Pre-computed Agent Analysis
+  agentAnalysis: string | null;
+  agentKeyFacts: { icon: string; label: string; value: string }[] | null;
+  suggestedReply: string | null;
+  suggestedReplySubject: string | null;
+  customerPhone: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -736,6 +752,26 @@ updateSettings(dto: UpdateSettingsDto): Observable<Settings> {
   });
 }
 
+// ==================== AI CONFIG ENDPOINTS ====================
+
+getAiConfigs(): Observable<AiConfigEntry[]> {
+  return this.http.get<AiConfigEntry[]>(`${this.apiUrl}/ai-config`, {
+    headers: this.getHeaders()
+  });
+}
+
+getAiConfig(key: string): Observable<AiConfigEntry> {
+  return this.http.get<AiConfigEntry>(`${this.apiUrl}/ai-config/${key}`, {
+    headers: this.getHeaders()
+  });
+}
+
+updateAiConfig(key: string, value: string): Observable<AiConfigEntry> {
+  return this.http.patch<AiConfigEntry>(`${this.apiUrl}/ai-config/${key}`, { value }, {
+    headers: this.getHeaders()
+  });
+}
+
 // ==================== FAQ ENDPOINTS ====================
 
 /**
@@ -951,18 +987,28 @@ restoreEmailFromTrash(id: string): Observable<Email> {
 /**
  * AI Status - Get processing progress
  */
-getAiStatus(): Observable<{ total: number; processed: number; processing: number; pending: number }> {
-  return this.http.get<{ total: number; processed: number; processing: number; pending: number }>(
+getAiStatus(): Observable<{ total: number; processed: number; processing: number; pending: number; isProcessing: boolean; bgTotal: number; bgProcessed: number; bgFailed: number; bgMode: string | null }> {
+  return this.http.get<any>(
     `${this.apiUrl}/emails/ai/status`,
     { headers: this.getHeaders() }
   );
 }
 
 /**
- * Process all unprocessed emails with AI (starts background processing)
+ * Lightweight polling endpoint for background processing status
  */
-processAllEmailsWithAi(): Observable<{ started: boolean; total: number }> {
-  return this.http.post<{ started: boolean; total: number }>(
+getProcessingStatus(): Observable<{ isProcessing: boolean; total: number; processed: number; failed: number; mode: string | null }> {
+  return this.http.get<any>(
+    `${this.apiUrl}/emails/ai/processing-status`,
+    { headers: this.getHeaders() }
+  );
+}
+
+/**
+ * Start background processing for unprocessed emails
+ */
+processAllEmailsWithAi(): Observable<any> {
+  return this.http.post<any>(
     `${this.apiUrl}/emails/ai/process`,
     {},
     { headers: this.getHeaders() }
@@ -972,7 +1018,7 @@ processAllEmailsWithAi(): Observable<{ started: boolean; total: number }> {
 /**
  * Force recalculate AI for ALL inbox emails (resets and reprocesses in background)
  */
-recalculateAllEmailsWithAi(): Observable<{ started: boolean; total: number }> {
+recalculateAllEmailsWithAi(): Observable<any> {
   return this.http.post<{ started: boolean; total: number }>(
     `${this.apiUrl}/emails/ai/recalculate`,
     {},

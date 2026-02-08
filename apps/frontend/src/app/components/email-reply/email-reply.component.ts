@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -14,15 +14,6 @@ import { ConfigService } from '../../services/config.service';
 import { AuthService, User } from '../../services/auth.service';
 
 type WorkflowStep = 'select' | 'customize' | 'edit' | 'send';
-
-interface AnalysisStep {
-  type: 'start' | 'tool_call' | 'tool_result' | 'thinking' | 'complete' | 'error';
-  tool?: string;
-  args?: Record<string, any>;
-  result?: any;
-  content?: string;
-  status: 'running' | 'done' | 'error';
-}
 
 @Component({
   selector: 'app-email-reply',
@@ -69,8 +60,12 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   allSteps: WorkflowStep[] = ['select', 'customize', 'edit', 'send'];
   useTemplate = false; // Track if user wants to use a template
 
-  // Dynamic steps based on template usage
+  // Dynamic steps based on template usage and draft availability
   get steps(): WorkflowStep[] {
+    if (this.hasDraft) {
+      // Pre-computed draft: skip select, go directly to edit → send
+      return ['edit', 'send'];
+    }
     if (this.useTemplate) {
       return this.allSteps;
     }
@@ -129,19 +124,20 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   interimTranscript = ''; // For real-time display
   baseInstructions = ''; // Store finalized text
   
-  // AI Agent Analysis
-  analyzing = false;
-  analysisSteps: AnalysisStep[] = [];
+  // AI Agent Analysis (pre-computed from batch processing)
   analysisSummary = '';
   suggestedReply = '';
-  analysisError = '';
+  suggestedReplySubject = '';
   showAnalysisPanel = false;
   analysisContextApplied = false;
   showAnalysisDetails = false;
   analysisKeyFacts: { icon: string; label: string; value: string }[] = [];
-  feedCollapsed = false;
+  analysisFactSections: { title: string; icon: string; facts: { icon: string; label: string; value: string; copyable?: boolean; link?: string }[] }[] = [];
   customerPhone = '';
-  private analysisEventSource: EventSource | null = null;
+  
+  // Pre-computed draft state
+  hasDraft = false;       // true when a pre-computed reply was loaded
+  draftEdited = false;    // true when user has modified the draft
   
   private emailId: string = '';
   private sub?: Subscription;
@@ -161,8 +157,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     private configService: ConfigService,
     private http: HttpClient,
     private authService: AuthService,
-    private sanitizer: DomSanitizer,
-    private ngZone: NgZone
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -184,7 +179,6 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
     this.stopListening();
-    this.closeAnalysisStream();
   }
 
   loadEmail(): void {
@@ -205,6 +199,9 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
         // Analyze email for template suggestions and get summary
         this.analyzeEmailForSuggestions();
         this.loadEmailSummary();
+        
+        // Load pre-computed agent analysis from DB
+        this.loadAgentAnalysis();
       },
       error: (err) => {
         console.error('Fehler beim Laden der E-Mail:', err);
@@ -971,110 +968,46 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     return !!(this.currentUser?.emailSignature && this.currentUser.emailSignature.trim().length > 0);
   }
 
-  // ==================== AI AGENT ANALYSIS ====================
+  // ==================== AI AGENT ANALYSIS (Pre-computed) ====================
 
-  analyzeWithAgent(): void {
-    if (!this.email || this.analyzing) return;
+  /**
+   * Load pre-computed agent analysis from the email entity.
+   * No more live SSE — everything was computed during batch processing.
+   */
+  private loadAgentAnalysis(): void {
+    if (!this.email) return;
 
-    this.analyzing = true;
-    this.analysisSteps = [];
-    this.analysisSummary = '';
-    this.suggestedReply = '';
-    this.analysisError = '';
-    this.analysisContextApplied = false;
-    this.analysisKeyFacts = [];
-    this.showAnalysisDetails = false;
-    this.showAnalysisPanel = true;
-    this.feedCollapsed = false;
-    this.customerPhone = '';
+    if (this.email.agentAnalysis) {
+      this.analysisSummary = this.email.agentAnalysis;
+      this.showAnalysisPanel = true;
 
-    const token = localStorage.getItem('access_token');
-    const url = `${this.configService.apiUrl}/api/ai/analyze?emailId=${this.emailId}&token=${token}`;
+      // Use pre-computed key facts if available, otherwise extract from raw text
+      if (this.email.agentKeyFacts?.length) {
+        this.analysisKeyFacts = this.email.agentKeyFacts;
+      } else {
+        this.extractKeyFacts(this.email.agentAnalysis);
+      }
+      this.buildFactSections();
 
-    this.closeAnalysisStream();
-    
-    this.analysisEventSource = new EventSource(url);
+      this.suggestedReply = this.email.suggestedReply || '';
+      this.suggestedReplySubject = this.email.suggestedReplySubject || '';
+      this.customerPhone = this.email.customerPhone || '';
 
-    this.analysisEventSource.onmessage = (event) => {
-      this.ngZone.run(() => {
-        try {
-          const step: AnalysisStep = JSON.parse(event.data);
-          this.handleAnalysisStep(step);
-        } catch (e) {
-          console.error('Failed to parse SSE event:', e);
-        }
-      });
-    };
-
-    this.analysisEventSource.onerror = () => {
-      this.ngZone.run(() => {
-        if (this.analyzing) {
-          // Only show error if we haven't completed naturally
-          if (!this.analysisSummary) {
-            this.analysisError = 'Verbindung zur Analyse unterbrochen';
-            this.toasts.error('Analyse-Verbindung unterbrochen');
-          }
-          this.analyzing = false;
-          this.closeAnalysisStream();
-        }
-      });
-    };
-  }
-
-  private handleAnalysisStep(step: AnalysisStep): void {
-    switch (step.type) {
-      case 'start':
-        this.analysisSteps.push(step);
-        break;
-
-      case 'tool_call':
-        this.analysisSteps.push(step);
-        break;
-
-      case 'tool_result':
-        // Replace matching tool_call's status or add result
-        const callIdx = [...this.analysisSteps].reverse()
-          .findIndex(s => s.type === 'tool_call' && s.tool === step.tool && s.status === 'running');
-        if (callIdx >= 0) {
-          const actualIdx = this.analysisSteps.length - 1 - callIdx;
-          this.analysisSteps[actualIdx] = { ...this.analysisSteps[actualIdx], status: 'done' };
-        }
-        this.analysisSteps.push(step);
-        break;
-
-      case 'complete':
-        this.analysisSteps.push(step);
-        this.analyzing = false;
-        this.feedCollapsed = true; // Collapse feed to show results
-        this.closeAnalysisStream();
-        this.parseAnalysisResult(step.content || '');
-        break;
-
-      case 'error':
-        this.analysisSteps.push(step);
-        this.analysisError = step.content || 'Unbekannter Fehler';
-        this.analyzing = false;
-        this.closeAnalysisStream();
-        this.toasts.error('Analyse fehlgeschlagen');
-        break;
-    }
-  }
-
-  private parseAnalysisResult(content: string): void {
-    this.analysisSummary = content;
-    
-    // Try to extract suggested reply from the analysis
-    const replyMatch = content.match(/(?:Antwortvorschlag|Vorgeschlagene Antwort)[:\s]*\n([\s\S]+?)(?:\n\n---|\n\n##|$)/i);
-    if (replyMatch) {
-      this.suggestedReply = replyMatch[1].trim();
+      // Auto-apply JTL context to GPT instructions
+      this.applyAnalysisContext(this.email.agentAnalysis);
     }
 
-    // Extract human-readable key facts from the analysis
-    this.extractKeyFacts(content);
-
-    // Pack the analysis context into gptInstructions so the KI uses it
-    this.applyAnalysisContext(content);
-    this.toasts.success('Kundendaten geladen — Kontext übernommen');
+    // Auto-load pre-computed reply draft into editor and jump to edit step
+    if (this.email.suggestedReply) {
+      this.replyBody = this.email.suggestedReply;
+      if (this.email.suggestedReplySubject) {
+        this.replySubject = this.email.suggestedReplySubject;
+      }
+      this.hasDraft = true;
+      this.draftEdited = false;
+      this.useTemplate = false;
+      this.currentStep = 'edit';
+    }
   }
 
   private applyAnalysisContext(content: string): void {
@@ -1101,270 +1034,222 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     if (!this.suggestedReply) return;
     this.saveToHistory();
     this.replyBody = this.suggestedReply;
+    if (this.suggestedReplySubject) {
+      this.replySubject = this.suggestedReplySubject;
+    }
     this.toasts.success('Vorgeschlagene Antwort übernommen');
     // Navigate to edit step
     this.useTemplate = false;
     this.currentStep = 'edit';
   }
 
-  closeAnalysisStream(): void {
-    if (this.analysisEventSource) {
-      this.analysisEventSource.close();
-      this.analysisEventSource = null;
+  /** User wants to start from scratch instead of using the pre-computed draft */
+  startFromScratch(): void {
+    this.hasDraft = false;
+    this.replyBody = '';
+    this.currentStep = 'select';
+  }
+
+  /** Track when user modifies the draft body */
+  onDraftChange(): void {
+    if (this.hasDraft) {
+      this.draftEdited = true;
     }
   }
 
-  /** Returns a simple, human-readable message for the current analysis activity */
-  getCurrentActivityMessage(): string {
-    // Find the last tool_call that's still running
-    const lastRunningCall = [...this.analysisSteps].reverse().find(s => s.type === 'tool_call' && s.status === 'running');
-    if (lastRunningCall?.tool) {
-      const messages: Record<string, string> = {
-        'find_customer': 'Kundendaten werden gesucht…',
-        'find_customer_by_email': 'Kunde wird per E-Mail-Adresse gesucht…',
-        'get_customer_orders': 'Bestellungen werden geladen…',
-        'get_order_details': 'Bestelldetails werden abgerufen…',
-        'get_order_shipping': 'Versandstatus wird geprüft…',
-        'get_order_invoice': 'Rechnungsdaten werden geladen…',
-        'get_customer_tickets': 'Support-Tickets werden gesucht…',
-        'get_customer_full_context': 'Kundenprofil wird geladen…',
-      };
-      return messages[lastRunningCall.tool] || 'Daten werden abgerufen…';
-    }
-
-    // Count completed tools
-    const doneCount = this.analysisSteps.filter(s => s.type === 'tool_result').length;
-    if (doneCount > 0) {
-      return `${doneCount} Abfrage${doneCount > 1 ? 'n' : ''} erledigt – Ergebnis wird zusammengefasst…`;
-    }
-
-    return 'Analyse wird vorbereitet…';
-  }
-
-  /** Visible steps for the live feed — show both calls and results */
-  getVisibleSteps(): AnalysisStep[] {
-    return this.analysisSteps.filter(s =>
-      s.type === 'tool_call' || s.type === 'tool_result' || s.type === 'complete' || s.type === 'error'
-    );
-  }
-
-  /** Toggle feed collapsed/expanded */
-  toggleFeedCollapsed(): void {
-    this.feedCollapsed = !this.feedCollapsed;
-  }
-
-  /** TrackBy for ngFor */
-  trackStep(index: number, step: AnalysisStep): string {
-    return `${index}-${step.type}-${step.tool || ''}-${step.status}`;
-  }
-
-  /** Check if there's a currently running tool call */
-  hasRunningToolCall(): boolean {
-    return this.analysisSteps.some(s => s.type === 'tool_call' && s.status === 'running');
-  }
-
-  /** Icon for the live feed */
-  getStepFeedIcon(step: AnalysisStep): string {
-    if (step.status === 'running') return 'progress_activity';
-    if (step.status === 'error') return 'error_outline';
-    if (step.type === 'complete') return 'task_alt';
-
-    const icons: Record<string, string> = {
-      'find_customer': 'person_search',
-      'find_customer_by_email': 'contact_mail',
-      'get_customer_orders': 'shopping_cart',
-      'get_order_details': 'receipt_long',
-      'get_order_shipping': 'local_shipping',
-      'get_order_invoice': 'request_quote',
-      'get_customer_tickets': 'confirmation_number',
-      'get_customer_full_context': 'account_circle',
-    };
-    if (step.type === 'tool_result') return 'check_circle';
-    return icons[step.tool || ''] || 'build';
-  }
-
-  /** Human-readable message for the live feed */
-  getStepFeedMessage(step: AnalysisStep): string {
-    if (step.type === 'complete') return 'Analyse abgeschlossen — Ergebnisse stehen bereit';
-    if (step.type === 'error') return step.content || 'Fehler bei der Analyse';
-
-    const toolMessages: Record<string, { running: string; done: string }> = {
-      'find_customer': { running: 'Kundendatenbank wird durchsucht…', done: 'Kunde in JTL-Wawi gefunden' },
-      'find_customer_by_email': { running: 'E-Mail-Adresse wird in JTL abgeglichen…', done: 'Kundenkonto per E-Mail identifiziert' },
-      'get_customer_orders': { running: 'Bestellhistorie wird abgerufen…', done: 'Bestellhistorie geladen' },
-      'get_order_details': { running: 'Bestellpositionen & Details werden geladen…', done: 'Bestelldetails vollständig' },
-      'get_order_shipping': { running: 'Versandstatus & Tracking wird geprüft…', done: 'Versandinformationen geladen' },
-      'get_order_invoice': { running: 'Rechnungen & Zahlungsstatus werden geprüft…', done: 'Rechnungsdaten geladen' },
-      'get_customer_tickets': { running: 'Offene Support-Tickets werden gesucht…', done: 'Ticket-Übersicht geladen' },
-      'get_customer_full_context': { running: 'Komplettes Kundenprofil wird zusammengestellt…', done: 'Kundenprofil vollständig geladen' },
-    };
-
-    const tool = step.tool || '';
-    const msg = toolMessages[tool];
-    if (msg) {
-      return step.type === 'tool_call' ? msg.running : msg.done;
-    }
-    return step.type === 'tool_call' ? 'Daten werden abgerufen…' : 'Daten geladen';
-  }
-
-  /** Detailed info for tool results in the live feed */
-  getStepFeedDetail(step: AnalysisStep): string {
-    const result = step.result;
-    if (!result) return '';
-    if (result.error) return `⚠ ${result.error}`;
-
-    // Extract phone numbers from customer results
-    if (step.tool === 'find_customer_by_email' || step.tool === 'find_customer' || step.tool === 'get_customer_full_context') {
-      const customer = Array.isArray(result) ? result[0] : result;
-      if (customer) {
-        // Capture phone number for call button
-        const phone = customer.cTel || customer.cMobil || '';
-        if (phone && !this.customerPhone) {
-          this.customerPhone = phone.trim();
-        }
-      }
-    }
-
-    if (Array.isArray(result)) {
-      if (result.length === 0) return 'Keine Ergebnisse gefunden';
-      const first = result[0];
-
-      // Customer results
-      if (first?.cFirma || first?.cName) {
-        const name = first.cFirma || `${first.cVorname || ''} ${first.cName || ''}`.trim();
-        const extra = first.cMail ? ` · ${first.cMail}` : '';
-        return `${result.length} Treffer – ${name}${extra}`;
-      }
-
-      // Order list
-      if (first?.cAuftragsNr) {
-        const latest = first.cAuftragsNr;
-        const total = result.reduce((s: number, o: any) => s + (parseFloat(o.fWertBrutto) || 0), 0);
-        return `${result.length} Aufträge · zuletzt ${latest}${total ? ` · Gesamt €${total.toFixed(2)}` : ''}`;
-      }
-
-      // Shipping results
-      if (first?.TrackingNummer || first?.VersandStatus) {
-        return `${first.VersandStatus || 'Status unbekannt'}${first.TrackingNummer ? ` · Tracking: ${first.TrackingNummer}` : ''}`;
-      }
-
-      // Invoice results
-      if (first?.cRechnungsnr) {
-        return `Rechnung ${first.cRechnungsnr} · ${first.ZahlungsStatus || 'Status unbekannt'}`;
-      }
-
-      // Tickets
-      if (first?.TicketNr) {
-        const open = result.filter((t: any) => t.TicketStatus === 'Offen').length;
-        return `${result.length} Tickets · ${open} offen`;
-      }
-
-      return `${result.length} Ergebnis${result.length > 1 ? 'se' : ''}`;
-    }
-
-    if (typeof result === 'object') {
-      // Single customer
-      if (result.kKunde) {
-        const name = result.cFirma || `${result.cVorname || ''} ${result.cName || ''}`.trim();
-        const parts = [`#${result.cKundenNr || result.kKunde}`, name];
-        if (result.cOrt) parts.push(result.cOrt);
-        if (result.AnzahlAuftraege) parts.push(`${result.AnzahlAuftraege} Aufträge`);
-        if (result.GesamtUmsatz) parts.push(`€${parseFloat(result.GesamtUmsatz).toFixed(2)} Umsatz`);
-        return parts.join(' · ');
-      }
-      // Order details
-      if (result.header?.cAuftragsNr) {
-        const h = result.header;
-        return `${h.cAuftragsNr} · ${result.positions?.length || 0} Positionen · €${parseFloat(h.fWertBrutto || 0).toFixed(2)}`;
-      }
-    }
-    return '';
-  }
-
-  /** Extract structured Steckbrief-style facts from the analysis summary */
+  /** Extract structured Steckbrief-style facts from the analysis summary (fallback if DB has none) */
   private extractKeyFacts(content: string): void {
     this.analysisKeyFacts = [];
 
-    // Try to extract Kunde
-    const kundeMatch = content.match(/\*?\*?Kunde\*?\*?[:\s]+(.+)/i);
-    if (kundeMatch) {
-      this.analysisKeyFacts.push({ icon: 'person', label: 'Kunde', value: kundeMatch[1].trim().replace(/\*\*/g, '').split('\n')[0] });
+    // Strict helper: only matches structured data lines, rejects sentence fragments
+    const extractField = (pattern: RegExp, icon: string, label: string, maxLen = 60) => {
+      const match = content.match(pattern);
+      if (match) {
+        let val = match[1].trim().replace(/\*\*/g, '').replace(/^-\s*/, '').split('\n')[0];
+        if (val.length > maxLen) val = val.substring(0, maxLen) + '…';
+        if (val.length >= 2 && !this.looksLikeSentenceFragment(val)) {
+          this.analysisKeyFacts.push({ icon, label, value: val });
+        }
+      }
+    };
+
+    // --- Contact data ---
+    extractField(/(?:^|\n)\s*[-*]*\s*\*?\*?Kunde\*?\*?[:\s]+([^\n]{2,60})/i, 'person', 'Kunde', 50);
+    extractField(/(?:^|\n)\s*[-*]*\s*(?:Kundennummer|KundenNr|Kd-?Nr\.?)[:\s#]*(\d{3,10})/i, 'badge', 'Kd-Nr.', 20);
+    extractField(/(?:^|\n)\s*[-*]*\s*\*?\*?(?:Firma|Unternehmen)\*?\*?[:\s]+([^\n,]{2,50})/i, 'business', 'Firma', 50);
+
+    // E-Mail
+    const emailMatch = content.match(/(?:E-?Mail|cMail)[:\s]+([\w.+-]+@[\w.-]+)/i);
+    if (emailMatch) {
+      this.analysisKeyFacts.push({ icon: 'mail', label: 'E-Mail', value: emailMatch[1].trim() });
     }
 
-    // Kundennummer
-    const knrMatch = content.match(/(?:Kundennummer|KundenNr|cKundenNr)[:\s#]*(\S+)/i);
-    if (knrMatch) {
-      this.analysisKeyFacts.push({ icon: 'badge', label: 'Kd-Nr.', value: knrMatch[1].trim().replace(/\*\*/g, '') });
-    }
-
-    // Firma
-    const firmaMatch = content.match(/(?:Firma|Unternehmen|cFirma)[:\s]+([^\n,]+)/i);
-    if (firmaMatch && !kundeMatch?.[1]?.includes(firmaMatch[1].trim())) {
-      this.analysisKeyFacts.push({ icon: 'business', label: 'Firma', value: firmaMatch[1].trim().replace(/\*\*/g, '') });
-    }
-
-    // Ort / Adresse
-    const ortMatch = content.match(/(?:Ort|Stadt|PLZ)[:\s]+([^\n]+)/i);
-    if (ortMatch) {
-      this.analysisKeyFacts.push({ icon: 'location_on', label: 'Ort', value: ortMatch[1].trim().replace(/\*\*/g, '') });
-    }
-
-    // Telefon from analysis text or from tool results
+    // Phone
     if (this.customerPhone) {
       this.analysisKeyFacts.push({ icon: 'phone', label: 'Telefon', value: this.customerPhone });
     } else {
-      const telMatch = content.match(/(?:Telefon|Tel|Mobil|cTel|cMobil)[:\s]+([\d\s+\-/()]+)/i);
-      if (telMatch && telMatch[1].trim().length >= 5) {
+      const telMatch = content.match(/(?:Telefon|Tel\.?)[:\s]+([+\d][\d\s\-/()]{4,20})/i);
+      if (telMatch && /\d{5,}/.test(telMatch[1].replace(/\s/g, ''))) {
         this.customerPhone = telMatch[1].trim();
         this.analysisKeyFacts.push({ icon: 'phone', label: 'Telefon', value: this.customerPhone });
       }
     }
 
-    // Kunde seit
-    const seitMatch = content.match(/(?:Kunde seit|KundeSeit|Registriert)[:\s]+([^\n,]+)/i);
-    if (seitMatch) {
-      this.analysisKeyFacts.push({ icon: 'calendar_today', label: 'Kunde seit', value: seitMatch[1].trim().replace(/\*\*/g, '') });
+    // Mobile
+    const mobilMatch = content.match(/(?:Mobil|Handy)[:\s]+([+\d][\d\s\-/()]{4,20})/i);
+    if (mobilMatch && /\d{5,}/.test(mobilMatch[1].replace(/\s/g, '')) && mobilMatch[1].trim() !== this.customerPhone) {
+      this.analysisKeyFacts.push({ icon: 'smartphone', label: 'Mobil', value: mobilMatch[1].trim() });
     }
 
-    // Anliegen
-    const anliegenMatch = content.match(/\*?\*?Anliegen\*?\*?[:\s]+(.+)/i);
-    if (anliegenMatch) {
-      this.analysisKeyFacts.push({ icon: 'help_outline', label: 'Anliegen', value: anliegenMatch[1].trim().replace(/\*\*/g, '').split('\n')[0] });
-    }
-
-    // Bestellungen count
-    const orderMatch = content.match(/(?:Auftr[aä]g|Bestellung)[^\n]*?(\d+\s*(?:Auftr[aä]g|Bestellung))/i);
-    if (orderMatch) {
-      this.analysisKeyFacts.push({ icon: 'shopping_cart', label: 'Bestellungen', value: orderMatch[1].trim() });
-    } else {
-      const orderNums = content.match(/(?:Auftrag|Bestellung|cBestellNr)[^\n]*?[A-Z]*\d{4,}/gi);
-      if (orderNums && orderNums.length > 0) {
-        this.analysisKeyFacts.push({ icon: 'shopping_cart', label: 'Bestellungen', value: `${orderNums.length} gefunden` });
+    // --- Address ---
+    const streetMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?(?:Stra[sß]e|Adresse)\*?\*?[:\s]+([A-ZÄÖÜ][a-zäöüßA-ZÄÖÜ\s.-]+\d[\w\s/-]*)/im);
+    if (streetMatch) {
+      const sv = streetMatch[1].trim().replace(/\*\*/g, '');
+      if (sv.length >= 5 && sv.length <= 60 && !this.looksLikeSentenceFragment(sv)) {
+        this.analysisKeyFacts.push({ icon: 'home', label: 'Straße', value: sv });
       }
     }
 
-    // Umsatz
-    const umsatzMatch = content.match(/(?:Gesamt[Uu]msatz|Umsatz)[:\s]*[€]?\s*([\d.,]+)/i);
-    if (umsatzMatch) {
-      this.analysisKeyFacts.push({ icon: 'payments', label: 'Umsatz', value: `€${umsatzMatch[1].trim()}` });
+    const ortMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?(?:Ort|Stadt|PLZ)\*?\*?[:\s]+(\d{4,5}\s+[A-ZÄÖÜa-zäöüß\s.-]{2,40})/im);
+    if (ortMatch) {
+      const ortVal = ortMatch[1].trim().replace(/\*\*/g, '');
+      if (ortVal.length <= 50 && !this.looksLikeSentenceFragment(ortVal)) {
+        this.analysisKeyFacts.push({ icon: 'location_on', label: 'Ort', value: ortVal });
+      }
     }
 
-    // Offene Tickets
+    // --- Account info ---
+    const seitMatch = content.match(/(?:Kunde seit|Registriert)[:\s]+([\d]{1,2}[./][\d]{1,2}[./][\d]{2,4}|\d{4})/i);
+    if (seitMatch) {
+      this.analysisKeyFacts.push({ icon: 'calendar_today', label: 'Kunde seit', value: seitMatch[1].trim() });
+    }
+
+    // --- Order & revenue data ---
+    const umsatzMatch = content.match(/(?:Gesamt[Uu]msatz|Umsatz)[:\s]*[€]?\s*([\d.,]+\s*€?)/i);
+    if (umsatzMatch) {
+      const uVal = umsatzMatch[1].trim().replace(/€$/, '');
+      if (/^[\d.,]+$/.test(uVal)) this.analysisKeyFacts.push({ icon: 'payments', label: 'Umsatz', value: `€${uVal}` });
+    }
+
+    const orderCountMatch = content.match(/(?:Anzahl\s*(?:Auftr[aä]ge|Bestellungen)|AnzahlAuftraege|Bestellungen)[:\s]*(\d+)/i);
+    if (orderCountMatch) {
+      this.analysisKeyFacts.push({ icon: 'shopping_cart', label: 'Bestellungen', value: orderCountMatch[1] });
+    }
+
+    const lastOrderMatch = content.match(/(?:Letzter?\s*(?:Auftrag|Bestellung))[:\s]+([\d]{1,2}[./][\d]{1,2}[./][\d]{2,4})/i);
+    if (lastOrderMatch) {
+      this.analysisKeyFacts.push({ icon: 'event', label: 'Letzte Bestellung', value: lastOrderMatch[1].trim() });
+    }
+
+    const payMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?Zahlungsart\*?\*?[:\s]+([^\n]{2,30})/im);
+    if (payMatch) {
+      const pv = payMatch[1].trim().replace(/\*\*/g, '');
+      if (pv.length <= 30 && !this.looksLikeSentenceFragment(pv)) {
+        this.analysisKeyFacts.push({ icon: 'credit_card', label: 'Zahlungsart', value: pv });
+      }
+    }
+
+    const trackMatch = content.match(/(?:Tracking|Sendungsnummer|Trackingnummer)[:\s]+([A-Za-z0-9\-]{8,40}(?:\s*\([^)]+\))?)/i);
+    if (trackMatch) {
+      this.analysisKeyFacts.push({ icon: 'local_shipping', label: 'Tracking', value: trackMatch[1].trim() });
+    }
+
+    const shipMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?(?:Versandstatus|Lieferstatus)\*?\*?[:\s]+([^\n]{2,30})/im);
+    if (shipMatch) {
+      const shv = shipMatch[1].trim().replace(/\*\*/g, '');
+      if (!this.looksLikeSentenceFragment(shv)) {
+        this.analysisKeyFacts.push({ icon: 'package_2', label: 'Versandstatus', value: shv });
+      }
+    }
+
     const ticketMatch = content.match(/(?:Offene?\s*Tickets?)[:\s]*(\d+)/i);
     if (ticketMatch && parseInt(ticketMatch[1]) > 0) {
       this.analysisKeyFacts.push({ icon: 'confirmation_number', label: 'Offene Tickets', value: ticketMatch[1] });
     }
 
-    // Empfohlene Aktion
-    const aktionMatch = content.match(/\*?\*?Empfohlene Aktion\*?\*?[:\s]+(.+)/i);
-    if (aktionMatch) {
-      this.analysisKeyFacts.push({ icon: 'lightbulb', label: 'Empfehlung', value: aktionMatch[1].trim().replace(/\*\*/g, '').split('\n')[0] });
+    // --- Request context ---
+    const anliegenMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?Anliegen\*?\*?[:\s]+([^\n]{5,120})/im);
+    if (anliegenMatch) {
+      let av = anliegenMatch[1].trim().replace(/\*\*/g, '').replace(/^-\s*/, '');
+      if (av.length > 80) av = av.substring(0, 80) + '…';
+      this.analysisKeyFacts.push({ icon: 'help', label: 'Anliegen', value: av });
     }
 
-    // If no facts extracted, add a generic one
+    const empfehlungMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?(?:Empfohlene Aktion|Empfehlung)\*?\*?[:\s]+([^\n]{5,120})/im);
+    if (empfehlungMatch) {
+      let ev = empfehlungMatch[1].trim().replace(/\*\*/g, '').replace(/^-\s*/, '');
+      if (ev.length > 80) ev = ev.substring(0, 80) + '…';
+      this.analysisKeyFacts.push({ icon: 'recommend', label: 'Empfehlung', value: ev });
+    }
+
     if (this.analysisKeyFacts.length === 0) {
       this.analysisKeyFacts.push({ icon: 'info', label: 'Status', value: 'Kundenkontext wurde geladen' });
     }
+  }
+
+  /** Check if a value looks like a sentence fragment rather than structured data */
+  private looksLikeSentenceFragment(val: string): boolean {
+    if (/\b(bestätigen|veranlassen|prüfen|anbieten|senden|kontaktieren|bitten|erstatten|sollte|muss|kann|wird|wurde|haben|nicht angekommen|ob \w+)\b/i.test(val)) {
+      return true;
+    }
+    if (/^[a-zäöü]/.test(val) && val.length > 15) return true;
+    if (val.split(/\s+/).length > 8 && !/[\d@]/.test(val)) return true;
+    return false;
+  }
+
+  /** Build grouped sections from flat analysisKeyFacts for the sectioned UI */
+  private buildFactSections(): void {
+    this.analysisFactSections = [];
+
+    // Define which labels belong to which section
+    const contactLabels = ['Kunde', 'Kd-Nr.', 'Firma', 'E-Mail', 'Telefon', 'Mobil'];
+    const addressLabels = ['Straße', 'Ort'];
+    const accountLabels = ['Kunde seit', 'Sperre'];
+    const orderLabels = ['Umsatz', 'Bestellungen', 'Letzte Bestellung', 'Zahlungsart', 'Tracking', 'Versandstatus', 'Offene Tickets'];
+    const contextLabels = ['Anliegen', 'Empfehlung'];
+
+    const copyableLabels = new Set(['E-Mail', 'Telefon', 'Mobil', 'Kd-Nr.', 'Tracking']);
+    const linkLabels: Record<string, (v: string) => string> = {
+      'E-Mail': (v) => `mailto:${v}`,
+      'Telefon': (v) => `tel:${v}`,
+      'Mobil': (v) => `tel:${v}`,
+    };
+
+    const buildSection = (title: string, icon: string, labels: string[]) => {
+      const facts = this.analysisKeyFacts
+        .filter(f => labels.includes(f.label))
+        .map(f => ({
+          ...f,
+          copyable: copyableLabels.has(f.label),
+          link: linkLabels[f.label]?.(f.value) || undefined,
+        }));
+      if (facts.length > 0) {
+        this.analysisFactSections.push({ title, icon, facts });
+      }
+    };
+
+    buildSection('Kontakt', 'person', contactLabels);
+    buildSection('Adresse', 'location_on', addressLabels);
+    buildSection('Konto', 'manage_accounts', accountLabels);
+    buildSection('Bestellungen & Umsatz', 'shopping_cart', orderLabels);
+    buildSection('Anfrage', 'support_agent', contextLabels);
+
+    // Catch any facts that don't fit into predefined sections
+    const allKnownLabels = new Set([...contactLabels, ...addressLabels, ...accountLabels, ...orderLabels, ...contextLabels]);
+    const uncategorized = this.analysisKeyFacts.filter(f => !allKnownLabels.has(f.label));
+    if (uncategorized.length > 0) {
+      this.analysisFactSections.push({
+        title: 'Weitere Infos',
+        icon: 'info',
+        facts: uncategorized.map(f => ({ ...f, copyable: false, link: undefined })),
+      });
+    }
+  }
+
+  copyToClipboard(value: string): void {
+    navigator.clipboard.writeText(value).then(() => {
+      this.toasts.success('Kopiert!');
+    });
   }
 
   // ==================== ATTACHMENT PREVIEW ====================

@@ -24,17 +24,9 @@
           <span class="material-symbols-outlined ms-size-18">description</span>
           Vorlagen
         </a>
-        <a routerLink="/sent" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
-          <span class="material-symbols-outlined ms-size-18">send</span>
-          Gesendet
-        </a>
-        <a routerLink="/trash" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
-          <span class="material-symbols-outlined ms-size-18">delete</span>
-          Papierkorb
-        </a>
-        <a routerLink="/sql" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
-          <span class="material-symbols-outlined ms-size-18">database</span>
-          SQL
+        <a routerLink="/history" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
+          <span class="material-symbols-outlined ms-size-18">history</span>
+          Verlauf
         </a>
         <a *ngIf="user?.role === UserRole.ADMIN" routerLink="/admin" routerLinkActive="active"
           class="nav-link--admin-main" (click)="servicesDropdownOpen = false; closeMenu()">

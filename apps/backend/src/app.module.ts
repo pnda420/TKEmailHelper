@@ -18,6 +18,8 @@ import { GlobalExceptionFilter } from './logs/global-exception.filter';
 import { RequestLoggerMiddleware } from './logs/request-logger.middleware';
 import { AiUsageModule } from './ai-usage/ai-usage.module';
 import { AiUsage } from './ai-usage/ai-usage.entity';
+import { AiConfigModule } from './ai-config/ai-config.module';
+import { AiConfig } from './ai-config/ai-config.entity';
 import { User } from './users/users.entity';
 import { Email } from './emails/emails.entity';
 import { EmailTemplate } from './email-templates/email-templates.entity';
@@ -55,7 +57,7 @@ import { AppLog } from './logs/app-log.entity';
       username: process.env.DB_USER ?? 'app',
       password: process.env.DB_PASS ?? 'secret',
       database: process.env.DB_NAME ?? 'appdb',
-      entities: [User, Email, EmailTemplate, AppLog, AiUsage],
+      entities: [User, Email, EmailTemplate, AppLog, AiUsage, AiConfig],
       synchronize: true,
       logging: process.env.NODE_ENV === 'development',
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
@@ -70,6 +72,7 @@ import { AppLog } from './logs/app-log.entity';
     AiAgentModule,
     LogsModule,
     AiUsageModule,
+    AiConfigModule,
   ],
   providers: [
     // 🛡️ Global Rate Limit Guard mit Proxy-Support und Headers

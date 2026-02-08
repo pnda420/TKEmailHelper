@@ -1,0 +1,67 @@
+<app-admin-layout>
+  <div class="ai-config-page">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="header-text">
+        <h1>
+          <span class="material-symbols-outlined">gavel</span>
+          Antwort-Regeln
+        </h1>
+        <p>Regeln die bei jeder KI-generierten E-Mail-Antwort berücksichtigt werden.</p>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-state" *ngIf="loading">
+      <span class="material-symbols-outlined spin">progress_activity</span>
+      <p>Wird geladen...</p>
+    </div>
+
+    <div class="config-content" *ngIf="!loading">
+      <!-- ==================== REPLY RULES ==================== -->
+      <section class="config-section">
+        <div class="section-header">
+          <span class="material-symbols-outlined section-icon rules">gavel</span>
+          <div>
+            <h2>Antwort-Regeln</h2>
+            <p>Diese Regeln werden bei <strong>jeder</strong> KI-generierten Antwort mitgesendet.</p>
+          </div>
+        </div>
+
+        <div class="rules-list" *ngIf="rules.length > 0">
+          <div class="rule-item" *ngFor="let rule of rules; let i = index" @slideIn>
+            <span class="rule-number">{{ i + 1 }}</span>
+            <span class="rule-text">{{ rule }}</span>
+            <div class="rule-actions">
+              <button class="icon-btn" (click)="moveRule(i, -1)" [disabled]="i === 0" title="Nach oben">
+                <span class="material-symbols-outlined">arrow_upward</span>
+              </button>
+              <button class="icon-btn" (click)="moveRule(i, 1)" [disabled]="i === rules.length - 1"
+                title="Nach unten">
+                <span class="material-symbols-outlined">arrow_downward</span>
+              </button>
+              <button class="icon-btn danger" (click)="removeRule(i)" title="Löschen">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-rules" *ngIf="rules.length === 0">
+          <span class="material-symbols-outlined">rule</span>
+          <p>Keine Regeln definiert. Füge Regeln hinzu die bei jeder KI-Antwort beachtet werden sollen.</p>
+        </div>
+
+        <!-- Add rule -->
+        <div class="add-rule">
+          <input type="text" [(ngModel)]="newRule" placeholder="Neue Regel eingeben..."
+            (keydown.enter)="addRule()" class="rule-input" />
+          <button class="add-btn" (click)="addRule()" [disabled]="!newRule.trim()">
+            <span class="material-symbols-outlined">add</span>
+            Hinzufügen
+          </button>
+        </div>
+      </section>
+    </div>
+  </div>
+</app-admin-layout>

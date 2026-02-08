@@ -1,7 +1,8 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { ApiService, EmailStats } from '../../api/api.service';
+import { Subscription, forkJoin } from 'rxjs';
+import { ApiService, Email, EmailStats, AiUsageStats } from '../../api/api.service';
 import { ToastService } from '../../shared/toasts/toast.service';
 
 @Component({
@@ -12,87 +13,112 @@ import { ToastService } from '../../shared/toasts/toast.service';
   imports: [CommonModule, RouterModule]
 })
 export class HomeComponent implements OnInit, OnDestroy {
-  emailStats: EmailStats = {
-    inbox: 0,
-    sent: 0,
-    trash: 0,
-    unread: 0
-  };
+  // Stats
+  emailStats: EmailStats = { inbox: 0, sent: 0, trash: 0, unread: 0 };
   templateCount = 0;
-  refreshing = false;
+  aiStats: AiUsageStats | null = null;
 
-  private intersectionObserver: IntersectionObserver | null = null;
+  // Recent emails
+  recentEmails: Email[] = [];
+
+  // State
+  loading = true;
+  refreshing = false;
+  now = new Date();
+  formattedDate = '';
+
+  private subs: Subscription[] = [];
+  private clockInterval: any;
 
   constructor(
     public router: Router,
     private api: ApiService,
     private toasts: ToastService
-  ) { }
+  ) {}
 
   ngOnInit(): void {
-    this.loadStats();
-    this.initScrollAnimations();
+    this.updateDate();
+    this.loadDashboard();
+    this.clockInterval = setInterval(() => { this.now = new Date(); this.updateDate(); }, 60_000);
   }
 
   ngOnDestroy(): void {
-    if (this.intersectionObserver) {
-      this.intersectionObserver.disconnect();
-    }
+    this.subs.forEach(s => s.unsubscribe());
+    clearInterval(this.clockInterval);
   }
 
-  loadStats(): void {
-    // Load email stats
-    this.api.getEmailStats().subscribe({
-      next: (stats) => {
-        this.emailStats = stats;
-      },
-      error: () => {}
-    });
+  loadDashboard(): void {
+    this.loading = true;
 
-    // Load templates count
-    this.api.getEmailTemplates().subscribe({
-      next: (templates) => {
+    const sub = forkJoin({
+      stats: this.api.getEmailStats(),
+      templates: this.api.getEmailTemplates(),
+      emails: this.api.getEmails(8, 0),
+      ai: this.api.getAiUsageStats(30),
+    }).subscribe({
+      next: ({ stats, templates, emails, ai }) => {
+        this.emailStats = stats;
         this.templateCount = templates.length;
+        this.recentEmails = emails.emails.slice(0, 8);
+        this.aiStats = ai;
+        this.loading = false;
       },
-      error: () => {}
+      error: () => {
+        this.loading = false;
+      }
     });
+    this.subs.push(sub);
   }
 
   refreshEmails(): void {
     this.refreshing = true;
-    this.api.refreshEmails().subscribe({
+    const sub = this.api.refreshEmails().subscribe({
       next: (res) => {
         this.toasts.success(`${res.stored} neue E-Mails abgerufen`);
         this.refreshing = false;
-        this.loadStats();
+        this.loadDashboard();
       },
-      error: (err) => {
-        console.error('Fehler:', err);
+      error: () => {
         this.toasts.error('Fehler beim Abrufen der E-Mails');
         this.refreshing = false;
       }
     });
+    this.subs.push(sub);
   }
 
-  private initScrollAnimations(): void {
-    const animatedSections = document.querySelectorAll('[data-animate]');
-    
-    this.intersectionObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-          }
-        });
-      },
-      {
-        threshold: 0.15,
-        rootMargin: '0px 0px -50px 0px'
-      }
-    );
+  // Helpers
+  getGreeting(): string {
+    const h = this.now.getHours();
+    if (h < 12) return 'Guten Morgen';
+    if (h < 18) return 'Guten Tag';
+    return 'Guten Abend';
+  }
 
-    animatedSections.forEach((section) => {
-      this.intersectionObserver?.observe(section);
-    });
+  getInitials(email: Email): string {
+    const name = email.fromName || email.fromAddress || '?';
+    const parts = name.trim().split(/\s+/);
+    return parts.length > 1
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : name.substring(0, 2).toUpperCase();
+  }
+
+  timeAgo(date: string | Date): string {
+    const d = new Date(date);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return 'gerade eben';
+    if (diff < 3600) return `vor ${Math.floor(diff / 60)} Min`;
+    if (diff < 86400) return `vor ${Math.floor(diff / 3600)} Std`;
+    if (diff < 604800) return `vor ${Math.floor(diff / 86400)} Tag${Math.floor(diff / 86400) > 1 ? 'en' : ''}`;
+    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  }
+
+  formatCost(usd: number): string {
+    return usd.toFixed(2).replace('.', ',') + ' $';
+  }
+
+  private updateDate(): void {
+    this.formattedDate = this.now.toLocaleDateString('de-DE', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    }) + ' · ' + this.now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
   }
 }

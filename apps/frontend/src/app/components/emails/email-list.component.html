@@ -1,223 +1,188 @@
 <app-page-title title="Posteingang"></app-page-title>
 
-<div class="email-container">
-    <!-- AI Processing Banner -->
-    <div class="ai-processing-banner" *ngIf="aiProcessing" @slideIn>
-        <div class="ai-banner-content">
+<div class="inbox">
+    <!-- Processing progress bar (thin, unobtrusive) -->
+    <div class="progress-strip" *ngIf="aiProcessing && aiStatus">
+        <div class="progress-strip__bar"
+            [style.width.%]="aiStatus.total > 0 ? (aiStatus.processed / aiStatus.total) * 100 : 0"></div>
+        <span class="progress-strip__label">
             <span class="material-symbols-outlined spin">auto_awesome</span>
-            <span class="ai-banner-text">
-                KI analysiert E-Mails... ({{ aiStatus?.processed || 0 }}/{{ aiStatus?.total || 0 }})
-            </span>
-        </div>
-        <div class="ai-banner-progress" *ngIf="aiStatus && aiStatus.total > 0">
-            <div class="progress-fill" [style.width.%]="(aiStatus.processed / aiStatus.total) * 100"></div>
-        </div>
-    </div>
-
-    <!-- Pending Banner (not actively processing) -->
-    <div class="ai-pending-banner" *ngIf="!aiProcessing && aiStatus && aiStatus.pending > 0">
-        <div class="ai-banner-content">
-            <span class="material-symbols-outlined">schedule</span>
-            <span class="ai-banner-text">
-                {{ aiStatus.pending }} E-Mails warten auf KI-Analyse
-            </span>
-        </div>
-        <button class="process-btn" (click)="processWithAi()">
-            <span class="material-symbols-outlined">play_arrow</span>
-            Jetzt analysieren
-        </button>
+            {{ aiStatus.processed }}/{{ aiStatus.total }} analysiert
+            <span class="progress-strip__hint">— läuft im Hintergrund</span>
+        </span>
     </div>
 
     <!-- Toolbar -->
-    <div class="email-toolbar">
-        <div class="toolbar-left">
-            <span class="email-count">
-                <span class="material-symbols-outlined">inbox</span>
-                {{ totalEmails }} E-Mails
-            </span>
-            <span class="ai-status-badge" *ngIf="aiStatus && aiStatus.processed > 0 && !aiProcessing">
-                <span class="material-symbols-outlined">auto_awesome</span>
-                {{ aiStatus.processed }} analysiert
-            </span>
+    <header class="inbox-header">
+        <div class="header-left">
+            <h2 class="inbox-title">
+                <span class="count-badge">{{ totalEmails }}</span>
+                E-Mails
+            </h2>
         </div>
-        <div class="toolbar-right">
-            <button class="btn btn--outline" (click)="recalculateAi()" [disabled]="aiProcessing || refreshing" title="KI-Analyse für alle E-Mails neu berechnen">
+        <div class="header-actions">
+            <button class="action-btn accent"
+                *ngIf="!aiProcessing && aiStatus && aiStatus.pending > 0"
+                (click)="processWithAi()">
+                <span class="material-symbols-outlined">bolt</span>
+                {{ aiStatus.pending }} analysieren
+            </button>
+            <button class="action-btn"
+                (click)="recalculateAi()"
+                [disabled]="aiProcessing || refreshing"
+                title="Alle E-Mails neu analysieren">
                 <span class="material-symbols-outlined" [class.spin]="aiProcessing">auto_awesome</span>
-                {{ aiProcessing ? 'Analysiert...' : 'Alle neu berechnen' }}
             </button>
-            <button class="btn btn--primary" (click)="refreshEmails()" [disabled]="refreshing">
-                <span class="material-symbols-outlined" [class.spin]="refreshing">refresh</span>
-                {{ refreshing ? 'Lädt...' : 'Aktualisieren' }}
+            <button class="action-btn primary"
+                (click)="refreshEmails()"
+                [disabled]="refreshing">
+                <span class="material-symbols-outlined" [class.spin]="refreshing">sync</span>
+                Abrufen
             </button>
+        </div>
+    </header>
+
+    <!-- Loading skeleton -->
+    <div class="inbox-loading" *ngIf="loading">
+        <div class="skeleton-row" *ngFor="let i of [1,2,3,4,5,6]">
+            <div class="skeleton-avatar"></div>
+            <div class="skeleton-lines">
+                <div class="skeleton-line w60"></div>
+                <div class="skeleton-line w90"></div>
+                <div class="skeleton-line w40"></div>
+            </div>
         </div>
     </div>
 
-    <!-- Loading State -->
-    <div class="loading-state" *ngIf="loading">
-        <span class="material-symbols-outlined spin">progress_activity</span>
-        <p>E-Mails werden geladen...</p>
-    </div>
-
-    <!-- Email List & Detail Split View -->
-    <div class="email-split" *ngIf="!loading">
-        <!-- Email List -->
-        <div class="email-list" [class.has-selection]="selectedEmail" [@listAnimation]="emails.length">
-            <div class="email-item" *ngFor="let email of emails" [class.unread]="!email.isRead"
-                [class.selected]="selectedEmail?.id === email.id" 
-                [class.ai-processed]="email.aiProcessedAt"
-                [class.ai-pending]="aiProcessing && !email.aiProcessedAt"
+    <!-- Main split view -->
+    <div class="inbox-split" *ngIf="!loading">
+        <!-- List pane -->
+        <aside class="list-pane" [class.has-detail]="selectedEmail" [@listAnimation]="emails.length">
+            <div class="mail-item" *ngFor="let email of emails"
+                [class.unread]="!email.isRead"
+                [class.active]="selectedEmail?.id === email.id"
+                [class.blocked]="aiProcessing"
+                [class.analyzing]="aiProcessing && !email.aiProcessedAt"
                 (click)="selectEmail(email)">
 
-                <div class="email-item__indicator" *ngIf="!email.isRead"></div>
+                <div class="mail-avatar" [class.unread]="!email.isRead">
+                    {{ getSenderInitials(email) }}
+                </div>
 
-                <div class="email-item__content">
-                    <div class="email-item__header">
-                        <span class="email-item__sender">{{ getSenderName(email) }}</span>
-                        <span class="email-item__date">{{ formatDate(email.receivedAt) }}</span>
+                <div class="mail-content">
+                    <div class="mail-top">
+                        <span class="mail-sender">{{ getSenderName(email) }}</span>
+                        <span class="mail-time">{{ formatDate(email.receivedAt) }}</span>
                     </div>
-                    <div class="email-item__subject">{{ email.subject }}</div>
-                    <div class="email-item__preview" [class.skeleton]="aiProcessing && !email.aiProcessedAt && !email.aiSummary">
-                        <!-- Show AI summary if available, otherwise preview -->
-                        <ng-container *ngIf="!aiProcessing || email.aiSummary || email.aiProcessedAt">
-                            {{ email.aiSummary || email.preview || '(Kein Inhalt)' }}
-                        </ng-container>
-                        <ng-container *ngIf="aiProcessing && !email.aiSummary && !email.aiProcessedAt">
-                            <span class="skeleton-text">Wird analysiert...</span>
-                        </ng-container>
+                    <div class="mail-subject">{{ email.subject }}</div>
+                    <div class="mail-snippet"
+                        *ngIf="!aiProcessing || email.aiSummary || email.aiProcessedAt">
+                        {{ email.aiSummary || email.preview || '(Kein Inhalt)' }}
                     </div>
-                    <!-- AI Tags -->
-                    <div class="email-item__tags" *ngIf="email.aiTags?.length">
-                        <span class="ai-tag" *ngFor="let tag of email.aiTags">{{ tag }}</span>
-                    </div>
-                    <!-- Skeleton Tags while processing -->
-                    <div class="email-item__tags skeleton-tags" *ngIf="aiProcessing && !email.aiProcessedAt && !email.aiTags?.length">
-                        <span class="ai-tag skeleton"></span>
-                        <span class="ai-tag skeleton"></span>
-                        <span class="ai-tag skeleton"></span>
+                    <div class="mail-snippet shimmer-line"
+                        *ngIf="aiProcessing && !email.aiSummary && !email.aiProcessedAt"></div>
+                    <div class="mail-tags" *ngIf="email.aiTags?.length">
+                        <span class="tag" *ngFor="let tag of email.aiTags">{{ tag }}</span>
                     </div>
                 </div>
 
-                <div class="email-item__icons">
-                    <span class="material-symbols-outlined ai-icon" *ngIf="email.aiProcessedAt && !aiProcessing" title="KI analysiert">
-                        auto_awesome
-                    </span>
-                    <span class="material-symbols-outlined ai-icon spin" *ngIf="aiProcessing && !email.aiProcessedAt" title="Wird analysiert...">
-                        progress_activity
-                    </span>
-                    <span class="material-symbols-outlined" *ngIf="email.hasAttachments" title="Anhänge">
-                        attach_file
-                    </span>
+                <div class="mail-meta">
+                    <span class="material-symbols-outlined clip-icon" *ngIf="email.hasAttachments"
+                        title="Anhänge">attach_file</span>
+                    <span class="unread-dot" *ngIf="!email.isRead"></span>
                 </div>
             </div>
 
-            <!-- Load More -->
-            <div class="load-more" *ngIf="hasMore">
-                <button class="btn btn--secondary" (click)="loadMore()">
-                    Mehr laden
-                </button>
+            <!-- Load more -->
+            <div class="list-footer" *ngIf="hasMore">
+                <button class="action-btn secondary" (click)="loadMore()">Weitere E-Mails laden</button>
             </div>
 
-            <!-- Empty State -->
-            <div class="empty-state" *ngIf="emails.length === 0">
-                <span class="material-symbols-outlined">inbox</span>
+            <!-- Empty -->
+            <div class="list-empty" *ngIf="emails.length === 0">
+                <span class="material-symbols-outlined">markunread_mailbox</span>
                 <p>Keine unbearbeiteten E-Mails</p>
-                <button class="btn btn--primary" (click)="refreshEmails()">
-                    E-Mails abrufen
-                </button>
+                <button class="action-btn primary" (click)="refreshEmails()">E-Mails abrufen</button>
             </div>
-        </div>
+        </aside>
 
-        <!-- Email Detail -->
-        <div class="email-detail" *ngIf="selectedEmail" @slideIn>
-            <!-- Compact Header Bar -->
-            <div class="email-detail__header">
-                <div class="email-detail__actions-left">
-                    <button class="btn btn--success" (click)="openReplyPage()" title="Antworten">
-                        <span class="material-symbols-outlined">reply</span>
-                        Antworten
+        <!-- Detail pane -->
+        <main class="detail-pane" *ngIf="selectedEmail" @slideIn>
+            <!-- Actions -->
+            <div class="detail-actions">
+                <button class="action-btn success" (click)="openReplyPage()">
+                    <span class="material-symbols-outlined">reply</span>
+                    Antworten
+                </button>
+                <button class="action-btn danger-ghost" (click)="moveToTrash()" title="Keine Antwort nötig">
+                    <span class="material-symbols-outlined">delete_outline</span>
+                </button>
+                <div class="spacer"></div>
+                <div class="view-switch" *ngIf="selectedEmail.aiProcessedAt">
+                    <button [class.active]="showAiView" (click)="showAiView = true">
+                        <span class="material-symbols-outlined">auto_awesome</span> KI
                     </button>
-                    <button class="btn btn--danger-outline btn--sm" (click)="moveToTrash()" title="Keine Antwort nötig">
-                        <span class="material-symbols-outlined">delete</span>
-                    </button>
-                </div>
-                
-                <!-- View Toggle -->
-                <div class="view-toggle" *ngIf="selectedEmail.aiProcessedAt">
-                    <button class="toggle-btn" [class.active]="showAiView" (click)="showAiView = true">
-                        <span class="material-symbols-outlined">auto_awesome</span>
-                        KI-Zusammengefasst
-                    </button>
-                    <button class="toggle-btn" [class.active]="!showAiView" (click)="showAiView = false">
-                        <span class="material-symbols-outlined">article</span>
-                        Original
+                    <button [class.active]="!showAiView" (click)="showAiView = false">
+                        <span class="material-symbols-outlined">article</span> Original
                     </button>
                 </div>
-                
-                <button class="btn btn--icon" (click)="closeDetail()" title="Schließen">
+                <button class="action-btn ghost" (click)="closeDetail()">
                     <span class="material-symbols-outlined">close</span>
                 </button>
             </div>
 
-            <!-- Compact Meta Row -->
-            <div class="email-detail__meta-compact">
-                <div class="meta-main">
-                    <span class="meta-sender">{{ selectedEmail.fromName || selectedEmail.fromAddress }}</span>
-                    <span class="meta-email" *ngIf="selectedEmail.fromName">&lt;{{ selectedEmail.fromAddress }}&gt;</span>
-                    <span class="meta-separator">→</span>
+            <!-- Header -->
+            <div class="detail-header">
+                <h2 class="detail-subject">{{ selectedEmail.subject }}</h2>
+                <div class="detail-meta">
+                    <strong>{{ selectedEmail.fromName || selectedEmail.fromAddress }}</strong>
+                    <span class="meta-addr" *ngIf="selectedEmail.fromName">&lt;{{ selectedEmail.fromAddress }}&gt;</span>
+                    <span class="meta-arrow">→</span>
                     <span class="meta-to">{{ selectedEmail.toAddresses[0] }}</span>
-                </div>
-                <div class="meta-right">
                     <span class="meta-date">{{ selectedEmail.receivedAt | date:'dd.MM.yyyy HH:mm' }}</span>
-                    <span class="meta-attachments" *ngIf="selectedEmail.attachments?.length">
-                        <span class="material-symbols-outlined">attach_file</span>
-                        {{ selectedEmail.attachments!.length }}
-                    </span>
                 </div>
             </div>
-            
-            <h2 class="email-detail__subject">{{ selectedEmail.subject }}</h2>
 
-            <!-- AI Summary View -->
-            <div class="ai-summary-view" *ngIf="showAiView && selectedEmail.aiProcessedAt">
-                <div class="ai-summary-card">
-                    <div class="ai-summary-header">
+            <!-- AI View -->
+            <div class="detail-body" *ngIf="showAiView && selectedEmail.aiProcessedAt">
+                <div class="ai-card">
+                    <div class="ai-card__header">
                         <span class="material-symbols-outlined">auto_awesome</span>
-                        <span>KI-Zusammenfassung</span>
+                        Zusammenfassung
                     </div>
-                    <p class="ai-summary-text">{{ selectedEmail.aiSummary }}</p>
-                    <div class="ai-tags" *ngIf="selectedEmail.aiTags?.length">
-                        <span class="ai-tag" *ngFor="let tag of selectedEmail.aiTags">{{ tag }}</span>
+                    <p class="ai-card__text">{{ selectedEmail.aiSummary }}</p>
+                    <div class="ai-card__tags" *ngIf="selectedEmail.aiTags?.length">
+                        <span class="tag" *ngFor="let tag of selectedEmail.aiTags">{{ tag }}</span>
                     </div>
                 </div>
-                
-                <!-- Cleaned body -->
-                <div class="email-body-clean" *ngIf="selectedEmail.cleanedBody">
-                    <pre class="email-text-body">{{ selectedEmail.cleanedBody }}</pre>
+                <div class="clean-body" *ngIf="selectedEmail.cleanedBody">
+                    <pre class="body-text">{{ selectedEmail.cleanedBody }}</pre>
                 </div>
             </div>
 
-            <!-- Original Email View -->
-            <div class="email-detail__body" *ngIf="!showAiView || !selectedEmail.aiProcessedAt">
-                <div *ngIf="selectedEmail.htmlBody" class="email-html-body" [innerHTML]="selectedEmail.htmlBody"></div>
-                <pre *ngIf="!selectedEmail.htmlBody && selectedEmail.textBody" class="email-text-body">{{ selectedEmail.textBody }}</pre>
-                <p *ngIf="!selectedEmail.htmlBody && !selectedEmail.textBody" class="no-content">(Kein Inhalt)</p>
+            <!-- Original View -->
+            <div class="detail-body" *ngIf="!showAiView || !selectedEmail.aiProcessedAt">
+                <div *ngIf="selectedEmail.htmlBody" class="html-body" [innerHTML]="selectedEmail.htmlBody"></div>
+                <pre *ngIf="!selectedEmail.htmlBody && selectedEmail.textBody"
+                    class="body-text">{{ selectedEmail.textBody }}</pre>
+                <p *ngIf="!selectedEmail.htmlBody && !selectedEmail.textBody" class="no-body">(Kein Inhalt)</p>
             </div>
 
-            <!-- Attachments (compact) -->
-            <div class="email-detail__attachments-compact" *ngIf="selectedEmail.attachments?.length">
-                <button class="attachment-chip" *ngFor="let att of selectedEmail.attachments; let i = index"
+            <!-- Attachments -->
+            <div class="detail-attachments" *ngIf="selectedEmail.attachments?.length">
+                <button class="att-chip" *ngFor="let att of selectedEmail.attachments; let i = index"
                     (click)="openAttachmentPreview(att, i)">
                     <span class="material-symbols-outlined">{{ getAttachmentIcon(att.contentType) }}</span>
                     <span class="att-name">{{ att.filename }}</span>
                     <span class="att-size">{{ formatFileSize(att.size) }}</span>
                 </button>
             </div>
-        </div>
+        </main>
 
         <!-- No Selection -->
-        <div class="no-selection" *ngIf="!selectedEmail">
-            <span class="material-symbols-outlined">touch_app</span>
-            <p>Wähle eine E-Mail aus um sie zu lesen und zu beantworten</p>
+        <div class="detail-empty" *ngIf="!selectedEmail">
+            <span class="material-symbols-outlined">mail</span>
+            <p>Wähle eine E-Mail aus</p>
         </div>
     </div>
 
@@ -225,3 +190,4 @@
     <app-attachment-preview [attachment]="selectedAttachment" [attachments]="currentAttachments"
         [isOpen]="attachmentPreviewOpen" (close)="closeAttachmentPreview()" (download)="downloadAttachment($event)">
     </app-attachment-preview>
+</div>

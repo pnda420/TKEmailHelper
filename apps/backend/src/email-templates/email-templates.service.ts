@@ -8,6 +8,14 @@ import { EmailTemplate } from './email-templates.entity';
 import { User } from '../users/users.entity';
 import { AI_MODELS } from '../config/ai-models.config';
 import { AiUsageService } from '../ai-usage/ai-usage.service';
+import { AiConfigService } from '../ai-config/ai-config.service';
+import {
+  PROMPT_GENERATE_REPLY,
+  PROMPT_ANALYZE_EMAIL,
+  PROMPT_SUMMARIZE_EMAIL,
+  PROMPT_RECOMMEND_TEMPLATE,
+  resolvePromptVars,
+} from '../ai-config/prompts';
 
 export interface CreateTemplateDto {
   name: string;
@@ -53,6 +61,7 @@ export class EmailTemplatesService {
     private templateRepository: Repository<EmailTemplate>,
     private configService: ConfigService,
     private aiUsageService: AiUsageService,
+    private aiConfigService: AiConfigService,
   ) {
     // Initialize OpenAI
     this.openai = new OpenAI({
@@ -146,20 +155,16 @@ export class EmailTemplatesService {
       casual: 'locker und ungezwungen',
     };
 
-    const systemPrompt = `Du bist ein professioneller E-Mail-Assistent. Schreibe Antworten auf Deutsch.
-Der Ton soll ${toneDescriptions[tone]} sein.
-Schreibe eine passende Antwort auf die erhaltene E-Mail.
+    // Use hardcoded prompt with tone variable replacement + reply rules from DB
+    let systemPrompt = resolvePromptVars(PROMPT_GENERATE_REPLY, {
+      tone: toneDescriptions[tone],
+    });
 
-WICHTIG: 
-- Füge KEINE Signatur mit Kontaktdaten hinzu (wird automatisch vom System angehängt).
-- Die E-Mail kann mit einer Grußformel wie "Mit freundlichen Grüßen" enden.
-- Falls in den Anweisungen ein Name angegeben ist, verwende diesen nach der Grußformel.
-- Verwende Absätze (Leerzeilen) für bessere Lesbarkeit.
-- Schreibe den Text mit normalen Zeilenumbrüchen, NICHT als einen einzigen Block.
-
-Gib die Antwort im folgenden JSON-Format zurück:
-{"subject": "Betreff der Antwort", "body": "Der E-Mail-Text mit Zeilenumbrüchen (\\n) für Absätze"}
-Verwende KEINE Markdown-Formatierung im Body, nur reinen Text mit Absätzen (\\n\\n für Absätze).`;
+    // Append reply rules if any exist
+    const replyRules = await this.aiConfigService.getReplyRules();
+    if (replyRules.length > 0) {
+      systemPrompt += `\n\nZUSÄTZLICHE REGELN (müssen IMMER beachtet werden):\n${replyRules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
+    }
 
     const userPrompt = `Original E-Mail:
 Von: ${originalEmail.from}
@@ -332,29 +337,11 @@ ${signatureHtml}
       ? templates.map((t, i) => `${i + 1}. ID: ${t.id} | "${t.name}" (${t.category || 'Allgemein'}): ${t.body.substring(0, 150)}...`).join('\n')
       : 'Keine Vorlagen verfügbar';
 
-    const systemPrompt = `Du bist ein E-Mail-Assistent für Kundenanfragen. Analysiere die GESAMTE E-Mail inkl. Reply-Ketten und extrahiere:
-
-1. summary: Fasse den KERN der Anfrage zusammen - was will der Kunde? (max. 100 Zeichen)
-   - Bei Reply-Ketten: Fasse den gesamten Kontext zusammen, nicht nur die letzte Nachricht
-   - Ignoriere Grußformeln, Signaturen, Disclaimer
-   - Nur die wichtigste Information/Frage/Problem
-
-2. tags: Genau 3 Schlagwörter für Kategorisierung (jeweils max. 12 Zeichen)
-
-3. cleanedContent: Extrahiere NUR die Kerninhalte der E-Mail - schön formatiert:
-   - Entferne: Grußformeln, Signaturen, Disclaimer, Werbung, Rechtliches
-   - Entferne: Leere Zeilen, unnötige Whitespaces, Quote-Marker (>)
-   - Behalte: Wichtige Infos, Fragen, Anfragen, Namen, Daten, Nummern
-   - Bei Reply-Ketten: Fasse chronologisch zusammen was passiert ist
-   - Format: Klar strukturiert, kurze Absätze, max 500 Zeichen
-
-4. templateId: ID der best passenden Vorlage ODER null wenn keine passt
-5. templateReason: Kurze Begründung (max. 50 Zeichen)
-
-${templates.length > 0 ? `Verfügbare Vorlagen:\n${templateList}` : ''}
-
-Antworte NUR mit JSON:
-{"summary": "...", "tags": ["...", "...", "..."], "cleanedContent": "...", "templateId": "..." oder null, "templateReason": "..."}`;
+    // Use hardcoded prompt + append dynamic template list
+    let systemPrompt = PROMPT_ANALYZE_EMAIL;
+    if (templates.length > 0) {
+      systemPrompt += `\n\nVerfügbare Vorlagen:\n${templateList}`;
+    }
 
     const userPrompt = `E-Mail analysieren (inkl. aller Reply-Nachrichten):
 Betreff: ${emailSubject}
@@ -362,49 +349,94 @@ Betreff: ${emailSubject}
 Vollständiger Inhalt:
 ${emailBody}`;
 
-    try {
-      const callStart = Date.now();
-      const response = await this.openai.chat.completions.create({
-        model: AI_MODELS.fast,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_completion_tokens: 600,
-        response_format: { type: 'json_object' },
-      });
+    const MAX_RETRIES = 2;
+    let lastError: string = 'Unbekannter Fehler';
 
-      // Track usage
-      const usage = response.usage;
-      if (usage) {
-        this.aiUsageService.track({
-          feature: 'analyze-email-for-reply',
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const callStart = Date.now();
+        this.logger.debug(`analyzeEmail attempt ${attempt}/${MAX_RETRIES} for: ${emailSubject?.substring(0, 80)}`);
+        
+        const response = await this.openai.chat.completions.create({
           model: AI_MODELS.fast,
-          promptTokens: usage.prompt_tokens || 0,
-          completionTokens: usage.completion_tokens || 0,
-          totalTokens: usage.total_tokens || 0,
-          durationMs: Date.now() - callStart,
-          context: emailSubject?.substring(0, 200),
-        }).catch(() => {});
-      }
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          max_completion_tokens: 2000,
+          response_format: { type: 'json_object' },
+        });
 
-      const content = response.choices[0]?.message?.content?.trim();
-      if (content) {
-        const parsed = JSON.parse(content);
-        return {
-          summary: parsed.summary || 'Keine Zusammenfassung',
-          tags: parsed.tags || [],
-          cleanedBody: parsed.cleanedContent || cleanedBody,
-          recommendedTemplateId: parsed.templateId || null,
-          recommendedTemplateReason: parsed.templateReason || '',
-        };
+        // Track usage
+        const usage = response.usage;
+        if (usage) {
+          this.aiUsageService.track({
+            feature: 'analyze-email-for-reply',
+            model: AI_MODELS.fast,
+            promptTokens: usage.prompt_tokens || 0,
+            completionTokens: usage.completion_tokens || 0,
+            totalTokens: usage.total_tokens || 0,
+            durationMs: Date.now() - callStart,
+            context: emailSubject?.substring(0, 200),
+          }).catch(() => {});
+        }
+
+        // Check for truncation
+        const finishReason = response.choices[0]?.finish_reason;
+        if (finishReason === 'length') {
+          this.logger.warn(`analyzeEmail: Response truncated (finish_reason=length) for "${emailSubject}" — attempt ${attempt}`);
+          lastError = 'Antwort wurde abgeschnitten (Token-Limit)';
+          if (attempt < MAX_RETRIES) continue; // Retry
+        }
+
+        const content = response.choices[0]?.message?.content?.trim();
+        if (!content) {
+          this.logger.warn(`analyzeEmail: Empty response content for "${emailSubject}" (finish_reason=${finishReason})`);
+          lastError = 'Leere Antwort vom AI-Modell';
+          if (attempt < MAX_RETRIES) continue; // Retry
+        }
+
+        if (content) {
+          try {
+            const parsed = JSON.parse(content);
+            this.logger.debug(`analyzeEmail: Success for "${emailSubject}" — summary: ${parsed.summary?.substring(0, 50)}`);
+            return {
+              summary: parsed.summary || 'Keine Zusammenfassung',
+              tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+              cleanedBody: parsed.cleanedContent || cleanedBody,
+              recommendedTemplateId: parsed.templateId || null,
+              recommendedTemplateReason: parsed.templateReason || '',
+            };
+          } catch (parseError) {
+            this.logger.error(`analyzeEmail: JSON parse failed for "${emailSubject}" — content (first 500 chars): ${content.substring(0, 500)}`);
+            lastError = `JSON-Parse-Fehler: ${parseError.message}`;
+            if (attempt < MAX_RETRIES) continue; // Retry
+          }
+        }
+      } catch (error) {
+        const errMsg = error?.message || String(error);
+        const statusCode = error?.status || error?.statusCode || 'N/A';
+        this.logger.error(`analyzeEmail: API error (attempt ${attempt}/${MAX_RETRIES}, status=${statusCode}) for "${emailSubject}": ${errMsg}`);
+        lastError = `API-Fehler (${statusCode}): ${errMsg.substring(0, 200)}`;
+        
+        // Don't retry on auth/model errors (4xx), only on transient errors (5xx, timeout)
+        if (error?.status && error.status >= 400 && error.status < 500) {
+          this.logger.error(`analyzeEmail: Non-retryable error (${error.status}), giving up`);
+          break;
+        }
+        
+        if (attempt < MAX_RETRIES) {
+          // Wait before retry (exponential backoff)
+          const waitMs = attempt * 2000;
+          this.logger.warn(`analyzeEmail: Retrying in ${waitMs}ms...`);
+          await new Promise(resolve => setTimeout(resolve, waitMs));
+        }
       }
-    } catch (error) {
-      this.logger.error('Email analysis error:', error);
     }
     
+    this.logger.error(`analyzeEmail: All attempts failed for "${emailSubject}" — ${lastError}`);
     return {
-      summary: 'Analyse fehlgeschlagen',
+      summary: `Analyse fehlgeschlagen: ${lastError.substring(0, 80)}`,
       tags: [],
       cleanedBody,
       recommendedTemplateId: null,
@@ -413,12 +445,7 @@ ${emailBody}`;
   }
 
   async summarizeEmail(emailSubject: string, emailBody: string): Promise<{ summary: string; tags: string[] }> {
-    const systemPrompt = `Du bist ein E-Mail-Assistent. Analysiere die E-Mail und gib zurück:
-1. Eine kurze Zusammenfassung in EINEM Satz (max. 80 Zeichen)
-2. Genau 3 kurze Tags/Schlagwörter die den Inhalt beschreiben (jeweils max. 15 Zeichen)
-
-Antworte NUR mit diesem JSON-Format:
-{"summary": "Die Zusammenfassung", "tags": ["Tag1", "Tag2", "Tag3"]}`;
+    const systemPrompt = PROMPT_SUMMARIZE_EMAIL;
 
     const userPrompt = `E-Mail:
 Betreff: ${emailSubject}
@@ -491,19 +518,7 @@ ${emailBody.substring(0, 1500)}`;
       `${i + 1}. ID: ${t.id} | Name: "${t.name}" | Kategorie: ${t.category || 'Keine'} | Inhalt: ${t.body.substring(0, 200)}...`
     ).join('\n');
 
-    const systemPrompt = `Du bist ein intelligenter E-Mail-Assistent. Deine Aufgabe ist es, die beste passende E-Mail-Vorlage für eine eingehende E-Mail zu finden.
-
-Analysiere die E-Mail und wähle die am besten passende Vorlage aus der Liste.
-
-WICHTIG:
-- Wähle nur eine Vorlage, wenn sie WIRKLICH gut zur E-Mail passt
-- Es ist VÖLLIG IN ORDNUNG wenn keine Vorlage passt — gib dann null zurück mit confidence 0
-- Erzwinge KEINE Empfehlung wenn du unsicher bist
-- Bewerte dein Vertrauen von 0-100. Nur über 75 ist eine relevante Empfehlung
-- Bei allgemeinen Anfragen die nicht klar zu einer Vorlage passen: null zurückgeben
-
-Antworte NUR mit diesem JSON-Format:
-{"templateId": "die-id-oder-null", "reason": "Kurze Begründung auf Deutsch", "confidence": 0-100}`;
+    const systemPrompt = PROMPT_RECOMMEND_TEMPLATE;
 
     const userPrompt = `Eingehende E-Mail:
 Betreff: ${emailSubject}

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { JtlToolsService } from '../jtl-tools/jtl-tools.service';
 import { JTL_TOOLS } from './tools/jtl-tools.definitions';
-import { AGENT_SYSTEM_PROMPT } from './prompts/system-prompt';
+import { AGENT_SYSTEM_PROMPT, AGENT_JSON_FORMAT_SUFFIX } from './prompts/system-prompt';
 import { AI_MODELS } from '../config/ai-models.config';
 import { AiUsageService } from '../ai-usage/ai-usage.service';
 
@@ -55,8 +55,11 @@ export class AiAgentService {
     onStep: (step: AnalysisStep) => void,
     userInfo?: { userId?: string; userEmail?: string },
   ): Promise<string> {
+    // Use hardcoded agent system prompt + always append JSON format instructions
+    const agentPrompt = AGENT_SYSTEM_PROMPT + '\n\n' + AGENT_JSON_FORMAT_SUFFIX;
+
     const messages: OpenAI.ChatCompletionMessageParam[] = [
-      { role: 'system', content: AGENT_SYSTEM_PROMPT },
+      { role: 'system', content: agentPrompt },
       {
         role: 'user',
         content: this.buildUserPrompt(emailData),
@@ -205,7 +208,8 @@ export class AiAgentService {
       this.logger.warn('Max iterations reached — forcing final summary call');
       messages.push({
         role: 'user',
-        content: 'Du hast jetzt genügend Daten gesammelt. Erstelle jetzt SOFORT die Zusammenfassung im geforderten Format. Keine weiteren Tool-Aufrufe!',
+        content: `Du hast jetzt genügend Daten gesammelt. Erstelle jetzt SOFORT die Zusammenfassung.
+WICHTIG: Deine Antwort MUSS am Ende einen \`\`\`json Block enthalten mit dem strukturierten keyFacts-Array, suggestedReply und customerPhone. Keine weiteren Tool-Aufrufe!`,
       });
 
       try {

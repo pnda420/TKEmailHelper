@@ -63,6 +63,7 @@ export class EmailListComponent implements OnInit, OnDestroy {
   private offset = 0;
   private sub?: Subscription;
   private eventSource?: EventSource;
+  private pollInterval?: any;
 
   constructor(
     private api: ApiService,
@@ -76,12 +77,13 @@ export class EmailListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadEmails();
-    this.loadAiStatus();
+    this.checkProcessingAndConnect();
   }
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
     this.closeEventSource();
+    this.stopPolling();
   }
 
   private closeEventSource(): void {
@@ -91,12 +93,48 @@ export class EmailListComponent implements OnInit, OnDestroy {
     }
   }
 
+  private stopPolling(): void {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = undefined;
+    }
+  }
+
+  /**
+   * On page load: check if backend is currently processing.
+   * If yes, reconnect SSE and show progress. If no, load status normally.
+   */
+  private checkProcessingAndConnect(): void {
+    this.api.getProcessingStatus().subscribe({
+      next: (status) => {
+        if (status.isProcessing) {
+          // Backend is already processing — reconnect SSE for live updates
+          this.aiProcessing = true;
+          this.aiStatus = { 
+            total: status.total, 
+            processed: status.processed, 
+            processing: 1, 
+            pending: status.total - status.processed 
+          };
+          this.connectToProcessingStream();
+        } else {
+          // Not processing — load AI status normally
+          this.loadAiStatus();
+        }
+      },
+      error: () => this.loadAiStatus()
+    });
+  }
+
   loadAiStatus(): void {
     this.api.getAiStatus().subscribe({
       next: (status) => {
         this.aiStatus = status;
-        // Auto-process if there are pending emails
-        if (status.pending > 0 && !this.aiProcessing) {
+        if (status.isProcessing && !this.aiProcessing) {
+          // Server is processing but we're not connected — reconnect
+          this.aiProcessing = true;
+          this.connectToProcessingStream();
+        } else if (status.pending > 0 && !this.aiProcessing) {
           this.processWithAi();
         }
       },
@@ -106,7 +144,25 @@ export class EmailListComponent implements OnInit, OnDestroy {
 
   processWithAi(): void {
     if (this.aiProcessing) return;
-    this.startAiStream('process-stream');
+    this.aiProcessing = true;
+    
+    // POST to start background processing, then connect SSE
+    this.api.processAllEmailsWithAi().subscribe({
+      next: (status) => {
+        if (!status.isProcessing && status.total === 0) {
+          this.aiProcessing = false;
+          this.toasts.info('Keine E-Mails zur Verarbeitung');
+          return;
+        }
+        this.aiStatus = { total: status.total, processed: status.processed || 0, processing: 1, pending: status.total };
+        this.connectToProcessingStream();
+      },
+      error: (err) => {
+        console.error('Start processing error:', err);
+        this.aiProcessing = false;
+        this.toasts.error('Konnte Verarbeitung nicht starten');
+      }
+    });
   }
 
   recalculateAi(): void {
@@ -114,9 +170,28 @@ export class EmailListComponent implements OnInit, OnDestroy {
     
     // Clear AI data from all emails immediately for better UX
     this.clearAiDataFromEmails();
+    this.selectedEmail = null; // Close detail while recalculating
+    this.aiProcessing = true;
     this.aiStatus = { total: this.emails.length, processed: 0, processing: 1, pending: this.emails.length };
     
-    this.startAiStream('recalculate-stream');
+    // POST to start background recalculation, then connect SSE
+    this.api.recalculateAllEmailsWithAi().subscribe({
+      next: (status) => {
+        if (!status.isProcessing && status.total === 0) {
+          this.aiProcessing = false;
+          this.loadEmails();
+          return;
+        }
+        this.aiStatus = { total: status.total, processed: 0, processing: 1, pending: status.total };
+        this.connectToProcessingStream();
+      },
+      error: (err) => {
+        console.error('Start recalculation error:', err);
+        this.aiProcessing = false;
+        this.toasts.error('Konnte Neuberechnung nicht starten');
+        this.loadEmails();
+      }
+    });
   }
 
   private clearAiDataFromEmails(): void {
@@ -125,41 +200,38 @@ export class EmailListComponent implements OnInit, OnDestroy {
       aiSummary: null,
       aiTags: null,
       aiProcessedAt: null,
-      cleanedBody: null
+      cleanedBody: null,
+      agentAnalysis: null,
+      agentKeyFacts: null,
+      suggestedReply: null,
+      customerPhone: null,
     }));
-    // Update selected email too
-    if (this.selectedEmail) {
-      this.selectedEmail = {
-        ...this.selectedEmail,
-        aiSummary: null,
-        aiTags: null,
-        aiProcessedAt: null,
-        cleanedBody: null
-      };
-    }
   }
 
-  private startAiStream(endpoint: 'process-stream' | 'recalculate-stream'): void {
+  /**
+   * Connect to the server SSE stream for live processing updates.
+   * Processing runs server-side — if we disconnect, it keeps going.
+   * We can reconnect later and pick up the current state.
+   */
+  private connectToProcessingStream(): void {
     this.closeEventSource();
-    this.aiProcessing = true;
     
     const token = this.authService.getToken();
     const apiUrl = this.configService.apiUrl;
-    const url = `${apiUrl}/emails/ai/${endpoint}?token=${token}`;
+    const url = `${apiUrl}/emails/ai/process-stream?token=${token}`;
     
-    // Run outside zone to avoid unnecessary change detection during setup
     this.ngZone.runOutsideAngular(() => {
       this.eventSource = new EventSource(url);
       
       this.eventSource.onmessage = (event) => {
-        // Run inside zone to trigger change detection
         this.ngZone.run(() => {
           try {
             const data = JSON.parse(event.data);
             
             switch (data.type) {
+              case 'reconnect':
               case 'start':
-                this.aiStatus = { total: data.total, processed: 0, processing: 1, pending: data.total };
+                this.aiStatus = { total: data.total, processed: data.processed || 0, processing: 1, pending: data.total - (data.processed || 0) };
                 break;
                 
               case 'progress':
@@ -169,22 +241,36 @@ export class EmailListComponent implements OnInit, OnDestroy {
                   processing: data.processed < data.total ? 1 : 0, 
                   pending: data.total - data.processed 
                 };
-                // Update email in list if returned
                 if (data.email) {
                   this.updateEmailInList(data.email);
                 }
                 break;
                 
-              case 'complete':
+              case 'complete': {
+                const failed = data.failed || 0;
                 this.aiStatus = { total: data.total, processed: data.processed, processing: 0, pending: 0 };
                 this.aiProcessing = false;
                 this.closeEventSource();
                 this.loadEmails();
-                this.toasts.success(`${data.processed} E-Mails analysiert`);
+                
+                if (failed > 0) {
+                  this.toasts.warning(`${data.processed - failed} von ${data.total} analysiert (${failed} fehlgeschlagen)`);
+                } else {
+                  this.toasts.success(`${data.processed} E-Mails vollständig analysiert`);
+                }
                 break;
+              }
                 
               case 'error':
-                console.error('AI processing error for email:', data.emailId);
+                console.error(`AI error for email ${data.emailId}:`, data.error);
+                break;
+                
+              case 'fatal-error':
+                this.aiProcessing = false;
+                this.closeEventSource();
+                this.toasts.error(`AI-Verarbeitung fehlgeschlagen: ${data.error || 'Unbekannter Fehler'}`);
+                this.loadEmails();
+                this.loadAiStatus();
                 break;
             }
           } catch (e) {
@@ -193,18 +279,49 @@ export class EmailListComponent implements OnInit, OnDestroy {
         });
       };
       
-      this.eventSource.onerror = (error) => {
+      this.eventSource.onerror = () => {
         this.ngZone.run(() => {
-          console.error('SSE error:', error);
-          this.aiProcessing = false;
           this.closeEventSource();
-          this.loadAiStatus();
+          // Don't mark as not processing — backend might still be running
+          // Start polling instead to reconnect when possible
+          this.startPolling();
         });
       };
     });
   }
 
-  private updateEmailInList(emailData: { id: string; aiSummary?: string; aiTags?: string[]; cleanedBody?: string }): void {
+  /**
+   * If SSE disconnects, poll the processing status to know when it's done
+   */
+  private startPolling(): void {
+    this.stopPolling();
+    this.pollInterval = setInterval(() => {
+      this.api.getProcessingStatus().subscribe({
+        next: (status) => {
+          if (status.isProcessing) {
+            this.aiStatus = { 
+              total: status.total, 
+              processed: status.processed, 
+              processing: 1, 
+              pending: status.total - status.processed 
+            };
+            // Try reconnecting SSE
+            this.connectToProcessingStream();
+            this.stopPolling();
+          } else {
+            // Processing finished while we were disconnected
+            this.aiProcessing = false;
+            this.stopPolling();
+            this.loadEmails();
+            this.loadAiStatus();
+            this.toasts.success('Verarbeitung im Hintergrund abgeschlossen');
+          }
+        }
+      });
+    }, 3000);
+  }
+
+  private updateEmailInList(emailData: any): void {
     const idx = this.emails.findIndex(e => e.id === emailData.id);
     if (idx !== -1) {
       this.emails[idx] = { 
@@ -212,9 +329,12 @@ export class EmailListComponent implements OnInit, OnDestroy {
         aiSummary: emailData.aiSummary ?? null,
         aiTags: emailData.aiTags ?? null,
         cleanedBody: emailData.cleanedBody ?? null,
+        agentAnalysis: emailData.agentAnalysis ?? this.emails[idx].agentAnalysis,
+        agentKeyFacts: emailData.agentKeyFacts ?? this.emails[idx].agentKeyFacts,
+        suggestedReply: emailData.suggestedReply ?? this.emails[idx].suggestedReply,
+        customerPhone: emailData.customerPhone ?? this.emails[idx].customerPhone,
         aiProcessedAt: new Date()
       };
-      // Update selected if same
       if (this.selectedEmail?.id === emailData.id) {
         this.selectedEmail = this.emails[idx];
       }
@@ -271,6 +391,9 @@ export class EmailListComponent implements OnInit, OnDestroy {
   }
 
   selectEmail(email: Email): void {
+    // Block selection while AI processing is running
+    if (this.aiProcessing) return;
+    
     this.selectedEmail = email;
     
     // Mark as read if not already
@@ -334,6 +457,15 @@ export class EmailListComponent implements OnInit, OnDestroy {
 
   getSenderName(email: Email): string {
     return email.fromName || email.fromAddress;
+  }
+
+  getSenderInitials(email: Email): string {
+    const name = email.fromName || email.fromAddress || '?';
+    const parts = name.split(/[\s.@]+/).filter(p => p.length > 0);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
   }
 
   loadMore(): void {

@@ -1,83 +1,179 @@
-<!-- ============================================ -->
-<!-- HERO - Email Helper Dashboard -->
-<!-- ============================================ -->
-<section class="hero">
-  <div class="hero__bg">
-    <div class="hero__gradient"></div>
-    <div class="hero__grid"></div>
-    <div class="hero__orb hero__orb--1"></div>
-    <div class="hero__orb hero__orb--2"></div>
-  </div>
+<div class="dashboard" [class.loading]="loading">
 
-  <div class="container">
-    <div class="hero__content">
-      <!-- Badge -->
-      <div class="hero__badge anim-fade-up anim-delay-1">
-        <span class="badge__dot"></span>
-        <span>E-Mail Management Tool</span>
-      </div>
+  <!-- TOP BAR -->
+  <header class="dash-header">
+    <div class="dash-header__greeting">
+      <h1>{{ getGreeting() }} 👋</h1>
+      <p>{{ formattedDate }}</p>
+    </div>
+    <button class="refresh-btn" (click)="refreshEmails()" [disabled]="refreshing">
+      <span class="material-symbols-outlined" [class.spin]="refreshing">sync</span>
+      {{ refreshing ? 'Lädt…' : 'E-Mails abrufen' }}
+    </button>
+  </header>
 
-      <!-- Headline -->
-      <h1 class="hero__headline anim-fade-up anim-delay-2">
-        <span class="hero__line-1">E-Mails</span>
-        <span class="hero__line-2">Smarter beantworten.</span>
-      </h1>
-
-
-      <!-- CTA Buttons -->
-      <div class="hero__actions anim-fade-up anim-delay-4">
-        <button class="btn-primary" (click)="router.navigate(['/emails'])">
-          <span class="material-symbols-outlined">mail</span>
-          Postfach öffnen
-        </button>
-        <button class="btn-secondary" (click)="router.navigate(['/templates'])">
-          <span class="material-symbols-outlined">description</span>
-          Vorlagen verwalten
-        </button>
+  <!-- STAT CARDS -->
+  <section class="stats">
+    <div class="stat-card stat-card--inbox" (click)="router.navigate(['/emails'])">
+      <div class="stat-card__icon"><span class="material-symbols-outlined">inbox</span></div>
+      <div class="stat-card__body">
+        <span class="stat-card__value">{{ emailStats.inbox }}</span>
+        <span class="stat-card__label">Posteingang</span>
       </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="hero__stats anim-fade-up anim-delay-5">
-      <div class="stat-card" (click)="router.navigate(['/emails'])">
-        <div class="stat-card__icon">
+    <div class="stat-card stat-card--unread" (click)="router.navigate(['/emails'])">
+      <div class="stat-card__icon"><span class="material-symbols-outlined">mark_email_unread</span></div>
+      <div class="stat-card__body">
+        <span class="stat-card__value">{{ emailStats.unread }}</span>
+        <span class="stat-card__label">Ungelesen</span>
+      </div>
+    </div>
+
+    <div class="stat-card stat-card--sent" (click)="router.navigate(['/history'])">
+      <div class="stat-card__icon"><span class="material-symbols-outlined">send</span></div>
+      <div class="stat-card__body">
+        <span class="stat-card__value">{{ emailStats.sent }}</span>
+        <span class="stat-card__label">Gesendet</span>
+      </div>
+    </div>
+
+    <div class="stat-card stat-card--templates" (click)="router.navigate(['/templates'])">
+      <div class="stat-card__icon"><span class="material-symbols-outlined">description</span></div>
+      <div class="stat-card__body">
+        <span class="stat-card__value">{{ templateCount }}</span>
+        <span class="stat-card__label">Vorlagen</span>
+      </div>
+    </div>
+
+    <div class="stat-card stat-card--trash" (click)="router.navigate(['/history'])">
+      <div class="stat-card__icon"><span class="material-symbols-outlined">delete</span></div>
+      <div class="stat-card__body">
+        <span class="stat-card__value">{{ emailStats.trash }}</span>
+        <span class="stat-card__label">Papierkorb</span>
+      </div>
+    </div>
+
+    <div class="stat-card stat-card--ai" *ngIf="aiStats">
+      <div class="stat-card__icon"><span class="material-symbols-outlined">smart_toy</span></div>
+      <div class="stat-card__body">
+        <span class="stat-card__value">{{ aiStats.totalRequests }}</span>
+        <span class="stat-card__label">KI-Anfragen (30d)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- RECENT EMAILS -->
+    <section class="card recent-emails">
+      <div class="card__header">
+        <h2>
+          <span class="material-symbols-outlined">schedule</span>
+          Letzte E-Mails
+        </h2>
+        <a routerLink="/emails" class="card__link">Alle anzeigen →</a>
+      </div>
+      <div class="card__body">
+        <div class="email-row" *ngFor="let email of recentEmails" (click)="router.navigate(['/emails'])">
+          <span class="email-row__avatar" [class.unread]="!email.isRead">
+            {{ getInitials(email) }}
+          </span>
+          <div class="email-row__content">
+            <div class="email-row__top">
+              <span class="email-row__sender" [class.unread]="!email.isRead">
+                {{ email.fromName || email.fromAddress }}
+              </span>
+              <span class="email-row__time">{{ timeAgo(email.receivedAt || email.createdAt) }}</span>
+            </div>
+            <span class="email-row__subject" [class.unread]="!email.isRead">{{ email.subject }}</span>
+          </div>
+        </div>
+        <div class="email-empty" *ngIf="!loading && recentEmails.length === 0">
           <span class="material-symbols-outlined">inbox</span>
-        </div>
-        <div class="stat-card__content">
-          <span class="stat-card__value">{{ emailStats.inbox }}</span>
-          <span class="stat-card__label">Im Posteingang</span>
+          <p>Keine E-Mails vorhanden</p>
         </div>
       </div>
+    </section>
 
-      <div class="stat-card stat-card--unread" (click)="router.navigate(['/emails'])">
-        <div class="stat-card__icon">
-          <span class="material-symbols-outlined">mark_email_unread</span>
-        </div>
-        <div class="stat-card__content">
-          <span class="stat-card__value">{{ emailStats.unread }}</span>
-          <span class="stat-card__label">Ungelesen</span>
-        </div>
-      </div>
+    <!-- QUICK ACTIONS + AI -->
+    <div class="side-col">
 
-      <div class="stat-card stat-card--success" (click)="router.navigate(['/sent'])">
-        <div class="stat-card__icon">
-          <span class="material-symbols-outlined">send</span>
+      <!-- QUICK ACTIONS -->
+      <section class="card quick-actions">
+        <div class="card__header">
+          <h2>
+            <span class="material-symbols-outlined">bolt</span>
+            Schnellzugriff
+          </h2>
         </div>
-        <div class="stat-card__content">
-          <span class="stat-card__value">{{ emailStats.sent }}</span>
-          <span class="stat-card__label">Beantwortet</span>
+        <div class="card__body actions-grid">
+          <button class="action-btn action-btn--primary" (click)="router.navigate(['/emails'])">
+            <span class="material-symbols-outlined">inbox</span>
+            Posteingang
+          </button>
+          <button class="action-btn action-btn--green" (click)="refreshEmails()" [disabled]="refreshing">
+            <span class="material-symbols-outlined" [class.spin]="refreshing">sync</span>
+            Abrufen
+          </button>
+          <button class="action-btn action-btn--purple" (click)="router.navigate(['/templates'])">
+            <span class="material-symbols-outlined">description</span>
+            Vorlagen
+          </button>
+          <button class="action-btn action-btn--amber" (click)="router.navigate(['/history'])">
+            <span class="material-symbols-outlined">history</span>
+            Verlauf
+          </button>
         </div>
-      </div>
+      </section>
 
-      <div class="stat-card" (click)="router.navigate(['/templates'])">
-        <div class="stat-card__icon">
-          <span class="material-symbols-outlined">description</span>
+      <!-- AI OVERVIEW -->
+      <section class="card ai-overview" *ngIf="aiStats">
+        <div class="card__header">
+          <h2>
+            <span class="material-symbols-outlined">smart_toy</span>
+            KI-Nutzung (30 Tage)
+          </h2>
         </div>
-        <div class="stat-card__content">
-          <span class="stat-card__value">{{ templateCount }}</span>
-          <span class="stat-card__label">Vorlagen</span>
+        <div class="card__body">
+          <div class="ai-stat-row">
+            <span class="ai-stat-row__label">Anfragen</span>
+            <span class="ai-stat-row__value">{{ aiStats.totalRequests }}</span>
+          </div>
+          <div class="ai-stat-row">
+            <span class="ai-stat-row__label">Tokens</span>
+            <span class="ai-stat-row__value">{{ aiStats.totalTokens | number }}</span>
+          </div>
+          <div class="ai-stat-row">
+            <span class="ai-stat-row__label">Kosten</span>
+            <span class="ai-stat-row__value cost">{{ formatCost(aiStats.totalCostUsd) }}</span>
+          </div>
+          <div class="ai-stat-row" *ngIf="aiStats.totalErrors > 0">
+            <span class="ai-stat-row__label">Fehler</span>
+            <span class="ai-stat-row__value error">{{ aiStats.totalErrors }}</span>
+          </div>
+
+          <div class="ai-models" *ngIf="aiStats.costByModel.length">
+            <h4>Modelle</h4>
+            <div class="ai-model-row" *ngFor="let m of aiStats.costByModel">
+              <span class="ai-model-row__name">{{ m.model }}</span>
+              <span class="ai-model-row__meta">{{ m.requests }} Req &middot; {{ formatCost(m.cost) }}</span>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   </div>
-</section>
+
+  <!-- LOADING SKELETON -->
+  <div class="skeleton-overlay" *ngIf="loading">
+    <div class="skeleton-stats">
+      <div class="skel-card" *ngFor="let _ of [1,2,3,4,5]"></div>
+    </div>
+    <div class="skeleton-grid">
+      <div class="skel-block skel-block--main"></div>
+      <div class="skel-block skel-block--side"></div>
+    </div>
+  </div>
+</div>

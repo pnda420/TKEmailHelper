@@ -139,148 +139,93 @@ export class EmailsController {
   // NOTE: These routes MUST be defined BEFORE the generic /:id route!
 
   /**
-   * GET /emails/ai/status - Get AI processing status
+   * GET /emails/ai/status - Get AI processing status (DB + background state)
    */
   @Get('ai/status')
   async getAiStatus() {
-    return this.emailsService.getAiStatus();
+    const dbStatus = await this.emailsService.getAiStatus();
+    const bgStatus = this.emailsService.getProcessingStatus();
+    return {
+      ...dbStatus,
+      isProcessing: bgStatus.isProcessing,
+      bgTotal: bgStatus.total,
+      bgProcessed: bgStatus.processed,
+      bgFailed: bgStatus.failed,
+      bgMode: bgStatus.mode,
+      bgStartedAt: bgStatus.startedAt,
+    };
   }
 
   /**
-   * POST /emails/ai/process - Process all unprocessed emails with AI
+   * GET /emails/ai/processing-status - Lightweight polling endpoint for background processing
+   */
+  @Get('ai/processing-status')
+  getProcessingStatus() {
+    return this.emailsService.getProcessingStatus();
+  }
+
+  /**
+   * POST /emails/ai/process - Start background processing for unprocessed emails
    */
   @Post('ai/process')
   async processAllWithAi() {
-    return this.emailsService.processAllWithAi();
+    return this.emailsService.startBackgroundProcessing('process');
   }
 
   /**
-   * POST /emails/ai/recalculate - Force recalculate AI for ALL inbox emails
+   * POST /emails/ai/recalculate - Start background recalculation for ALL inbox emails
    */
   @Post('ai/recalculate')
   async recalculateAllWithAi() {
-    return this.emailsService.recalculateAllWithAi();
+    return this.emailsService.startBackgroundProcessing('recalculate');
   }
 
   /**
-   * GET /emails/ai/process-stream - SSE stream for AI processing with real-time updates
+   * GET /emails/ai/process-stream - SSE stream for live processing updates
+   * Connects to the background processing. If processing is already running,
+   * immediately sends current state. Client can disconnect/reconnect safely.
    */
   @Sse('ai/process-stream')
   processWithAiStream(): Observable<MessageEvent> {
     return new Observable((subscriber) => {
-      (async () => {
+      const bgStatus = this.emailsService.getProcessingStatus();
+
+      // Send current state immediately on connect
+      if (bgStatus.isProcessing) {
+        subscriber.next({ data: { 
+          type: 'reconnect', 
+          total: bgStatus.total, 
+          processed: bgStatus.processed,
+          failed: bgStatus.failed,
+          mode: bgStatus.mode,
+        } } as MessageEvent);
+      }
+
+      // Subscribe to live events from background processing
+      const unsubscribe = this.emailsService.addProcessingSubscriber((event) => {
         try {
-          // Get unprocessed emails
-          const unprocessed = await this.emailsService.getUnprocessedEmails(50);
-          const total = unprocessed.length;
-          
-          if (total === 0) {
-            subscriber.next({ data: { type: 'complete', processed: 0, total: 0 } } as MessageEvent);
+          subscriber.next({ data: event } as MessageEvent);
+          if (event.type === 'complete' || event.type === 'fatal-error') {
             subscriber.complete();
-            return;
           }
-
-          // Send initial status
-          subscriber.next({ data: { type: 'start', total, processed: 0 } } as MessageEvent);
-
-          let processed = 0;
-          for (const email of unprocessed) {
-            try {
-              const result = await this.emailsService.processEmailWithAi(email.id);
-              processed++;
-              
-              // Send progress update with email data
-              subscriber.next({ 
-                data: { 
-                  type: 'progress', 
-                  processed, 
-                  total,
-                  email: result ? {
-                    id: result.id,
-                    aiSummary: result.aiSummary,
-                    aiTags: result.aiTags,
-                    cleanedBody: result.cleanedBody,
-                    recommendedTemplateId: result.recommendedTemplateId
-                  } : null
-                } 
-              } as MessageEvent);
-            } catch (err) {
-              // Continue processing other emails even if one fails
-              processed++;
-              subscriber.next({ 
-                data: { type: 'error', emailId: email.id, processed, total } 
-              } as MessageEvent);
-            }
-          }
-
-          // Send completion
-          subscriber.next({ data: { type: 'complete', processed, total } } as MessageEvent);
-          subscriber.complete();
-        } catch (err) {
-          subscriber.error(err);
+        } catch (e) {
+          // Client disconnected — fine, processing continues
         }
-      })();
+      });
+
+      // Cleanup when SSE disconnects
+      return () => {
+        unsubscribe();
+      };
     });
   }
 
   /**
-   * GET /emails/ai/recalculate-stream - SSE stream for recalculating ALL emails with AI
+   * GET /emails/ai/recalculate-stream - Alias for process-stream (same SSE)
    */
   @Sse('ai/recalculate-stream')
   recalculateWithAiStream(): Observable<MessageEvent> {
-    return new Observable((subscriber) => {
-      (async () => {
-        try {
-          // Reset all inbox emails first
-          await this.emailsService.resetAllAiData();
-          
-          // Get all inbox emails (now unprocessed)
-          const unprocessed = await this.emailsService.getUnprocessedEmails(100);
-          const total = unprocessed.length;
-          
-          if (total === 0) {
-            subscriber.next({ data: { type: 'complete', processed: 0, total: 0 } } as MessageEvent);
-            subscriber.complete();
-            return;
-          }
-
-          // Send initial status
-          subscriber.next({ data: { type: 'start', total, processed: 0 } } as MessageEvent);
-
-          let processed = 0;
-          for (const email of unprocessed) {
-            try {
-              const result = await this.emailsService.processEmailWithAi(email.id);
-              processed++;
-              
-              subscriber.next({ 
-                data: { 
-                  type: 'progress', 
-                  processed, 
-                  total,
-                  email: result ? {
-                    id: result.id,
-                    aiSummary: result.aiSummary,
-                    aiTags: result.aiTags,
-                    cleanedBody: result.cleanedBody
-                  } : null
-                } 
-              } as MessageEvent);
-            } catch (err) {
-              processed++;
-              subscriber.next({ 
-                data: { type: 'error', emailId: email.id, processed, total } 
-              } as MessageEvent);
-            }
-          }
-
-          subscriber.next({ data: { type: 'complete', processed, total } } as MessageEvent);
-          subscriber.complete();
-        } catch (err) {
-          subscriber.error(err);
-        }
-      })();
-    });
+    return this.processWithAiStream();
   }
 
   /**

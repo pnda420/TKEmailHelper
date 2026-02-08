@@ -93,6 +93,22 @@ export class Email {
   @Column('text', { nullable: true })
   cleanedBody: string;
 
+  // Pre-computed Agent Analysis (JTL customer data, orders, etc.)
+  @Column('text', { nullable: true })
+  agentAnalysis: string;
+
+  @Column('jsonb', { nullable: true })
+  agentKeyFacts: { icon: string; label: string; value: string }[];
+
+  @Column('text', { nullable: true })
+  suggestedReply: string;
+
+  @Column({ nullable: true })
+  suggestedReplySubject: string;
+
+  @Column({ nullable: true })
+  customerPhone: string;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

@@ -7,6 +7,18 @@ import { simpleParser } from 'mailparser';
 import { Readable } from 'stream';
 import { Email, EmailStatus } from './emails.entity';
 import { EmailTemplatesService } from '../email-templates/email-templates.service';
+import { AiAgentService } from '../ai-agent/ai-agent.service';
+
+// Background processing state (survives client disconnect)
+export interface ProcessingStatus {
+  isProcessing: boolean;
+  total: number;
+  processed: number;
+  failed: number;
+  currentEmailId: string | null;
+  startedAt: Date | null;
+  mode: 'process' | 'recalculate' | null;
+}
 
 @Injectable()
 export class EmailsService {
@@ -17,12 +29,28 @@ export class EmailsService {
   private readonly SOURCE_FOLDER: string;
   private readonly DONE_FOLDER: string;
 
+  // Background processing state (in-memory, survives client disconnect)
+  private processingStatus: ProcessingStatus = {
+    isProcessing: false,
+    total: 0,
+    processed: 0,
+    failed: 0,
+    currentEmailId: null,
+    startedAt: null,
+    mode: null,
+  };
+
+  // SSE subscribers for live updates
+  private processingSubscribers: ((event: any) => void)[] = [];
+
   constructor(
     @InjectRepository(Email)
     private emailRepository: Repository<Email>,
     private configService: ConfigService,
     @Inject(forwardRef(() => EmailTemplatesService))
     private emailTemplatesService: EmailTemplatesService,
+    @Inject(forwardRef(() => AiAgentService))
+    private aiAgentService: AiAgentService,
   ) {
     this.SOURCE_FOLDER = this.configService.get<string>('IMAP_SOURCE_FOLDER') || 'INBOX';
     this.DONE_FOLDER = this.configService.get<string>('IMAP_DONE_FOLDER') || 'PROCESSED';
@@ -566,7 +594,7 @@ export class EmailsService {
   }
 
   /**
-   * Process a single email with AI analysis
+   * Process a single email with AI analysis (summary + tags + agent analysis)
    */
   async processEmailWithAi(emailId: string): Promise<Email | null> {
     const email = await this.emailRepository.findOne({ where: { id: emailId } });
@@ -574,27 +602,493 @@ export class EmailsService {
 
     // Mark as processing
     await this.emailRepository.update(emailId, { aiProcessing: true });
+    this.processingStatus.currentEmailId = emailId;
 
     try {
       const body = email.textBody || email.htmlBody?.replace(/<[^>]*>/g, ' ') || '';
-      const analysis = await this.emailTemplatesService.analyzeEmail(email.subject, body);
+      
+      if (!body.trim()) {
+        this.logger.warn(`processEmailWithAi: Email ${emailId} has no text body, skipping AI`);
+        await this.emailRepository.update(emailId, {
+          aiSummary: 'Kein E-Mail-Inhalt vorhanden',
+          aiTags: [],
+          cleanedBody: '',
+          aiProcessedAt: new Date(),
+          aiProcessing: false,
+        });
+        return this.emailRepository.findOne({ where: { id: emailId } });
+      }
+      
+      this.logger.log(`processEmailWithAi: Starting analysis for email ${emailId} ("${email.subject?.substring(0, 60)}")`);
 
+      // ---- STEP 1: Basic AI analysis (summary, tags, template recommendation) ----
+      const analysis = await this.emailTemplatesService.analyzeEmail(email.subject, body);
+      this.logger.log(`processEmailWithAi: Basic analysis done for ${emailId}`);
+
+      // Save basic analysis immediately
       await this.emailRepository.update(emailId, {
         aiSummary: analysis.summary,
         aiTags: analysis.tags,
         cleanedBody: analysis.cleanedBody,
         recommendedTemplateId: analysis.recommendedTemplateId,
         recommendedTemplateReason: analysis.recommendedTemplateReason,
-        aiProcessedAt: new Date(),
-        aiProcessing: false,
       });
+
+      // ---- STEP 2: Agent analysis (JTL customer data, orders, shipping) ----
+      try {
+        // Detect inline images from HTML
+        const inlineImages: string[] = [];
+        if (email.htmlBody) {
+          const imgMatches = email.htmlBody.match(/<img[^>]*>/gi) || [];
+          for (const img of imgMatches) {
+            const altMatch = img.match(/alt=["']([^"']*)["']/i);
+            const srcMatch = img.match(/src=["']([^"']*)["']/i);
+            const src = srcMatch?.[1] || '';
+            if (src.startsWith('cid:') || src.startsWith('data:image')) {
+              inlineImages.push(altMatch?.[1] || 'Eingebettetes Bild');
+            }
+          }
+        }
+
+        // Build attachment info
+        const attachmentInfo: string[] = [];
+        if (email.attachments?.length) {
+          for (const att of email.attachments) {
+            attachmentInfo.push(`${att.filename} (${att.contentType}, ${Math.round(att.size / 1024)}KB)`);
+          }
+        }
+
+        const emailData = {
+          id: email.id,
+          subject: email.subject,
+          fromAddress: email.fromAddress,
+          fromName: email.fromName || undefined,
+          textBody: body,
+          attachments: attachmentInfo,
+          inlineImages,
+        };
+
+        this.logger.log(`processEmailWithAi: Starting agent analysis for ${emailId}`);
+
+        const agentResult = await this.aiAgentService.analyzeEmail(
+          emailData,
+          () => {}, // No live step callback needed for batch processing
+        );
+
+        // Try to parse structured JSON from agent response, fall back to regex extraction
+        const parsed = this.parseAgentJson(agentResult);
+        const keyFacts = parsed?.keyFacts?.length ? parsed.keyFacts : this.extractKeyFacts(agentResult);
+        const suggestedReply = parsed?.suggestedReply || this.extractSuggestedReply(agentResult);
+        const customerPhone = parsed?.customerPhone || this.extractCustomerPhone(agentResult);
+
+        // Strip the JSON block from the stored analysis text (keep only the readable part)
+        const cleanAnalysis = agentResult.replace(/```json[\s\S]*?```/g, '').trim();
+
+        this.logger.log(`processEmailWithAi: Agent analysis done for ${emailId} — ${keyFacts.length} key facts (JSON: ${!!parsed})`);
+
+        // Save agent analysis immediately (before reply generation)
+        await this.emailRepository.update(emailId, {
+          agentAnalysis: cleanAnalysis,
+          agentKeyFacts: keyFacts,
+          suggestedReply: suggestedReply,
+          customerPhone: customerPhone,
+        });
+
+        // ---- STEP 3: Pre-generate professional reply with JTL context ----
+        try {
+          this.logger.log(`processEmailWithAi: Generating pre-computed reply for ${emailId}`);
+
+          // Build JTL context block from agent analysis for the reply prompt
+          const contextBlock = `[JTL-KUNDENKONTEXT]\n${cleanAnalysis.substring(0, 2000)}\n[/JTL-KUNDENKONTEXT]`;
+          const replyInstructions = contextBlock;
+
+          const replyResult = await this.emailTemplatesService.generateEmailWithGPT({
+            originalEmail: {
+              subject: email.subject,
+              from: email.fromName || email.fromAddress,
+              body: body,
+            },
+            tone: 'professional',
+            instructions: replyInstructions,
+          });
+
+          this.logger.log(`processEmailWithAi: Pre-computed reply generated for ${emailId}`);
+
+          await this.emailRepository.update(emailId, {
+            suggestedReply: replyResult.body,
+            suggestedReplySubject: replyResult.subject,
+            aiProcessedAt: new Date(),
+            aiProcessing: false,
+          });
+        } catch (replyError) {
+          // Reply generation failed — not critical, just log and continue
+          this.logger.warn(`processEmailWithAi: Reply generation failed for ${emailId}: ${replyError?.message}`);
+          await this.emailRepository.update(emailId, {
+            aiProcessedAt: new Date(),
+            aiProcessing: false,
+          });
+        }
+      } catch (agentError) {
+        // Agent analysis failed but basic analysis succeeded — still mark as processed
+        this.logger.error(`processEmailWithAi: Agent analysis failed for ${emailId}: ${agentError?.message}`);
+        await this.emailRepository.update(emailId, {
+          agentAnalysis: null,
+          agentKeyFacts: null,
+          suggestedReply: null,
+          suggestedReplySubject: null,
+          aiProcessedAt: new Date(),
+          aiProcessing: false,
+        });
+      }
 
       return this.emailRepository.findOne({ where: { id: emailId } });
     } catch (error) {
-      this.logger.error(`AI processing error for email ${emailId}:`, error);
-      await this.emailRepository.update(emailId, { aiProcessing: false });
+      const errMsg = error?.message || String(error);
+      this.logger.error(`processEmailWithAi: Error for email ${emailId}: ${errMsg}`);
+      
+      await this.emailRepository.update(emailId, { 
+        aiProcessing: false,
+        aiSummary: `Fehler: ${errMsg.substring(0, 100)}`,
+        aiTags: [],
+        aiProcessedAt: new Date(),
+      });
+      return this.emailRepository.findOne({ where: { id: emailId } });
+    }
+  }
+
+  // ==================== KEY FACT EXTRACTION ====================
+
+  /** Parse the JSON block from the agent response (returns null if not found or invalid) */
+  private parseAgentJson(content: string): {
+    keyFacts: { icon: string; label: string; value: string }[];
+    suggestedReply: string | null;
+    customerPhone: string | null;
+  } | null {
+    if (!content) return null;
+
+    try {
+      // Match ```json ... ``` block
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)```/);
+      if (!jsonMatch) return null;
+
+      const parsed = JSON.parse(jsonMatch[1].trim());
+
+      // Validate structure
+      if (!parsed || !Array.isArray(parsed.keyFacts)) return null;
+
+      // Validate and clean each key fact
+      const validIcons = new Set([
+        'person', 'badge', 'business', 'mail', 'phone', 'smartphone', 'home',
+        'location_on', 'calendar_today', 'payments', 'shopping_cart', 'event',
+        'credit_card', 'local_shipping', 'package_2', 'confirmation_number',
+        'help', 'recommend', 'block', 'info',
+      ]);
+
+      // Labels that are allowed to have longer sentence-like values
+      const longValueLabels = new Set(['Anliegen', 'Empfehlung']);
+
+      const keyFacts = parsed.keyFacts
+        .filter((f: any) => f && typeof f.label === 'string' && typeof f.value === 'string' && f.value.trim().length >= 1)
+        .filter((f: any) => {
+          // For short data fields, reject sentence fragments
+          if (!longValueLabels.has(f.label) && this.looksLikeSentenceFragment(String(f.value))) {
+            this.logger.debug(`parseAgentJson: Rejected "${f.label}" = "${f.value}" (sentence fragment)`);
+            return false;
+          }
+          return true;
+        })
+        .map((f: any) => ({
+          icon: validIcons.has(f.icon) ? f.icon : 'info',
+          label: String(f.label).substring(0, 30),
+          value: String(f.value).substring(0, 100),
+        }));
+
+      this.logger.log(`parseAgentJson: Parsed ${keyFacts.length} key facts from JSON block`);
+
+      return {
+        keyFacts,
+        suggestedReply: typeof parsed.suggestedReply === 'string' ? parsed.suggestedReply : null,
+        customerPhone: typeof parsed.customerPhone === 'string' ? parsed.customerPhone : null,
+      };
+    } catch (e) {
+      this.logger.warn(`parseAgentJson: Failed to parse JSON block: ${e?.message}`);
       return null;
     }
+  }
+
+  private extractKeyFacts(content: string): { icon: string; label: string; value: string }[] {
+    const facts: { icon: string; label: string; value: string }[] = [];
+    if (!content) return facts;
+
+    // Strict helper: only matches lines that look like structured data ("- Label: Value" or "**Label:** Value")
+    // Rejects matches that look like mid-sentence fragments
+    const extractField = (pattern: RegExp, icon: string, label: string, maxLen = 60) => {
+      const match = content.match(pattern);
+      if (match) {
+        let val = match[1].trim().replace(/\*\*/g, '').replace(/^-\s*/, '').split('\n')[0];
+        if (val.length > maxLen) val = val.substring(0, maxLen) + '…';
+        if (val.length >= 2 && !this.looksLikeSentenceFragment(val)) {
+          facts.push({ icon, label, value: val });
+        }
+      }
+    };
+
+    // --- Contact data ---
+    // Only match structured lines like "**Kunde:** Max Mustermann" or "- Kunde: Max Mustermann"
+    extractField(/(?:^|\n)\s*[-*]*\s*\*?\*?Kunde\*?\*?[:\s]+([^\n]{2,60})/i, 'person', 'Kunde', 50);
+    extractField(/(?:^|\n)\s*[-*]*\s*(?:Kundennummer|KundenNr|Kd-?Nr\.?)[:\s#]*(\d{3,10})/i, 'badge', 'Kd-Nr.', 20);
+    extractField(/(?:^|\n)\s*[-*]*\s*\*?\*?(?:Firma|Unternehmen)\*?\*?[:\s]+([^\n,]{2,50})/i, 'business', 'Firma', 50);
+
+    // E-Mail — only match actual email addresses
+    const emailMatch = content.match(/(?:E-?Mail|cMail)[:\s]+([\w.+-]+@[\w.-]+)/i);
+    if (emailMatch) {
+      facts.push({ icon: 'mail', label: 'E-Mail', value: emailMatch[1].trim() });
+    }
+
+    // Phone — only match digit sequences that look like phone numbers
+    const phoneMatch = content.match(/(?:Telefon|Tel\.?)[:\s]+([+\d][\d\s\-/()]{4,20})/i);
+    if (phoneMatch && /\d{5,}/.test(phoneMatch[1].replace(/\s/g, ''))) {
+      facts.push({ icon: 'phone', label: 'Telefon', value: phoneMatch[1].trim() });
+    }
+
+    // Mobile
+    const mobilMatch = content.match(/(?:Mobil|Handy)[:\s]+([+\d][\d\s\-/()]{4,20})/i);
+    if (mobilMatch && /\d{5,}/.test(mobilMatch[1].replace(/\s/g, '')) && mobilMatch[1].trim() !== (phoneMatch?.[1]?.trim() || '')) {
+      facts.push({ icon: 'smartphone', label: 'Mobil', value: mobilMatch[1].trim() });
+    }
+
+    // --- Address ---
+    // Street — must start with a capital letter or number and look like a street name (word + number)
+    const streetMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?(?:Stra[sß]e|Adresse)\*?\*?[:\s]+([A-ZÄÖÜ][a-zäöüßA-ZÄÖÜ\s.-]+\d[\w\s/-]*)/im);
+    if (streetMatch) {
+      const sv = streetMatch[1].trim().replace(/\*\*/g, '');
+      if (sv.length >= 5 && sv.length <= 60 && !this.looksLikeSentenceFragment(sv)) {
+        facts.push({ icon: 'home', label: 'Straße', value: sv });
+      }
+    }
+
+    // City — PLZ + City only
+    const ortMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?(?:Ort|Stadt|PLZ)\*?\*?[:\s]+(\d{4,5}\s+[A-ZÄÖÜa-zäöüß\s.-]{2,40})/im);
+    if (ortMatch) {
+      const ortVal = ortMatch[1].trim().replace(/\*\*/g, '');
+      if (ortVal.length <= 50 && !this.looksLikeSentenceFragment(ortVal)) {
+        facts.push({ icon: 'location_on', label: 'Ort', value: ortVal });
+      }
+    }
+
+    // --- Account info ---
+    // Kunde seit — only match dates
+    const seitMatch = content.match(/(?:Kunde seit|Registriert)[:\s]+([\d]{1,2}[./][\d]{1,2}[./][\d]{2,4}|\d{4})/i);
+    if (seitMatch) {
+      facts.push({ icon: 'calendar_today', label: 'Kunde seit', value: seitMatch[1].trim() });
+    }
+
+    // --- Order & revenue data ---
+    // Revenue — only match currency amounts
+    const umsatzMatch = content.match(/(?:Gesamt[Uu]msatz|Umsatz)[:\s]*[€]?\s*([\d.,]+\s*€?)/i);
+    if (umsatzMatch) {
+      const uVal = umsatzMatch[1].trim().replace(/€$/, '');
+      if (/^[\d.,]+$/.test(uVal)) facts.push({ icon: 'payments', label: 'Umsatz', value: `€${uVal}` });
+    }
+
+    // Number of orders — only match digits
+    const orderCountMatch = content.match(/(?:Anzahl\s*(?:Auftr[aä]ge|Bestellungen)|AnzahlAuftraege|Bestellungen)[:\s]*(\d+)/i);
+    if (orderCountMatch) {
+      facts.push({ icon: 'shopping_cart', label: 'Bestellungen', value: orderCountMatch[1] });
+    }
+
+    // Last order date — only match dates
+    const lastOrderMatch = content.match(/(?:Letzter?\s*(?:Auftrag|Bestellung))[:\s]+([\d]{1,2}[./][\d]{1,2}[./][\d]{2,4})/i);
+    if (lastOrderMatch) {
+      facts.push({ icon: 'event', label: 'Letzte Bestellung', value: lastOrderMatch[1].trim() });
+    }
+
+    // Payment method — short known values only
+    const payMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?Zahlungsart\*?\*?[:\s]+([^\n]{2,30})/im);
+    if (payMatch) {
+      const pv = payMatch[1].trim().replace(/\*\*/g, '');
+      if (pv.length <= 30 && !this.looksLikeSentenceFragment(pv)) {
+        facts.push({ icon: 'credit_card', label: 'Zahlungsart', value: pv });
+      }
+    }
+
+    // Tracking — alphanumeric tracking codes
+    const trackMatch = content.match(/(?:Tracking|Sendungsnummer|Trackingnummer)[:\s]+([A-Za-z0-9\-]{8,40}(?:\s*\([^)]+\))?)/i);
+    if (trackMatch) {
+      facts.push({ icon: 'local_shipping', label: 'Tracking', value: trackMatch[1].trim() });
+    }
+
+    // Shipping status — short values only
+    const shipMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?(?:Versandstatus|Lieferstatus)\*?\*?[:\s]+([^\n]{2,30})/im);
+    if (shipMatch) {
+      const shv = shipMatch[1].trim().replace(/\*\*/g, '');
+      if (!this.looksLikeSentenceFragment(shv)) {
+        facts.push({ icon: 'package_2', label: 'Versandstatus', value: shv });
+      }
+    }
+
+    // Open tickets — only digits
+    const ticketMatch = content.match(/(?:Offene?\s*Tickets?)[:\s]*(\d+)/i);
+    if (ticketMatch && parseInt(ticketMatch[1]) > 0) {
+      facts.push({ icon: 'confirmation_number', label: 'Offene Tickets', value: ticketMatch[1] });
+    }
+
+    // --- Request context (allow slightly longer values) ---
+    const anliegenMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?Anliegen\*?\*?[:\s]+([^\n]{5,120})/im);
+    if (anliegenMatch) {
+      let av = anliegenMatch[1].trim().replace(/\*\*/g, '').replace(/^-\s*/, '');
+      if (av.length > 80) av = av.substring(0, 80) + '…';
+      facts.push({ icon: 'help', label: 'Anliegen', value: av });
+    }
+
+    const empfehlungMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?(?:Empfohlene Aktion|Empfehlung)\*?\*?[:\s]+([^\n]{5,120})/im);
+    if (empfehlungMatch) {
+      let ev = empfehlungMatch[1].trim().replace(/\*\*/g, '').replace(/^-\s*/, '');
+      if (ev.length > 80) ev = ev.substring(0, 80) + '…';
+      facts.push({ icon: 'recommend', label: 'Empfehlung', value: ev });
+    }
+
+    return facts;
+  }
+
+  /** Check if a value looks like a sentence fragment rather than structured data */
+  private looksLikeSentenceFragment(val: string): boolean {
+    // Contains common sentence verbs/patterns → reject
+    if (/\b(bestätigen|veranlassen|prüfen|anbieten|senden|kontaktieren|bitten|erstatten|sollte|muss|kann|wird|wurde|haben|nicht angekommen|ob \w+)\b/i.test(val)) {
+      return true;
+    }
+    // Starts with lowercase (not a name/value, but a sentence continuation)
+    if (/^[a-zäöü]/.test(val) && val.length > 15) return true;
+    // Has too many words (> 8) — likely a sentence
+    if (val.split(/\s+/).length > 8 && !/[\d@]/.test(val)) return true;
+    return false;
+  }
+
+  private extractSuggestedReply(content: string): string | null {
+    if (!content) return null;
+    const replyMatch = content.match(/(?:Antwortvorschlag|Vorgeschlagene Antwort)[:\s]*\n([\s\S]+?)(?:\n\n---|\n\n##|$)/i);
+    return replyMatch ? replyMatch[1].trim() : null;
+  }
+
+  private extractCustomerPhone(content: string): string | null {
+    if (!content) return null;
+    const phoneMatch = content.match(/(?:Telefon|Tel|Mobil|cTel|cMobil)[:\s]+([\d\s+\-/()]+)/i);
+    return (phoneMatch && phoneMatch[1].trim().length >= 5) ? phoneMatch[1].trim() : null;
+  }
+
+  // ==================== BACKGROUND PROCESSING ====================
+
+  /** Get current processing status (for polling from frontend) */
+  getProcessingStatus(): ProcessingStatus {
+    return { ...this.processingStatus };
+  }
+
+  /** Subscribe to processing events (for SSE) */
+  addProcessingSubscriber(callback: (event: any) => void): () => void {
+    this.processingSubscribers.push(callback);
+    return () => {
+      this.processingSubscribers = this.processingSubscribers.filter(s => s !== callback);
+    };
+  }
+
+  private emitProcessingEvent(event: any): void {
+    for (const sub of this.processingSubscribers) {
+      try { sub(event); } catch (e) { /* subscriber disconnected */ }
+    }
+  }
+
+  /**
+   * Start background processing (fire-and-forget, survives client disconnect)
+   * Returns immediately.
+   */
+  async startBackgroundProcessing(mode: 'process' | 'recalculate'): Promise<ProcessingStatus> {
+    if (this.processingStatus.isProcessing) {
+      return this.processingStatus;
+    }
+
+    if (mode === 'recalculate') {
+      await this.resetAllAiData();
+    }
+
+    const unprocessed = await this.getUnprocessedEmails(100);
+    const total = unprocessed.length;
+
+    if (total === 0) {
+      return { isProcessing: false, total: 0, processed: 0, failed: 0, currentEmailId: null, startedAt: null, mode: null };
+    }
+
+    // Set state BEFORE starting
+    this.processingStatus = {
+      isProcessing: true,
+      total,
+      processed: 0,
+      failed: 0,
+      currentEmailId: null,
+      startedAt: new Date(),
+      mode,
+    };
+
+    this.emitProcessingEvent({ type: 'start', total, processed: 0 });
+
+    // Fire and forget — runs in background
+    this.runBackgroundProcessing(unprocessed).catch(err => {
+      this.logger.error(`Background processing crashed: ${err.message}`);
+      this.processingStatus.isProcessing = false;
+      this.emitProcessingEvent({ type: 'fatal-error', error: err.message });
+    });
+
+    return this.processingStatus;
+  }
+
+  private async runBackgroundProcessing(emails: Email[]): Promise<void> {
+    for (const email of emails) {
+      try {
+        const result = await this.processEmailWithAi(email.id);
+        this.processingStatus.processed++;
+
+        const analysisOk = result?.aiSummary && !result.aiSummary.startsWith('Analyse fehlgeschlagen') && !result.aiSummary.startsWith('Fehler:');
+        if (!analysisOk) this.processingStatus.failed++;
+
+        this.emitProcessingEvent({
+          type: 'progress',
+          processed: this.processingStatus.processed,
+          total: this.processingStatus.total,
+          failed: this.processingStatus.failed,
+          email: result ? {
+            id: result.id,
+            aiSummary: result.aiSummary,
+            aiTags: result.aiTags,
+            cleanedBody: result.cleanedBody,
+            agentAnalysis: result.agentAnalysis,
+            agentKeyFacts: result.agentKeyFacts,
+            suggestedReply: result.suggestedReply,
+            customerPhone: result.customerPhone,
+          } : null,
+        });
+      } catch (err) {
+        this.processingStatus.processed++;
+        this.processingStatus.failed++;
+        this.emitProcessingEvent({
+          type: 'error',
+          emailId: email.id,
+          error: err?.message || String(err),
+          processed: this.processingStatus.processed,
+          total: this.processingStatus.total,
+          failed: this.processingStatus.failed,
+        });
+      }
+    }
+
+    this.logger.log(`Background processing complete: ${this.processingStatus.processed}/${this.processingStatus.total} (${this.processingStatus.failed} failed)`);
+    this.emitProcessingEvent({
+      type: 'complete',
+      processed: this.processingStatus.processed,
+      total: this.processingStatus.total,
+      failed: this.processingStatus.failed,
+    });
+
+    this.processingStatus.isProcessing = false;
+    this.processingStatus.currentEmailId = null;
   }
 
   /**
@@ -647,7 +1141,11 @@ export class EmailsService {
   async resetAllAiData(): Promise<void> {
     await this.emailRepository.update(
       { status: EmailStatus.INBOX },
-      { aiProcessedAt: null, aiProcessing: false, aiSummary: null, aiTags: null, cleanedBody: null }
+      { 
+        aiProcessedAt: null, aiProcessing: false, aiSummary: null, aiTags: null, cleanedBody: null,
+        agentAnalysis: null, agentKeyFacts: null, suggestedReply: null, customerPhone: null,
+        recommendedTemplateId: null, recommendedTemplateReason: null,
+      }
     );
   }
 

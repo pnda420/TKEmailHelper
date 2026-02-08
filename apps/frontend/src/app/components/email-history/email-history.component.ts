@@ -1,0 +1,228 @@
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Subscription } from 'rxjs';
+import { trigger, transition, style, animate, stagger, query } from '@angular/animations';
+import { ApiService, Email } from '../../api/api.service';
+import { ToastService } from '../../shared/toasts/toast.service';
+import { AttachmentPreviewComponent, AttachmentInfo } from '../../shared/attachment-preview/attachment-preview.component';
+import { ConfigService } from '../../services/config.service';
+
+type HistoryTab = 'sent' | 'trash';
+
+@Component({
+  selector: 'app-email-history',
+  standalone: true,
+  imports: [CommonModule, RouterModule, AttachmentPreviewComponent],
+  templateUrl: './email-history.component.html',
+  styleUrls: ['./email-history.component.scss'],
+  animations: [
+    trigger('listAnimation', [
+      transition('* => *', [
+        query(':enter', [
+          style({ opacity: 0, transform: 'translateY(8px)' }),
+          stagger(30, [
+            animate('180ms ease-out', style({ opacity: 1, transform: 'translateY(0)' }))
+          ])
+        ], { optional: true })
+      ])
+    ]),
+    trigger('fadeSlide', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateX(16px)' }),
+        animate('180ms ease-out', style({ opacity: 1, transform: 'translateX(0)' }))
+      ]),
+      transition(':leave', [
+        animate('120ms ease-in', style({ opacity: 0, transform: 'translateX(-8px)' }))
+      ])
+    ])
+  ]
+})
+export class EmailHistoryComponent implements OnInit, OnDestroy {
+  activeTab: HistoryTab = 'sent';
+  emails: Email[] = [];
+  totalEmails = 0;
+  loading = false;
+  selectedEmail: Email | null = null;
+
+  // Attachment Preview
+  attachmentPreviewOpen = false;
+  selectedAttachment: AttachmentInfo | null = null;
+  currentAttachments: AttachmentInfo[] = [];
+
+  private limit = 50;
+  private offset = 0;
+  private sub?: Subscription;
+
+  constructor(
+    private api: ApiService,
+    private toasts: ToastService,
+    private configService: ConfigService,
+    private http: HttpClient
+  ) {}
+
+  ngOnInit(): void {
+    this.loadEmails();
+  }
+
+  ngOnDestroy(): void {
+    this.sub?.unsubscribe();
+  }
+
+  switchTab(tab: HistoryTab): void {
+    if (this.activeTab === tab) return;
+    this.activeTab = tab;
+    this.selectedEmail = null;
+    this.emails = [];
+    this.offset = 0;
+    this.loadEmails();
+  }
+
+  loadEmails(): void {
+    this.loading = true;
+    const obs = this.activeTab === 'sent'
+      ? this.api.getSentEmails(this.limit, this.offset)
+      : this.api.getTrashedEmails(this.limit, this.offset);
+
+    this.sub = obs.subscribe({
+      next: (res) => {
+        this.emails = res.emails;
+        this.totalEmails = res.total;
+        this.loading = false;
+      },
+      error: () => {
+        this.toasts.error(this.activeTab === 'sent'
+          ? 'Gesendete E-Mails konnten nicht geladen werden'
+          : 'Papierkorb konnte nicht geladen werden');
+        this.loading = false;
+      }
+    });
+  }
+
+  selectEmail(email: Email): void {
+    this.selectedEmail = email;
+    this.currentAttachments = email.attachments?.length ? this.getAttachmentInfos(email) : [];
+  }
+
+  closeDetail(): void {
+    this.selectedEmail = null;
+    this.currentAttachments = [];
+  }
+
+  getAttachmentInfos(email: Email): AttachmentInfo[] {
+    if (!email.attachments) return [];
+    return email.attachments.map((att, index) => ({
+      filename: att.filename,
+      contentType: att.contentType,
+      size: att.size,
+      emailId: email.id,
+      index,
+      url: `${this.configService.apiUrl}/emails/${email.id}/attachments/${index}`
+    }));
+  }
+
+  openAttachmentPreview(att: { filename: string; contentType: string; size: number }, index: number): void {
+    if (!this.selectedEmail) return;
+    this.selectedAttachment = this.currentAttachments[index];
+    this.attachmentPreviewOpen = true;
+  }
+
+  closeAttachmentPreview(): void {
+    this.attachmentPreviewOpen = false;
+    this.selectedAttachment = null;
+  }
+
+  downloadAttachment(attachment: AttachmentInfo): void {
+    if (!attachment.url) return;
+    const token = localStorage.getItem('auth_token');
+    const headers = new HttpHeaders({ 'Authorization': token ? `Bearer ${token}` : '' });
+
+    this.http.get(attachment.url, { headers, responseType: 'blob' }).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = attachment.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      },
+      error: () => this.toasts.error('Download fehlgeschlagen')
+    });
+  }
+
+  restoreEmail(email: Email, event?: Event): void {
+    event?.stopPropagation();
+    this.api.restoreEmailFromTrash(email.id).subscribe({
+      next: () => {
+        this.toasts.success('E-Mail wiederhergestellt');
+        this.emails = this.emails.filter(e => e.id !== email.id);
+        this.totalEmails--;
+        if (this.selectedEmail?.id === email.id) this.selectedEmail = null;
+      },
+      error: () => this.toasts.error('Fehler beim Wiederherstellen')
+    });
+  }
+
+  loadMore(): void {
+    this.offset += this.limit;
+    const obs = this.activeTab === 'sent'
+      ? this.api.getSentEmails(this.limit, this.offset)
+      : this.api.getTrashedEmails(this.limit, this.offset);
+
+    obs.subscribe({
+      next: (res) => { this.emails = [...this.emails, ...res.emails]; },
+      error: () => {}
+    });
+  }
+
+  get hasMore(): boolean {
+    return this.emails.length < this.totalEmails;
+  }
+
+  // ===== Helpers =====
+
+  getFileIcon(contentType: string): string {
+    const t = contentType?.toLowerCase() || '';
+    if (t.startsWith('image/')) return 'image';
+    if (t === 'application/pdf') return 'picture_as_pdf';
+    if (t.includes('word') || t.includes('document')) return 'description';
+    if (t.includes('excel') || t.includes('spreadsheet')) return 'table_chart';
+    if (t.includes('zip') || t.includes('archive')) return 'folder_zip';
+    return 'attach_file';
+  }
+
+  formatFileSize(size: number): string {
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  formatDate(date: Date | string): string {
+    const d = new Date(date);
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) {
+      return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  }
+
+  formatFullDate(date: Date | string): string {
+    return new Date(date).toLocaleDateString('de-DE', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  getSenderName(email: Email): string {
+    return email.fromName || email.fromAddress;
+  }
+
+  getSenderInitials(email: Email): string {
+    const name = this.activeTab === 'sent' ? (email.fromAddress || '?') : (email.fromName || email.fromAddress || '?');
+    const parts = name.split(/[\s@]+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+  }
+}

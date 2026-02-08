@@ -11,12 +11,12 @@ import { ProfileComponent } from './components/profile/profile.component';
 import { AdminUsersComponent } from './components/admin/admin-users/admin-users.component';
 import { AdminLogsComponent } from './components/admin/admin-logs/admin-logs.component';
 import { AdminAiUsageComponent } from './components/admin/admin-ai-usage/admin-ai-usage.component';
+import { AdminAiConfigComponent } from './components/admin/admin-ai-config/admin-ai-config.component';
 import { EmailListComponent } from './components/emails/email-list.component';
 import { EmailTemplatesComponent } from './components/email-templates/email-templates.component';
 import { EmailReplyComponent } from './components/email-reply/email-reply.component';
-import { SentHistoryComponent } from './components/sent-history/sent-history.component';
-import { EmailTrashComponent } from './components/email-trash/email-trash.component';
-import { SqlTestComponent } from './components/sql-test/sql-test.component';
+import { EmailHistoryComponent } from './components/email-history/email-history.component';
+import { AdminSqlComponent } from './components/admin/admin-sql/admin-sql.component';
 
 const pageMainName = 'TK Email Helper';
 export const routes: Routes = [
@@ -29,12 +29,12 @@ export const routes: Routes = [
     { path: 'register', component: RegisterComponent, title: pageMainName + ' | Register', data: { description: 'Registrieren.' } },
     { path: 'emails', component: EmailListComponent, canActivate: [authGuard], title: pageMainName + ' | Posteingang', data: { description: 'E-Mail Posteingang.' } },
     { path: 'emails/:id/reply', component: EmailReplyComponent, canActivate: [authGuard], title: pageMainName + ' | Antworten', data: { description: 'E-Mail beantworten.' } },
-    { path: 'sent', component: SentHistoryComponent, canActivate: [authGuard], title: pageMainName + ' | Gesendet', data: { description: 'Gesendete E-Mails.' } },
-    { path: 'trash', component: EmailTrashComponent, canActivate: [authGuard], title: pageMainName + ' | Papierkorb', data: { description: 'Papierkorb.' } },
+    { path: 'history', component: EmailHistoryComponent, canActivate: [authGuard], title: pageMainName + ' | Verlauf', data: { description: 'E-Mail Verlauf – Gesendet & Papierkorb.' } },
     { path: 'templates', component: EmailTemplatesComponent, canActivate: [authGuard], title: pageMainName + ' | Vorlagen', data: { description: 'E-Mail Vorlagen verwalten.' } },
     { path: 'admin', redirectTo: 'admin/logs', pathMatch: 'full' },
     { path: 'admin/logs', component: AdminLogsComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Admin Logs', data: { description: 'Error Logs & Monitoring.' } },
     { path: 'admin/users', component: AdminUsersComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Admin Users', data: { description: 'Admin Users verwalten.' } },
     { path: 'admin/ai-usage', component: AdminAiUsageComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | AI Usage', data: { description: 'AI Usage & Kosten Monitoring.' } },
-    { path: 'sql', component: SqlTestComponent, canActivate: [authGuard], title: pageMainName + ' | SQL', data: { description: 'SQL Query Tool.' } },
+    { path: 'admin/ai-config', component: AdminAiConfigComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Antwort-Regeln', data: { description: 'Antwort-Regeln verwalten.' } },
+    { path: 'admin/sql', component: AdminSqlComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | SQL', data: { description: 'SQL Query Tool.' } },
 ];
