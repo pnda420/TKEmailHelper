@@ -1,336 +1,251 @@
 <app-admin-layout>
 <section class="admin-logs">
-  <div class="container">
 
-    <!-- Header -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1>
-          <span class="material-symbols-outlined header-icon">bug_report</span>
-          Error Logs
-        </h1>
-        <p class="subtitle">{{ total }} Einträge gesamt · Auto-Refresh aktiv</p>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-ghost" (click)="loadLogs(); loadStats()" [disabled]="loading">
-          <span class="material-symbols-outlined" [class.spinning]="loading">refresh</span>
-          Aktualisieren
-        </button>
-        <button class="btn btn-danger-outline" (click)="purgeLogs()" [disabled]="purging">
-          <span class="material-symbols-outlined">delete_sweep</span>
-          {{ purging ? 'Lösche...' : 'Purge 90d+' }}
-        </button>
-      </div>
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1>
+        <span class="material-symbols-outlined">bug_report</span>
+        Error Logs
+      </h1>
+      <span class="entry-count">{{ total }} Einträge</span>
     </div>
-
-    <!-- Stats Cards -->
-    <div class="stats-grid" *ngIf="stats && !statsLoading">
-      <div class="stat-card stat-error">
-        <div class="stat-icon">
-          <span class="material-symbols-outlined">error</span>
-        </div>
-        <div class="stat-content">
-          <span class="stat-value">{{ stats.totalErrors }}</span>
-          <span class="stat-label">Errors</span>
-        </div>
-      </div>
-      <div class="stat-card stat-warn">
-        <div class="stat-icon">
-          <span class="material-symbols-outlined">warning</span>
-        </div>
-        <div class="stat-content">
-          <span class="stat-value">{{ stats.totalWarnings }}</span>
-          <span class="stat-label">Warnings</span>
-        </div>
-      </div>
-      <div class="stat-card stat-info">
-        <div class="stat-icon">
-          <span class="material-symbols-outlined">info</span>
-        </div>
-        <div class="stat-content">
-          <span class="stat-value">{{ stats.totalInfo }}</span>
-          <span class="stat-label">Info</span>
-        </div>
-      </div>
-      <div class="stat-card stat-rate">
-        <div class="stat-icon">
-          <span class="material-symbols-outlined">speed</span>
-        </div>
-        <div class="stat-content">
-          <span class="stat-value">{{ stats.recentErrorRate }}/h</span>
-          <span class="stat-label">Error Rate</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Stats Hours Toggle -->
-    <div class="stats-time-toggle" *ngIf="stats">
-      <span class="toggle-label">Zeitraum:</span>
+    <div class="time-chips" *ngIf="stats">
       <button class="time-chip" [class.active]="statsHours === 1" (click)="statsHours = 1; loadStats()">1h</button>
       <button class="time-chip" [class.active]="statsHours === 6" (click)="statsHours = 6; loadStats()">6h</button>
       <button class="time-chip" [class.active]="statsHours === 24" (click)="statsHours = 24; loadStats()">24h</button>
       <button class="time-chip" [class.active]="statsHours === 168" (click)="statsHours = 168; loadStats()">7d</button>
       <button class="time-chip" [class.active]="statsHours === 720" (click)="statsHours = 720; loadStats()">30d</button>
     </div>
-
-    <!-- Top Sources & Users -->
-    <div class="insights-row" *ngIf="stats && (stats.topSources.length || stats.topUsers.length)">
-      <div class="insight-card" *ngIf="stats.topSources.length">
-        <h3 class="insight-title">
-          <span class="material-symbols-outlined">layers</span>
-          Top Error Sources
-        </h3>
-        <div class="insight-list">
-          <div class="insight-item" *ngFor="let src of stats.topSources">
-            <span class="insight-name">{{ src.source }}</span>
-            <span class="insight-count">{{ src.count }}</span>
-          </div>
-        </div>
-      </div>
-      <div class="insight-card" *ngIf="stats.topUsers.length">
-        <h3 class="insight-title">
-          <span class="material-symbols-outlined">person</span>
-          Top Error Users
-        </h3>
-        <div class="insight-list">
-          <div class="insight-item" *ngFor="let u of stats.topUsers">
-            <span class="insight-name">{{ u.userEmail || u.userId }}</span>
-            <span class="insight-count">{{ u.count }}</span>
-          </div>
-        </div>
-      </div>
+    <div class="header-actions">
+      <button class="btn-icon" (click)="loadLogs(); loadStats()" [disabled]="loading" title="Aktualisieren">
+        <span class="material-symbols-outlined" [class.spinning]="loading">refresh</span>
+      </button>
+      <button class="btn-icon danger" (click)="purgeLogs()" [disabled]="purging" title="Purge 90d+">
+        <span class="material-symbols-outlined">delete_sweep</span>
+      </button>
     </div>
+  </div>
 
-    <!-- Filters Bar -->
-    <div class="filters-bar">
-      <div class="search-box">
-        <span class="material-symbols-outlined search-icon">search</span>
-        <input
-          type="text"
-          [(ngModel)]="searchTerm"
-          placeholder="Suche in Message, URL, Email, Source..."
-          class="search-input"
-          (keyup.enter)="applyFilters()"
-        >
-        <button *ngIf="searchTerm" class="clear-btn" (click)="searchTerm = ''; applyFilters()">
-          <span class="material-symbols-outlined">close</span>
-        </button>
-      </div>
-
-      <div class="filter-group">
-        <select [(ngModel)]="levelFilter" (change)="applyFilters()" class="filter-select">
-          <option value="">Alle Level</option>
-          <option value="error">Error</option>
-          <option value="warn">Warning</option>
-          <option value="info">Info</option>
-          <option value="debug">Debug</option>
-        </select>
-
-        <input
-          type="text"
-          [(ngModel)]="sourceFilter"
-          placeholder="Source..."
-          class="filter-input"
-          (keyup.enter)="applyFilters()"
-        >
-
-        <input type="date" [(ngModel)]="dateFrom" (change)="applyFilters()" class="filter-date">
-        <input type="date" [(ngModel)]="dateTo" (change)="applyFilters()" class="filter-date">
-
-        <button *ngIf="hasActiveFilters" class="btn btn-ghost btn-sm" (click)="clearFilters()">
-          <span class="material-symbols-outlined">filter_alt_off</span>
-          Reset
-        </button>
-      </div>
+  <!-- Stats Row -->
+  <div class="stats-row" *ngIf="stats && !statsLoading">
+    <div class="stat-chip stat-error">
+      <span class="material-symbols-outlined">error</span>
+      <strong>{{ stats.totalErrors }}</strong>
+      <span>Errors</span>
     </div>
-
-    <!-- Loading -->
-    <div class="loading-state" *ngIf="loading">
-      <div class="spinner"></div>
-      <p>Logs werden geladen...</p>
+    <div class="stat-chip stat-warn">
+      <span class="material-symbols-outlined">warning</span>
+      <strong>{{ stats.totalWarnings }}</strong>
+      <span>Warnings</span>
     </div>
-
-    <!-- Error -->
-    <div class="error-state" *ngIf="error && !loading">
-      <span class="material-symbols-outlined">error_outline</span>
-      <p>{{ error }}</p>
-      <button class="btn btn-ghost" (click)="loadLogs()">Erneut versuchen</button>
+    <div class="stat-chip stat-info">
+      <span class="material-symbols-outlined">info</span>
+      <strong>{{ stats.totalInfo }}</strong>
+      <span>Info</span>
     </div>
-
-    <!-- Empty -->
-    <div class="empty-state" *ngIf="!loading && !error && logs.length === 0">
-      <span class="material-symbols-outlined empty-icon">check_circle</span>
-      <h3>Keine Logs gefunden</h3>
-      <p>{{ hasActiveFilters ? 'Versuche andere Filtereinstellungen' : 'Alles in Ordnung — keine Fehler vorhanden!' }}</p>
+    <div class="stat-chip stat-rate">
+      <span class="material-symbols-outlined">speed</span>
+      <strong>{{ stats.recentErrorRate }}/h</strong>
+      <span>Rate</span>
     </div>
+    <div class="insights-inline" *ngIf="stats.topSources.length">
+      <span class="insight-label">Top Sources:</span>
+      <span class="insight-tag" *ngFor="let src of stats.topSources.slice(0, 3)">
+        {{ src.source }} <b>{{ src.count }}</b>
+      </span>
+    </div>
+    <div class="insights-inline" *ngIf="stats.topUsers.length">
+      <span class="insight-label">Top Users:</span>
+      <span class="insight-tag" *ngFor="let u of stats.topUsers.slice(0, 3)">
+        {{ u.userEmail || u.userId }} <b>{{ u.count }}</b>
+      </span>
+    </div>
+  </div>
 
-    <!-- Logs Table -->
-    <div class="logs-table-container" *ngIf="!loading && !error && logs.length > 0">
-      <table class="logs-table">
-        <thead>
-          <tr>
-            <th class="col-level">Level</th>
-            <th class="col-time">Zeit</th>
-            <th class="col-status">Status</th>
-            <th class="col-method">Method</th>
-            <th class="col-message">Message</th>
-            <th class="col-source">Source</th>
-            <th class="col-user">User</th>
-            <th class="col-duration">Dauer</th>
+  <!-- Filters -->
+  <div class="filters-row">
+    <div class="search-box">
+      <span class="material-symbols-outlined search-icon">search</span>
+      <input type="text" [(ngModel)]="searchTerm" placeholder="Suche in Message, URL, Email, Source..." class="search-input" (keyup.enter)="applyFilters()">
+      <button *ngIf="searchTerm" class="clear-btn" (click)="searchTerm = ''; applyFilters()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <select [(ngModel)]="levelFilter" (change)="applyFilters()" class="filter-select">
+      <option value="">Alle Level</option>
+      <option value="error">Error</option>
+      <option value="warn">Warning</option>
+      <option value="info">Info</option>
+      <option value="debug">Debug</option>
+    </select>
+    <input type="text" [(ngModel)]="sourceFilter" placeholder="Source..." class="filter-input" (keyup.enter)="applyFilters()">
+    <input type="date" [(ngModel)]="dateFrom" (change)="applyFilters()" class="filter-date">
+    <input type="date" [(ngModel)]="dateTo" (change)="applyFilters()" class="filter-date">
+    <button *ngIf="hasActiveFilters" class="btn-reset" (click)="clearFilters()">
+      <span class="material-symbols-outlined">filter_alt_off</span>
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div class="state-fill" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Logs werden geladen...</p>
+  </div>
+
+  <!-- Error -->
+  <div class="state-fill" *ngIf="error && !loading">
+    <span class="material-symbols-outlined error-icon">error_outline</span>
+    <p>{{ error }}</p>
+    <button class="btn-ghost" (click)="loadLogs()">Erneut versuchen</button>
+  </div>
+
+  <!-- Empty -->
+  <div class="state-fill" *ngIf="!loading && !error && logs.length === 0">
+    <span class="material-symbols-outlined success-icon">check_circle</span>
+    <h3>Keine Logs gefunden</h3>
+    <p>{{ hasActiveFilters ? 'Versuche andere Filtereinstellungen' : 'Alles in Ordnung!' }}</p>
+  </div>
+
+  <!-- Logs Table -->
+  <div class="table-wrap" *ngIf="!loading && !error && logs.length > 0">
+    <table class="logs-table">
+      <thead>
+        <tr>
+          <th>Level</th>
+          <th>Zeit</th>
+          <th>Status</th>
+          <th>Method</th>
+          <th>Message</th>
+          <th>Source</th>
+          <th>User</th>
+          <th>Dauer</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let log of logs; let i = index">
+          <tr class="log-row" [class]="getLevelClass(log.level)" [class.selected]="selectedLog?.id === log.id" (click)="loadDetail(log)">
+            <td>
+              <span class="level-badge" [ngClass]="getLevelClass(log.level)">
+                <span class="material-symbols-outlined level-icon">{{ getLevelIcon(log.level) }}</span>
+                {{ log.level }}
+              </span>
+            </td>
+            <td class="col-time">{{ formatDate(log.createdAt) }}</td>
+            <td>
+              <span class="status-badge" [ngClass]="getStatusClass(log.statusCode)" *ngIf="log.statusCode">{{ log.statusCode }}</span>
+              <span *ngIf="!log.statusCode">-</span>
+            </td>
+            <td>
+              <span class="method-tag" *ngIf="log.method">{{ log.method }}</span>
+              <span *ngIf="!log.method">-</span>
+            </td>
+            <td class="col-message">
+              <span class="message-text" [title]="log.message">{{ truncate(log.message) }}</span>
+              <span class="url-text" *ngIf="log.url">{{ truncate(log.url, 60) }}</span>
+            </td>
+            <td class="col-source">{{ log.source || '-' }}</td>
+            <td>
+              <span class="user-email" *ngIf="log.userEmail" [title]="log.userEmail">{{ truncate(log.userEmail, 25) }}</span>
+              <span *ngIf="!log.userEmail">-</span>
+            </td>
+            <td class="col-duration">{{ formatDuration(log.duration) }}</td>
           </tr>
-        </thead>
-        <tbody>
-          <ng-container *ngFor="let log of logs; let i = index">
-            <tr
-              class="log-row"
-              [class]="getLevelClass(log.level)"
-              [class.selected]="selectedLog?.id === log.id"
-              (click)="loadDetail(log)"
-              [style.animation-delay.ms]="i * 20"
-            >
-              <td class="col-level">
-                <span class="level-badge" [ngClass]="getLevelClass(log.level)">
-                  <span class="material-symbols-outlined level-icon">{{ getLevelIcon(log.level) }}</span>
-                  {{ log.level }}
-                </span>
-              </td>
-              <td class="col-time">{{ formatDate(log.createdAt) }}</td>
-              <td class="col-status">
-                <span class="status-badge" [ngClass]="getStatusClass(log.statusCode)" *ngIf="log.statusCode">
-                  {{ log.statusCode }}
-                </span>
-                <span *ngIf="!log.statusCode">-</span>
-              </td>
-              <td class="col-method">
-                <span class="method-tag" *ngIf="log.method">{{ log.method }}</span>
-                <span *ngIf="!log.method">-</span>
-              </td>
-              <td class="col-message">
-                <span class="message-text" [title]="log.message">{{ truncate(log.message) }}</span>
-                <span class="url-text" *ngIf="log.url">{{ truncate(log.url, 60) }}</span>
-              </td>
-              <td class="col-source">{{ log.source || '-' }}</td>
-              <td class="col-user">
-                <span class="user-email" *ngIf="log.userEmail" [title]="log.userEmail">{{ truncate(log.userEmail, 25) }}</span>
-                <span *ngIf="!log.userEmail">-</span>
-              </td>
-              <td class="col-duration">{{ formatDuration(log.duration) }}</td>
-            </tr>
 
-            <!-- Detail Row (expanded) -->
-            <tr *ngIf="selectedLog && selectedLog.id === log.id" class="detail-row">
-              <td colspan="8">
-                <div class="log-detail" (click)="$event.stopPropagation()">
-                  <div class="detail-header">
-                    <h3>Log Detail #{{ selectedLog!.id }}</h3>
-                    <button class="btn-close" (click)="closeDetail()">
-                      <span class="material-symbols-outlined">close</span>
-                    </button>
+          <!-- Detail Row -->
+          <tr *ngIf="selectedLog && selectedLog.id === log.id" class="detail-row">
+            <td colspan="8">
+              <div class="log-detail" (click)="$event.stopPropagation()">
+                <div class="detail-header">
+                  <h3>Log Detail #{{ selectedLog!.id }}</h3>
+                  <button class="btn-close" (click)="closeDetail()">
+                    <span class="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+                <div class="detail-grid">
+                  <div class="detail-field">
+                    <label>Level</label>
+                    <span class="level-badge" [ngClass]="getLevelClass(selectedLog!.level)">{{ selectedLog!.level }}</span>
                   </div>
-
-                  <div class="detail-grid">
-                    <div class="detail-field">
-                      <label>Level</label>
-                      <span class="level-badge" [ngClass]="getLevelClass(selectedLog!.level)">{{ selectedLog!.level }}</span>
-                    </div>
-                    <div class="detail-field">
-                      <label>Status Code</label>
-                      <span>{{ selectedLog!.statusCode || '-' }}</span>
-                    </div>
-                    <div class="detail-field">
-                      <label>Method</label>
-                      <span>{{ selectedLog!.method || '-' }}</span>
-                    </div>
-                    <div class="detail-field">
-                      <label>URL</label>
-                      <span class="mono">{{ selectedLog!.url || '-' }}</span>
-                    </div>
-                    <div class="detail-field">
-                      <label>Source</label>
-                      <span>{{ selectedLog!.source || '-' }}</span>
-                    </div>
-                    <div class="detail-field">
-                      <label>Duration</label>
-                      <span>{{ formatDuration(selectedLog!.duration) }}</span>
-                    </div>
-                    <div class="detail-field">
-                      <label>User</label>
-                      <span>{{ selectedLog!.userEmail || selectedLog!.userId || '-' }}</span>
-                    </div>
-                    <div class="detail-field">
-                      <label>IP</label>
-                      <span class="mono">{{ selectedLog!.ip || '-' }}</span>
-                    </div>
-                    <div class="detail-field">
-                      <label>User Agent</label>
-                      <span class="mono small">{{ selectedLog!.userAgent || '-' }}</span>
-                    </div>
-                    <div class="detail-field">
-                      <label>Zeit</label>
-                      <span>{{ formatDate(selectedLog!.createdAt) }}</span>
-                    </div>
+                  <div class="detail-field">
+                    <label>Status Code</label>
+                    <span>{{ selectedLog!.statusCode || '-' }}</span>
                   </div>
-
-                  <!-- Message -->
-                  <div class="detail-block">
-                    <label>Message</label>
-                    <pre class="detail-pre">{{ selectedLog!.message }}</pre>
+                  <div class="detail-field">
+                    <label>Method</label>
+                    <span>{{ selectedLog!.method || '-' }}</span>
                   </div>
-
-                  <!-- Stack Trace -->
-                  <div class="detail-block" *ngIf="selectedLog!.stack">
-                    <label>Stack Trace</label>
-                    <pre class="detail-pre stack-trace">{{ selectedLog!.stack }}</pre>
+                  <div class="detail-field">
+                    <label>URL</label>
+                    <span class="mono">{{ selectedLog!.url || '-' }}</span>
                   </div>
-
-                  <!-- Request Body -->
-                  <div class="detail-block" *ngIf="selectedLog!.requestBody">
-                    <label>Request Body</label>
-                    <pre class="detail-pre">{{ selectedLog!.requestBody }}</pre>
+                  <div class="detail-field">
+                    <label>Source</label>
+                    <span>{{ selectedLog!.source || '-' }}</span>
                   </div>
-
-                  <!-- Extra -->
-                  <div class="detail-block" *ngIf="selectedLog!.extra">
-                    <label>Extra Data</label>
-                    <pre class="detail-pre">{{ selectedLog!.extra }}</pre>
+                  <div class="detail-field">
+                    <label>Duration</label>
+                    <span>{{ formatDuration(selectedLog!.duration) }}</span>
+                  </div>
+                  <div class="detail-field">
+                    <label>User</label>
+                    <span>{{ selectedLog!.userEmail || selectedLog!.userId || '-' }}</span>
+                  </div>
+                  <div class="detail-field">
+                    <label>IP</label>
+                    <span class="mono">{{ selectedLog!.ip || '-' }}</span>
+                  </div>
+                  <div class="detail-field">
+                    <label>User Agent</label>
+                    <span class="mono small">{{ selectedLog!.userAgent || '-' }}</span>
+                  </div>
+                  <div class="detail-field">
+                    <label>Zeit</label>
+                    <span>{{ formatDate(selectedLog!.createdAt) }}</span>
                   </div>
                 </div>
-              </td>
-            </tr>
-          </ng-container>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Pagination -->
-    <div class="pagination" *ngIf="totalPages > 1">
-      <button class="page-btn" [disabled]="page <= 1" (click)="goToPage(1)">
-        <span class="material-symbols-outlined">first_page</span>
-      </button>
-      <button class="page-btn" [disabled]="page <= 1" (click)="goToPage(page - 1)">
-        <span class="material-symbols-outlined">chevron_left</span>
-      </button>
-
-      <button
-        *ngFor="let p of pageNumbers"
-        class="page-btn"
-        [class.active]="p === page"
-        (click)="goToPage(p)"
-      >
-        {{ p }}
-      </button>
-
-      <button class="page-btn" [disabled]="page >= totalPages" (click)="goToPage(page + 1)">
-        <span class="material-symbols-outlined">chevron_right</span>
-      </button>
-      <button class="page-btn" [disabled]="page >= totalPages" (click)="goToPage(totalPages)">
-        <span class="material-symbols-outlined">last_page</span>
-      </button>
-
-      <span class="page-info">Seite {{ page }} von {{ totalPages }} ({{ total }} Einträge)</span>
-    </div>
-
+                <div class="detail-block" *ngIf="selectedLog!.message">
+                  <label>Message</label>
+                  <pre class="detail-pre">{{ selectedLog!.message }}</pre>
+                </div>
+                <div class="detail-block" *ngIf="selectedLog!.stack">
+                  <label>Stack Trace</label>
+                  <pre class="detail-pre stack-trace">{{ selectedLog!.stack }}</pre>
+                </div>
+                <div class="detail-block" *ngIf="selectedLog!.requestBody">
+                  <label>Request Body</label>
+                  <pre class="detail-pre">{{ selectedLog!.requestBody }}</pre>
+                </div>
+                <div class="detail-block" *ngIf="selectedLog!.extra">
+                  <label>Extra Data</label>
+                  <pre class="detail-pre">{{ selectedLog!.extra }}</pre>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </table>
   </div>
+
+  <!-- Pagination -->
+  <div class="pagination" *ngIf="totalPages > 1">
+    <button class="page-btn" [disabled]="page <= 1" (click)="goToPage(1)">
+      <span class="material-symbols-outlined">first_page</span>
+    </button>
+    <button class="page-btn" [disabled]="page <= 1" (click)="goToPage(page - 1)">
+      <span class="material-symbols-outlined">chevron_left</span>
+    </button>
+    <button *ngFor="let p of pageNumbers" class="page-btn" [class.active]="p === page" (click)="goToPage(p)">{{ p }}</button>
+    <button class="page-btn" [disabled]="page >= totalPages" (click)="goToPage(page + 1)">
+      <span class="material-symbols-outlined">chevron_right</span>
+    </button>
+    <button class="page-btn" [disabled]="page >= totalPages" (click)="goToPage(totalPages)">
+      <span class="material-symbols-outlined">last_page</span>
+    </button>
+    <span class="page-info">{{ page }}/{{ totalPages }} ({{ total }})</span>
+  </div>
+
 </section>
 </app-admin-layout>
 

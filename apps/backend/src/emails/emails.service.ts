@@ -23,12 +23,12 @@ export interface ProcessingStatus {
 @Injectable()
 export class EmailsService {
   private readonly logger = new Logger(EmailsService.name);
-  private imap: Imap;
   
   // IMAP folder configuration (from environment)
   private readonly SOURCE_FOLDER: string;
   private readonly DONE_FOLDER: string;
   private readonly TRASH_FOLDER: string;
+  private readonly SENT_FOLDER: string;
 
   // Background processing state (in-memory, survives client disconnect)
   private processingStatus: ProcessingStatus = {
@@ -56,30 +56,33 @@ export class EmailsService {
     this.SOURCE_FOLDER = this.configService.get<string>('IMAP_SOURCE_FOLDER') || 'INBOX';
     this.DONE_FOLDER = this.configService.get<string>('IMAP_DONE_FOLDER') || 'PROCESSED';
     this.TRASH_FOLDER = this.configService.get<string>('IMAP_TRASH_FOLDER') || 'Trash';
-    this.initImapConnection();
+    this.SENT_FOLDER = this.configService.get<string>('IMAP_SENT_FOLDER') || 'Sent';
   }
 
-  private initImapConnection(): void {
+  /**
+   * Create a fresh, isolated IMAP connection instance.
+   * Use this for operations that can run concurrently (move, append, etc.)
+   */
+  private createImapConnection(): Imap {
     const user = this.configService.get<string>('MAIL');
     const password = this.configService.get<string>('MAIL_PASS');
     const host = this.configService.get<string>('MAIL_EINGANG');
-    
-    this.logger.log(`IMAP Config - User: ${user}, Host: ${host}, Password length: ${password?.length || 0}`);
-    this.logger.debug(`Full password for debug: "${password}"`);
 
-    this.imap = new Imap({
+    const imap = new Imap({
       user: user,
       password: password,
       host: host,
       port: 993,
       tls: true,
       tlsOptions: { rejectUnauthorized: false },
-      authTimeout: 10000, // 10 Sekunden Auth-Timeout
+      authTimeout: 10000,
     });
 
-    this.imap.on('error', (err: Error) => {
+    imap.on('error', (err: Error) => {
       this.logger.error('IMAP connection error:', err.message);
     });
+
+    return imap;
   }
 
   /**
@@ -89,12 +92,13 @@ export class EmailsService {
     return new Promise((resolve, reject) => {
       let fetchedCount = 0;
       let storedCount = 0;
+      const imap = this.createImapConnection();
 
-      this.imap.once('ready', () => {
-        this.imap.openBox(this.SOURCE_FOLDER, true, (err, box) => {
+      imap.once('ready', () => {
+        imap.openBox(this.SOURCE_FOLDER, true, (err, box) => {
           if (err) {
             this.logger.error(`Error opening ${this.SOURCE_FOLDER}:`, err.message);
-            this.imap.end();
+            imap.end();
             return reject(err);
           }
 
@@ -103,12 +107,12 @@ export class EmailsService {
           // Fetch last 50 emails (or all if less)
           const fetchCount = Math.min(box.messages.total, 50);
           if (fetchCount === 0) {
-            this.imap.end();
+            imap.end();
             return resolve({ fetched: 0, stored: 0 });
           }
 
           const fetchRange = `${Math.max(1, box.messages.total - fetchCount + 1)}:*`;
-          const fetch = this.imap.seq.fetch(fetchRange, {
+          const fetch = imap.seq.fetch(fetchRange, {
             bodies: '',
             struct: true,
           });
@@ -138,7 +142,7 @@ export class EmailsService {
 
           fetch.once('end', () => {
             Promise.all(emailPromises).then(() => {
-              this.imap.end();
+              imap.end();
               this.logger.log(
                 `Fetch complete. Fetched: ${fetchedCount}, Stored: ${storedCount}`,
               );
@@ -148,15 +152,15 @@ export class EmailsService {
         });
       });
 
-      this.imap.once('error', (imapErr: Error) => {
+      imap.once('error', (imapErr: Error) => {
         reject(imapErr);
       });
 
-      this.imap.once('end', () => {
+      imap.once('end', () => {
         this.logger.log('IMAP connection ended');
       });
 
-      this.imap.connect();
+      imap.connect();
     });
   }
 
@@ -188,8 +192,16 @@ export class EmailsService {
       size: att.size,
     })) || [];
 
+    // Extract threading headers
+    const inReplyTo = parsed.inReplyTo || null;
+    const references = parsed.references
+      ? (Array.isArray(parsed.references) ? parsed.references.join(' ') : parsed.references)
+      : null;
+
     const email = this.emailRepository.create({
       messageId: parsed.messageId,
+      inReplyTo: inReplyTo,
+      references: references,
       subject: parsed.subject || '(Kein Betreff)',
       fromAddress: parsed.from?.value?.[0]?.address || 'unknown',
       fromName: parsed.from?.value?.[0]?.name || null,
@@ -269,55 +281,89 @@ export class EmailsService {
    */
   private async moveImapEmail(messageId: string, fromFolder: string, toFolder: string): Promise<boolean> {
     return new Promise((resolve) => {
-      this.initImapConnection();
+      const imap = this.createImapConnection();
       
-      this.imap.once('ready', () => {
+      imap.once('ready', () => {
         // Open source folder with write access (false = read-write)
-        this.imap.openBox(fromFolder, false, (err) => {
+        imap.openBox(fromFolder, false, (err) => {
           if (err) {
             this.logger.error(`Error opening ${fromFolder} for move:`, err.message);
-            this.imap.end();
+            imap.end();
             return resolve(false);
           }
 
           // Search for the email by message-id
-          this.imap.search([['HEADER', 'MESSAGE-ID', messageId]], (searchErr, uids) => {
+          imap.search([['HEADER', 'MESSAGE-ID', messageId]], (searchErr, uids) => {
             if (searchErr) {
               this.logger.error('Error searching for email:', searchErr.message);
-              this.imap.end();
+              imap.end();
               return resolve(false);
             }
 
             if (!uids || uids.length === 0) {
               this.logger.warn(`Email with messageId ${messageId} not found in ${fromFolder}`);
-              this.imap.end();
+              imap.end();
               return resolve(false);
             }
 
             const uid = uids[0];
             this.logger.log(`Found email UID ${uid} in ${fromFolder}, moving to ${toFolder}`);
 
-            this.imap.move(uid, toFolder, (moveErr) => {
+            imap.move(uid, toFolder, (moveErr) => {
               if (moveErr) {
                 this.logger.error(`Error moving email to ${toFolder}:`, moveErr.message);
-                this.imap.end();
+                imap.end();
                 return resolve(false);
               }
 
               this.logger.log(`Successfully moved email ${fromFolder} → ${toFolder}`);
-              this.imap.end();
+              imap.end();
               resolve(true);
             });
           });
         });
       });
 
-      this.imap.once('error', (imapErr: Error) => {
+      imap.once('error', (imapErr: Error) => {
         this.logger.error('IMAP error during move:', imapErr.message);
         resolve(false);
       });
 
-      this.imap.connect();
+      imap.connect();
+    });
+  }
+
+  /**
+   * Append a raw email message to the IMAP Sent folder.
+   * This makes the sent reply visible in Outlook/Thunderbird/Webmail Sent folder.
+   */
+  async appendToSentFolder(rawMessage: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const imap = this.createImapConnection();
+
+      imap.once('ready', () => {
+        const messageBuffer = Buffer.from(rawMessage, 'utf-8');
+        imap.append(messageBuffer, {
+          mailbox: this.SENT_FOLDER,
+          flags: ['\\Seen'],
+        }, (err) => {
+          if (err) {
+            this.logger.error(`Error appending to ${this.SENT_FOLDER}:`, err.message);
+            imap.end();
+            return resolve(false);
+          }
+          this.logger.log(`Successfully appended reply to ${this.SENT_FOLDER}`);
+          imap.end();
+          resolve(true);
+        });
+      });
+
+      imap.once('error', (imapErr: Error) => {
+        this.logger.error('IMAP error during append to sent folder:', imapErr.message);
+        resolve(false);
+      });
+
+      imap.connect();
     });
   }
 
@@ -394,8 +440,6 @@ export class EmailsService {
    * Refresh emails - fetch new ones from IMAP
    */
   async refreshEmails(): Promise<{ fetched: number; stored: number }> {
-    // Re-initialize connection for fresh fetch
-    this.initImapConnection();
     return this.fetchAndStoreEmails();
   }
 

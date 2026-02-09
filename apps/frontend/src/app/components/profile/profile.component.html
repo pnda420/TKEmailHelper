@@ -1,456 +1,347 @@
 <section class="profile-page">
-    <div class="container">
+  <div class="profile-container" *ngIf="user">
 
-        <!-- Profile Card -->
-        <div class="profile-card" *ngIf="user">
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1 class="page-title">
+        <span class="material-symbols-outlined ms-fill">settings</span>
+        Profil &amp; Einstellungen
+      </h1>
+      <button class="logout-btn" (click)="logout()">
+        <span class="material-symbols-outlined ms-size-20">logout</span>
+        Abmelden
+      </button>
+    </div>
 
-            <!-- Header Section -->
-            <div class="profile-header">
-                <div class="avatar-wrapper">
-                    <div class="avatar">
-                        {{ user.name.charAt(0).toUpperCase() }}
-                    </div>
-                    <div class="avatar-status" [class.verified]="user.isVerified"></div>
-                </div>
-                <div class="profile-info">
-                    <h2>{{ user.name }}</h2>
-                    <p class="email">{{ user.email }}</p>
-                    <div class="badges">
-                        <span class="role-badge" [ngClass]="getRoleBadgeClass()">
-                            <span class="material-symbols-outlined ms-size-18 ms-fill">{{ getRoleIcon() }}</span>
-                            {{ getRoleLabel() }}
-                        </span>
-                        <span class="verified-badge" *ngIf="user.isVerified">
-                            <span class="material-symbols-outlined ms-size-18 ms-fill">verified</span>
-                            Verifiziert
-                        </span>
-                    </div>
-                </div>
-                <button class="edit-btn" (click)="toggleEditMode()" *ngIf="!editMode">
-                    <span class="material-symbols-outlined">edit</span>
-                </button>
-            </div>
+    <!-- Profile Identity Bar -->
+    <div class="identity-card">
+      <div class="identity-left">
+        <div class="avatar">{{ user.name.charAt(0).toUpperCase() }}</div>
+        <div class="identity-info">
+          <!-- Name display / edit -->
+          <div class="name-row" *ngIf="!editMode">
+            <h2 class="user-name">{{ user.name }}</h2>
+            <button class="icon-btn-subtle" (click)="toggleEditMode()" title="Name bearbeiten">
+              <span class="material-symbols-outlined ms-size-18">edit</span>
+            </button>
+          </div>
+          <form class="name-edit-row" *ngIf="editMode" (ngSubmit)="saveProfile()">
+            <input type="text" [(ngModel)]="editName" name="editName" placeholder="Dein Name" required minlength="2" maxlength="100" class="name-input" />
+            <button type="submit" class="btn btn--primary btn--sm" [disabled]="saving">
+              <span class="spinner-small" *ngIf="saving"></span>
+              {{ saving ? '...' : 'Speichern' }}
+            </button>
+            <button type="button" class="btn btn--ghost btn--sm" (click)="cancelEdit()">Abbrechen</button>
+          </form>
+          <p class="user-email">{{ user.email }}</p>
+          <div class="user-meta">
+            <span class="role-chip" [ngClass]="getRoleBadgeClass()">
+              <span class="material-symbols-outlined ms-size-14 ms-fill">{{ getRoleIcon() }}</span>
+              {{ getRoleLabel() }}
+            </span>
+            <span class="verified-chip" *ngIf="user.isVerified">
+              <span class="material-symbols-outlined ms-size-14 ms-fill">verified</span>
+              Verifiziert
+            </span>
+            <span class="id-chip">
+              <span class="material-symbols-outlined ms-size-14">fingerprint</span>
+              {{ user.id.substring(0, 8) }}...
+              <button class="copy-inline" (click)="copyToClipboard(user.id)" title="ID kopieren">
+                <span class="material-symbols-outlined ms-size-14">content_copy</span>
+              </button>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
 
-            <!-- Edit Mode -->
-            <div class="edit-section" *ngIf="editMode" @slideDown>
-                <h3>
-                    <span class="material-symbols-outlined">edit</span>
-                    Profil bearbeiten
-                </h3>
-                <form (ngSubmit)="saveProfile()" class="edit-form">
-                    <div class="form-group">
-                        <label for="editName">Name</label>
-                        <input 
-                            type="text" 
-                            id="editName" 
-                            [(ngModel)]="editName" 
-                            name="editName"
-                            placeholder="Dein Name"
-                            required
-                            minlength="2"
-                            maxlength="100"
-                        />
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn btn--secondary" (click)="cancelEdit()">
-                            Abbrechen
-                        </button>
-                        <button type="submit" class="btn btn--primary" [disabled]="saving">
-                            <span class="material-symbols-outlined ms-size-20" *ngIf="!saving">check</span>
-                            <span class="spinner-small" *ngIf="saving"></span>
-                            {{ saving ? 'Speichern...' : 'Speichern' }}
-                        </button>
-                    </div>
-                </form>
-            </div>
+    <!-- Settings Grid: Two Columns -->
+    <div class="settings-grid">
 
-            <!-- Quick Stats -->
-            <!-- <div class="quick-stats">
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <span class="material-symbols-outlined ms-fill">calendar_today</span>
-                    </div>
-                    <div class="stat-content">
-                        <span class="stat-value">{{ formatDate(user.createdAt) }}</span>
-                        <span class="stat-label">Mitglied seit</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon success">
-                        <span class="material-symbols-outlined ms-fill">verified_user</span>
-                    </div>
-                    <div class="stat-content">
-                        <span class="stat-value">{{ user.isVerified ? 'Verifiziert' : 'Ausstehend' }}</span>
-                        <span class="stat-label">Account-Status</span>
-                    </div>
-                </div>
-                <div class="stat-card clickable" (click)="toggleNewsletter()">
-                    <div class="stat-icon" [class.active]="user.wantsNewsletter">
-                        <span class="material-symbols-outlined ms-fill">{{ user.wantsNewsletter ? 'notifications_active' : 'notifications_off' }}</span>
-                    </div>
-                    <div class="stat-content">
-                        <span class="stat-value">{{ user.wantsNewsletter ? 'Aktiv' : 'Inaktiv' }}</span>
-                        <span class="stat-label">Newsletter</span>
-                    </div>
-                    <div class="toggle-switch">
-                        <input type="checkbox" [checked]="user.wantsNewsletter" (change)="$event.stopPropagation()" />
-                        <span class="toggle-slider"></span>
-                    </div>
-                </div>
-            </div> -->
+      <!-- LEFT: KI-Kontext -->
+      <div class="settings-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="material-symbols-outlined card-icon">psychology</span>
+            <h2>KI-Kontext</h2>
+          </div>
+          <span class="status-pill" [class.active]="hasSignature()">
+            {{ hasSignature() ? 'Konfiguriert' : 'Nicht konfiguriert' }}
+          </span>
+        </div>
+        <p class="card-desc">Diese Daten werden der KI übergeben, damit sie weiß wer du bist und personalisierte Antworten generieren kann.</p>
 
-            <!-- Account Details Accordion -->
-            <div class="details-accordion">
-                <button class="accordion-header" (click)="toggleDetails()" [class.open]="showDetails">
-                    <span class="accordion-title">
-                        <span class="material-symbols-outlined">info</span>
-                        Account-Details
-                    </span>
-                    <span class="material-symbols-outlined accordion-icon">{{ showDetails ? 'expand_less' : 'expand_more' }}</span>
-                </button>
-                <div class="accordion-content" *ngIf="showDetails" @slideDown>
-                    <div class="details-grid">
-                        <div class="detail-item">
-                            <span class="material-symbols-outlined">fingerprint</span>
-                            <div class="detail-content">
-                                <span class="detail-label">Benutzer-ID</span>
-                                <span class="detail-value">{{ user.id.substring(0, 8) }}...{{ user.id.substring(user.id.length - 4) }}</span>
-                            </div>
-                            <button class="copy-btn" (click)="copyToClipboard(user.id)" title="ID kopieren">
-                                <span class="material-symbols-outlined">content_copy</span>
-                            </button>
-                        </div>
-                        <div class="detail-item">
-                            <span class="material-symbols-outlined">mail</span>
-                            <div class="detail-content">
-                                <span class="detail-label">E-Mail-Adresse</span>
-                                <span class="detail-value">{{ user.email }}</span>
-                            </div>
-                            <button class="copy-btn" (click)="copyToClipboard(user.email)" title="E-Mail kopieren">
-                                <span class="material-symbols-outlined">content_copy</span>
-                            </button>
-                        </div>
-                        <div class="detail-item">
-                            <span class="material-symbols-outlined">badge</span>
-                            <div class="detail-content">
-                                <span class="detail-label">Vollständiger Name</span>
-                                <span class="detail-value">{{ user.name }}</span>
-                            </div>
-                        </div>
-                        <div class="detail-item">
-                            <span class="material-symbols-outlined">shield_person</span>
-                            <div class="detail-content">
-                                <span class="detail-label">Benutzerrolle</span>
-                                <span class="detail-value">{{ getRoleLabel() }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <form (ngSubmit)="saveSignature()" class="ki-form">
+          <div class="field">
+            <label for="sigName">
+              <span class="material-symbols-outlined ms-size-16">person</span>
+              Name
+            </label>
+            <input type="text" id="sigName" [(ngModel)]="editSignature.name" name="sigName" placeholder="z.B. Max Mustermann" maxlength="100" />
+          </div>
+          <div class="field">
+            <label for="sigPosition">
+              <span class="material-symbols-outlined ms-size-16">work</span>
+              Position / Titel
+            </label>
+            <input type="text" id="sigPosition" [(ngModel)]="editSignature.position" name="sigPosition" placeholder="z.B. Geschäftsführer" maxlength="100" />
+          </div>
+          <div class="field">
+            <label for="sigCompany">
+              <span class="material-symbols-outlined ms-size-16">business</span>
+              Firma
+            </label>
+            <input type="text" id="sigCompany" [(ngModel)]="editSignature.company" name="sigCompany" placeholder="z.B. Muster GmbH" maxlength="100" />
+          </div>
+          <div class="field">
+            <label for="sigPhone">
+              <span class="material-symbols-outlined ms-size-16">phone</span>
+              Telefon
+            </label>
+            <input type="text" id="sigPhone" [(ngModel)]="editSignature.phone" name="sigPhone" placeholder="z.B. +49 123 456789" maxlength="50" />
+          </div>
+          <div class="field">
+            <label for="sigWebsite">
+              <span class="material-symbols-outlined ms-size-16">language</span>
+              Website
+            </label>
+            <input type="text" id="sigWebsite" [(ngModel)]="editSignature.website" name="sigWebsite" placeholder="z.B. www.muster.de" maxlength="100" />
+          </div>
+          <button type="submit" class="btn btn--primary btn--block" [disabled]="signatureSaving">
+            <span class="material-symbols-outlined ms-size-20" *ngIf="!signatureSaving">check</span>
+            <span class="spinner-small" *ngIf="signatureSaving"></span>
+            {{ signatureSaving ? 'Speichern...' : 'KI-Kontext speichern' }}
+          </button>
+        </form>
+      </div>
 
-            <!-- KI-Kontext / Signatur-Daten Accordion -->
-            <div class="details-accordion signature-accordion">
-                <button class="accordion-header" (click)="toggleSignatureSection()" [class.open]="showSignature">
-                    <span class="accordion-title">
-                        <span class="material-symbols-outlined">psychology</span>
-                        KI-Kontext / Signatur-Daten
-                        <span class="signature-status" [class.configured]="hasSignature()">
-                            {{ hasSignature() ? 'Konfiguriert' : 'Nicht konfiguriert' }}
-                        </span>
-                    </span>
-                    <span class="material-symbols-outlined accordion-icon">{{ showSignature ? 'expand_less' : 'expand_more' }}</span>
-                </button>
-                <div class="accordion-content" *ngIf="showSignature" @slideDown>
-                    <p class="section-description">
-                        <span class="material-symbols-outlined ms-size-18">info</span>
-                        Diese Daten werden der KI übergeben, damit sie weiß wer du bist und personalisierte Antworten generieren kann.
-                    </p>
-                    
-                    <!-- Signature View Mode -->
-                    <div class="signature-view" *ngIf="!signatureEditMode">
-                        <div class="signature-preview">
-                            <pre class="signature-text">{{ getSignaturePreview() }}</pre>
-                        </div>
-                        <button class="btn btn--primary btn--sm" (click)="toggleSignatureEditMode()">
-                            <span class="material-symbols-outlined ms-size-20">edit</span>
-                            Daten bearbeiten
-                        </button>
-                    </div>
+      <!-- RIGHT: E-Mail-Signatur -->
+      <div class="settings-card signature-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="material-symbols-outlined card-icon">draw</span>
+            <h2>E-Mail-Signatur</h2>
+          </div>
+          <span class="status-pill" [class.active]="hasRealSignature()">
+            {{ hasRealSignature() ? 'Konfiguriert' : 'Nicht konfiguriert' }}
+          </span>
+        </div>
+        <p class="card-desc">Diese Signatur wird automatisch an alle ausgehenden E-Mails angehängt.</p>
 
-                    <!-- Signature Edit Mode -->
-                    <div class="signature-edit" *ngIf="signatureEditMode">
-                        <p class="signature-hint">
-                            <span class="material-symbols-outlined ms-size-18">info</span>
-                            Diese Daten helfen der KI, personalisierte Antworten zu erstellen und werden für die Signatur verwendet.
-                        </p>
-                        
-                        <form (ngSubmit)="saveSignature()" class="signature-form">
-                            <div class="form-group">
-                                <label for="sigName">
-                                    <span class="material-symbols-outlined ms-size-18">person</span>
-                                    Name
-                                </label>
-                                <input 
-                                    type="text" 
-                                    id="sigName" 
-                                    [(ngModel)]="editSignature.name" 
-                                    name="sigName"
-                                    placeholder="z.B. Max Mustermann"
-                                    maxlength="100"
-                                />
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="sigPosition">
-                                    <span class="material-symbols-outlined ms-size-18">work</span>
-                                    Position / Titel
-                                </label>
-                                <input 
-                                    type="text" 
-                                    id="sigPosition" 
-                                    [(ngModel)]="editSignature.position" 
-                                    name="sigPosition"
-                                    placeholder="z.B. Geschäftsführer"
-                                    maxlength="100"
-                                />
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="sigCompany">
-                                    <span class="material-symbols-outlined ms-size-18">business</span>
-                                    Firma
-                                </label>
-                                <input 
-                                    type="text" 
-                                    id="sigCompany" 
-                                    [(ngModel)]="editSignature.company" 
-                                    name="sigCompany"
-                                    placeholder="z.B. Muster GmbH"
-                                    maxlength="100"
-                                />
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="sigPhone">
-                                    <span class="material-symbols-outlined ms-size-18">phone</span>
-                                    Telefon
-                                </label>
-                                <input 
-                                    type="text" 
-                                    id="sigPhone" 
-                                    [(ngModel)]="editSignature.phone" 
-                                    name="sigPhone"
-                                    placeholder="z.B. +49 123 456789"
-                                    maxlength="50"
-                                />
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="sigWebsite">
-                                    <span class="material-symbols-outlined ms-size-18">language</span>
-                                    Website
-                                </label>
-                                <input 
-                                    type="text" 
-                                    id="sigWebsite" 
-                                    [(ngModel)]="editSignature.website" 
-                                    name="sigWebsite"
-                                    placeholder="z.B. www.muster.de"
-                                    maxlength="100"
-                                />
-                            </div>
-
-                            <div class="signature-live-preview">
-                                <span class="preview-label">So sieht die KI dich:</span>
-                                <pre class="preview-text">{{ getSignaturePreview() }}</pre>
-                            </div>
-                            
-                            <div class="form-actions">
-                                <button type="button" class="btn btn--secondary" (click)="cancelSignatureEdit()">
-                                    Abbrechen
-                                </button>
-                                <button type="submit" class="btn btn--primary" [disabled]="signatureSaving">
-                                    <span class="material-symbols-outlined ms-size-20" *ngIf="!signatureSaving">check</span>
-                                    <span class="spinner-small" *ngIf="signatureSaving"></span>
-                                    {{ signatureSaving ? 'Speichern...' : 'Speichern' }}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Real Email Signature Accordion (HTML, like Outlook) -->
-            <div class="details-accordion signature-accordion real-signature-accordion">
-                <button class="accordion-header" (click)="toggleRealSignatureSection()" [class.open]="showRealSignature">
-                    <span class="accordion-title">
-                        <span class="material-symbols-outlined">draw</span>
-                        E-Mail-Signatur (HTML)
-                        <span class="signature-status" [class.configured]="hasRealSignature()">
-                            {{ hasRealSignature() ? 'Konfiguriert' : 'Nicht konfiguriert' }}
-                        </span>
-                    </span>
-                    <span class="material-symbols-outlined accordion-icon">{{ showRealSignature ? 'expand_less' : 'expand_more' }}</span>
-                </button>
-                <div class="accordion-content" *ngIf="showRealSignature" @slideDown>
-                    <p class="section-description">
-                        <span class="material-symbols-outlined ms-size-18">mail</span>
-                        Diese HTML-Signatur wird automatisch an alle ausgehenden E-Mails angehängt, wie bei Outlook.
-                    </p>
-                    
-                    <!-- Real Signature View Mode -->
-                    <div class="signature-view" *ngIf="!realSignatureEditMode">
-                        <div class="signature-preview html-preview" *ngIf="hasRealSignature()">
-                            <div class="preview-html" [innerHTML]="getSafeHtml(user!.emailSignature || '')"></div>
-                        </div>
-                        <div class="signature-preview empty-preview" *ngIf="!hasRealSignature()">
-                            <p class="no-signature-text">Keine E-Mail-Signatur konfiguriert</p>
-                        </div>
-                        <button class="btn btn--primary btn--sm" (click)="toggleRealSignatureEditMode()">
-                            <span class="material-symbols-outlined ms-size-20">edit</span>
-                            Signatur bearbeiten
-                        </button>
-                    </div>
-
-                    <!-- Real Signature Edit Mode -->
-                    <div class="signature-edit html-editor-container" *ngIf="realSignatureEditMode">
-                        <form (ngSubmit)="saveRealSignature()" class="signature-form html-editor-form">
-                            
-                            <!-- Editor Header with Actions -->
-                            <div class="editor-header">
-                                <div class="editor-title">
-                                    <span class="material-symbols-outlined">code</span>
-                                    HTML-Signatur Editor
-                                </div>
-                                <button type="button" class="btn btn--ghost btn--sm" (click)="generateDefaultSignature()" title="Standard-Signatur aus KI-Daten generieren">
-                                    <span class="material-symbols-outlined ms-size-18">auto_awesome</span>
-                                    Aus KI-Daten generieren
-                                </button>
-                            </div>
-
-                            <!-- Formatting Toolbar -->
-                            <div class="formatting-toolbar">
-                                <div class="toolbar-group">
-                                    <button type="button" class="toolbar-btn" (click)="insertHtmlTag('strong')" title="Fett (Strg+B)">
-                                        <span class="material-symbols-outlined">format_bold</span>
-                                    </button>
-                                    <button type="button" class="toolbar-btn" (click)="insertHtmlTag('em')" title="Kursiv (Strg+I)">
-                                        <span class="material-symbols-outlined">format_italic</span>
-                                    </button>
-                                    <button type="button" class="toolbar-btn" (click)="insertHtmlTag('u')" title="Unterstrichen">
-                                        <span class="material-symbols-outlined">format_underlined</span>
-                                    </button>
-                                </div>
-                                <div class="toolbar-divider"></div>
-                                <div class="toolbar-group">
-                                    <button type="button" class="toolbar-btn" (click)="insertLineBreak()" title="Zeilenumbruch">
-                                        <span class="material-symbols-outlined">keyboard_return</span>
-                                    </button>
-                                    <button type="button" class="toolbar-btn" (click)="insertParagraph()" title="Absatz">
-                                        <span class="material-symbols-outlined">notes</span>
-                                    </button>
-                                    <button type="button" class="toolbar-btn" (click)="insertHorizontalRule()" title="Horizontale Linie">
-                                        <span class="material-symbols-outlined">horizontal_rule</span>
-                                    </button>
-                                </div>
-                                <div class="toolbar-divider"></div>
-                                <div class="toolbar-group">
-                                    <button type="button" class="toolbar-btn" (click)="insertLink()" title="Link einfügen">
-                                        <span class="material-symbols-outlined">link</span>
-                                    </button>
-                                    <button type="button" class="toolbar-btn" (click)="insertImage()" title="Bild einfügen">
-                                        <span class="material-symbols-outlined">image</span>
-                                    </button>
-                                </div>
-                                <div class="toolbar-divider"></div>
-                                <div class="toolbar-group">
-                                    <div class="color-picker-wrapper">
-                                        <button type="button" class="toolbar-btn" (click)="colorPicker.click()" title="Textfarbe">
-                                            <span class="material-symbols-outlined">format_color_text</span>
-                                            <span class="color-indicator" [style.background-color]="selectedTextColor"></span>
-                                        </button>
-                                        <input type="color" #colorPicker [value]="selectedTextColor" (change)="insertColorSpan($event)" class="hidden-color-picker">
-                                    </div>
-                                </div>
-                                <div class="toolbar-divider"></div>
-                                <div class="toolbar-group">
-                                    <select class="toolbar-select" (change)="insertFontSize($event)" title="Schriftgröße">
-                                        <option value="">Größe</option>
-                                        <option value="10px">Klein (10px)</option>
-                                        <option value="12px">Normal (12px)</option>
-                                        <option value="14px">Mittel (14px)</option>
-                                        <option value="16px">Groß (16px)</option>
-                                        <option value="18px">Sehr groß (18px)</option>
-                                        <option value="24px">Überschrift (24px)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Split View: Editor + Preview -->
-                            <div class="split-editor-view">
-                                <!-- Code Editor Panel -->
-                                <div class="editor-panel">
-                                    <div class="panel-header">
-                                        <span class="material-symbols-outlined ms-size-16">code</span>
-                                        HTML Code
-                                    </div>
-                                    <textarea 
-                                        #htmlTextarea
-                                        id="emailSignature" 
-                                        [(ngModel)]="editEmailSignature" 
-                                        name="emailSignature"
-                                        placeholder="<div style='font-family: Arial, sans-serif;'>&#10;Mit freundlichen Grüßen,&#10;<br><br>&#10;<strong>Max Mustermann</strong><br>&#10;Geschäftsführer<br>&#10;Tel: +49 123 456789&#10;</div>"
-                                        maxlength="10000"
-                                        class="html-textarea"
-                                        (keydown)="onTextareaKeydown($event)"
-                                    ></textarea>
-                                    <div class="editor-footer">
-                                        <small class="char-count">{{ editEmailSignature.length }} / 10000 Zeichen</small>
-                                    </div>
-                                </div>
-
-                                <!-- Live Preview Panel -->
-                                <div class="preview-panel">
-                                    <div class="panel-header">
-                                        <span class="material-symbols-outlined ms-size-16">visibility</span>
-                                        Live-Vorschau
-                                    </div>
-                                    <div class="preview-content">
-                                        <div class="email-preview-wrapper" *ngIf="editEmailSignature.trim(); else emptyPreview">
-                                            <div class="email-preview-frame" [innerHTML]="getSafeHtml(editEmailSignature)"></div>
-                                        </div>
-                                        <ng-template #emptyPreview>
-                                            <div class="empty-preview-message">
-                                                <span class="material-symbols-outlined">edit_note</span>
-                                                <p>Gib HTML-Code ein, um die Vorschau zu sehen</p>
-                                            </div>
-                                        </ng-template>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-actions">
-                                <button type="button" class="btn btn--secondary" (click)="cancelRealSignatureEdit()">
-                                    Abbrechen
-                                </button>
-                                <button type="submit" class="btn btn--primary" [disabled]="realSignatureSaving">
-                                    <span class="material-symbols-outlined ms-size-20" *ngIf="!realSignatureSaving">check</span>
-                                    <span class="spinner-small" *ngIf="realSignatureSaving"></span>
-                                    {{ realSignatureSaving ? 'Speichern...' : 'Signatur speichern' }}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
+        <!-- Preview Mode -->
+        <div class="sig-preview-area" *ngIf="!realSignatureEditMode">
+          <div class="sig-preview-box" *ngIf="hasRealSignature()">
+            <div class="sig-preview-content" [innerHTML]="getSafeHtml(user!.emailSignature || '')"></div>
+          </div>
+          <div class="sig-empty" *ngIf="!hasRealSignature()">
+            <span class="material-symbols-outlined">draw</span>
+            <p>Noch keine Signatur erstellt</p>
+          </div>
+          <button class="btn btn--primary" (click)="toggleRealSignatureEditMode()">
+            <span class="material-symbols-outlined ms-size-20">edit</span>
+            {{ hasRealSignature() ? 'Signatur bearbeiten' : 'Signatur erstellen' }}
+          </button>
         </div>
 
-        <!-- Loading State -->
-        <div class="profile-card profile-card--loading" *ngIf="!user">
-            <div class="spinner"></div>
-            <p>Lade Profil...</p>
+        <!-- WYSIWYG Editor Mode -->
+        <div class="wysiwyg-container" *ngIf="realSignatureEditMode">
+
+          <!-- Toolbar Header -->
+          <div class="editor-toolbar-header">
+            <button type="button" class="btn btn--ghost btn--sm" (click)="generateDefaultSignature()" title="Signatur aus KI-Daten generieren">
+              <span class="material-symbols-outlined ms-size-18">auto_awesome</span>
+              Vorlage
+            </button>
+            <div class="view-toggle">
+              <button type="button" class="toggle-btn" [class.active]="editorView === 'wysiwyg'" (click)="editorView = 'wysiwyg'" title="Visueller Editor">
+                <span class="material-symbols-outlined ms-size-18">edit_note</span>
+              </button>
+              <button type="button" class="toggle-btn" [class.active]="editorView === 'code'" (click)="editorView = 'code'" title="HTML Code">
+                <span class="material-symbols-outlined ms-size-18">code</span>
+              </button>
+              <button type="button" class="toggle-btn" [class.active]="editorView === 'split'" (click)="editorView = 'split'" title="Split-Ansicht">
+                <span class="material-symbols-outlined ms-size-18">vertical_split</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Formatting Toolbar -->
+          <div class="formatting-toolbar" *ngIf="editorView !== 'code'">
+            <div class="toolbar-group">
+              <select class="toolbar-select toolbar-select--wide" (change)="execCommand('fontName', $any($event.target).value); $any($event.target).value = ''" title="Schriftart">
+                <option value="">Schriftart</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="Verdana, sans-serif">Verdana</option>
+                <option value="Helvetica, sans-serif">Helvetica</option>
+                <option value="Tahoma, sans-serif">Tahoma</option>
+                <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="Times New Roman, serif">Times New Roman</option>
+                <option value="Courier New, monospace">Courier New</option>
+                <option value="Segoe UI, sans-serif">Segoe UI</option>
+                <option value="Calibri, sans-serif">Calibri</option>
+              </select>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+              <select class="toolbar-select" (change)="execCommand('fontSize', $any($event.target).value); $any($event.target).value = ''" title="Schriftgröße">
+                <option value="">Größe</option>
+                <option value="1">Klein (8pt)</option>
+                <option value="2">Normal (10pt)</option>
+                <option value="3">Mittel (12pt)</option>
+                <option value="4">Groß (14pt)</option>
+                <option value="5">Sehr groß (18pt)</option>
+                <option value="6">Überschrift (24pt)</option>
+                <option value="7">Titel (36pt)</option>
+              </select>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+              <button type="button" class="toolbar-btn" (click)="execCommand('bold')" title="Fett (Strg+B)">
+                <span class="material-symbols-outlined">format_bold</span>
+              </button>
+              <button type="button" class="toolbar-btn" (click)="execCommand('italic')" title="Kursiv (Strg+I)">
+                <span class="material-symbols-outlined">format_italic</span>
+              </button>
+              <button type="button" class="toolbar-btn" (click)="execCommand('underline')" title="Unterstrichen (Strg+U)">
+                <span class="material-symbols-outlined">format_underlined</span>
+              </button>
+              <button type="button" class="toolbar-btn" (click)="execCommand('strikeThrough')" title="Durchgestrichen">
+                <span class="material-symbols-outlined">strikethrough_s</span>
+              </button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+              <div class="color-picker-wrapper">
+                <button type="button" class="toolbar-btn" (click)="foreColorPicker.click()" title="Textfarbe">
+                  <span class="material-symbols-outlined">format_color_text</span>
+                  <span class="color-indicator" [style.background-color]="selectedTextColor"></span>
+                </button>
+                <input type="color" #foreColorPicker [value]="selectedTextColor" (input)="selectedTextColor = $any($event.target).value; execCommand('foreColor', $any($event.target).value)" class="hidden-color-picker">
+              </div>
+              <div class="color-picker-wrapper">
+                <button type="button" class="toolbar-btn" (click)="bgColorPicker.click()" title="Hintergrundfarbe">
+                  <span class="material-symbols-outlined">format_color_fill</span>
+                  <span class="color-indicator" [style.background-color]="selectedBgColor"></span>
+                </button>
+                <input type="color" #bgColorPicker [value]="selectedBgColor" (input)="selectedBgColor = $any($event.target).value; execCommand('hiliteColor', $any($event.target).value)" class="hidden-color-picker">
+              </div>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+              <button type="button" class="toolbar-btn" (click)="execCommand('justifyLeft')" title="Linksbündig">
+                <span class="material-symbols-outlined">format_align_left</span>
+              </button>
+              <button type="button" class="toolbar-btn" (click)="execCommand('justifyCenter')" title="Zentriert">
+                <span class="material-symbols-outlined">format_align_center</span>
+              </button>
+              <button type="button" class="toolbar-btn" (click)="execCommand('justifyRight')" title="Rechtsbündig">
+                <span class="material-symbols-outlined">format_align_right</span>
+              </button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+              <button type="button" class="toolbar-btn" (click)="execCommand('insertUnorderedList')" title="Aufzählung">
+                <span class="material-symbols-outlined">format_list_bulleted</span>
+              </button>
+              <button type="button" class="toolbar-btn" (click)="execCommand('insertOrderedList')" title="Nummerierung">
+                <span class="material-symbols-outlined">format_list_numbered</span>
+              </button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+              <button type="button" class="toolbar-btn" (click)="execCommand('insertHorizontalRule')" title="Horizontale Linie">
+                <span class="material-symbols-outlined">horizontal_rule</span>
+              </button>
+              <button type="button" class="toolbar-btn" (click)="insertLinkWysiwyg()" title="Link einfügen">
+                <span class="material-symbols-outlined">link</span>
+              </button>
+              <button type="button" class="toolbar-btn" (click)="triggerImageUpload()" title="Bild einfügen">
+                <span class="material-symbols-outlined">image</span>
+              </button>
+              <button type="button" class="toolbar-btn" (click)="insertTable()" title="Tabelle einfügen">
+                <span class="material-symbols-outlined">table</span>
+              </button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-group">
+              <button type="button" class="toolbar-btn" (click)="execCommand('undo')" title="Rückgängig (Strg+Z)">
+                <span class="material-symbols-outlined">undo</span>
+              </button>
+              <button type="button" class="toolbar-btn" (click)="execCommand('redo')" title="Wiederholen (Strg+Y)">
+                <span class="material-symbols-outlined">redo</span>
+              </button>
+              <button type="button" class="toolbar-btn" (click)="execCommand('removeFormat')" title="Formatierung entfernen">
+                <span class="material-symbols-outlined">format_clear</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Hidden file input -->
+          <input type="file" #imageUpload accept="image/*" (change)="onImageSelected($event)" style="display:none" multiple>
+
+          <!-- Editor Body -->
+          <div class="editor-body" [class.split-view]="editorView === 'split'">
+            <div class="editor-pane wysiwyg-pane" *ngIf="editorView === 'wysiwyg' || editorView === 'split'">
+              <div class="pane-label" *ngIf="editorView === 'split'">
+                <span class="material-symbols-outlined ms-size-14">edit_note</span> Editor
+              </div>
+              <div
+                #wysiwygEditor
+                class="wysiwyg-editable"
+                contenteditable="true"
+                (input)="onWysiwygInput()"
+                (paste)="onWysiwygPaste($event)"
+                (drop)="onWysiwygDrop($event)"
+                (dragover)="$event.preventDefault()"
+                [innerHTML]="getSafeHtml(editEmailSignature)"
+                spellcheck="true"
+              ></div>
+            </div>
+            <div class="editor-pane code-pane" *ngIf="editorView === 'code' || editorView === 'split'">
+              <div class="pane-label">
+                <span class="material-symbols-outlined ms-size-14">code</span> HTML
+              </div>
+              <textarea
+                #htmlTextarea
+                [(ngModel)]="editEmailSignature"
+                name="emailSignature"
+                placeholder="HTML-Code hier eingeben..."
+                maxlength="500000"
+                class="code-textarea"
+                (keydown)="onTextareaKeydown($event)"
+                (input)="onCodeInput()"
+              ></textarea>
+              <div class="code-footer">
+                <small>{{ editEmailSignature.length | number }} Zeichen</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Upload status -->
+          <div class="upload-status" *ngIf="uploadingImage">
+            <div class="upload-spinner"></div>
+            <span>Bild wird verarbeitet...</span>
+          </div>
+
+          <!-- Editor Actions -->
+          <div class="editor-actions">
+            <button type="button" class="btn btn--ghost" (click)="cancelRealSignatureEdit()">Abbrechen</button>
+            <button type="button" class="btn btn--primary" (click)="saveRealSignature()" [disabled]="realSignatureSaving">
+              <span class="material-symbols-outlined ms-size-20" *ngIf="!realSignatureSaving">check</span>
+              <span class="spinner-small" *ngIf="realSignatureSaving"></span>
+              {{ realSignatureSaving ? 'Speichern...' : 'Signatur speichern' }}
+            </button>
+          </div>
         </div>
+      </div>
 
     </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="!user">
+    <div class="spinner"></div>
+    <p>Lade Profil...</p>
+  </div>
 </section>

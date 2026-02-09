@@ -372,6 +372,8 @@ export type EmailStatus = 'inbox' | 'sent' | 'trash';
 export interface Email {
   id: string;
   messageId: string;
+  inReplyTo: string | null;
+  references: string | null;
   subject: string;
   fromAddress: string;
   fromName: string | null;
@@ -467,6 +469,19 @@ export interface GenerateEmailDto {
   templateId?: string;
 }
 
+export interface ReviseEmailDto {
+  originalEmail: {
+    subject: string;
+    from: string;
+    body: string;
+  };
+  originalReply: string;
+  editedReply: string;
+  revisionInstructions: string;
+  tone?: 'professional' | 'friendly' | 'formal' | 'casual';
+  currentSubject?: string;
+}
+
 export interface GeneratedEmailResponse {
   subject: string;
   body: string;
@@ -476,7 +491,13 @@ export interface SendReplyDto {
   to: string;
   subject: string;
   body: string;
+  emailId?: string;
   inReplyTo?: string;
+  references?: string;
+  originalFrom?: string;
+  originalDate?: string;
+  originalHtmlBody?: string;
+  originalTextBody?: string;
 }
 
 export interface SendReplyResponse {
@@ -1100,6 +1121,15 @@ deleteEmailTemplate(id: string): Observable<{ success: boolean }> {
  */
 generateEmailWithGPT(dto: GenerateEmailDto): Observable<GeneratedEmailResponse> {
   return this.http.post<GeneratedEmailResponse>(`${this.apiUrl}/email-templates/generate`, dto, {
+    headers: this.getHeaders()
+  });
+}
+
+/**
+ * E-Mail überarbeiten mit GPT (Revision)
+ */
+reviseEmailWithGPT(dto: ReviseEmailDto): Observable<GeneratedEmailResponse> {
+  return this.http.post<GeneratedEmailResponse>(`${this.apiUrl}/email-templates/revise`, dto, {
     headers: this.getHeaders()
   });
 }

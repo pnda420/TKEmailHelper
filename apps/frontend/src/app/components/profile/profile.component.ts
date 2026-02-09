@@ -2,7 +2,7 @@
 import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { AuthService, User, UserRole, UserSignature } from '../../services/auth.service';
@@ -13,7 +13,7 @@ import { ConfirmationService } from '../../shared/confirmation/confirmation.serv
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss',
   animations: [
@@ -38,8 +38,7 @@ export class ProfileComponent implements OnInit {
   editName = '';
   saving = false;
   
-  // AI Context Signature edit mode (for AI to know who the user is)
-  signatureEditMode = false;
+  // AI Context (for AI to know who the user is)
   signatureSaving = false;
   editSignature: UserSignature = {
     name: '',
@@ -49,18 +48,18 @@ export class ProfileComponent implements OnInit {
     website: ''
   };
   
-  // Real Email Signature edit mode (HTML, like Outlook)
+  // Real Email Signature edit mode (WYSIWYG, like Outlook)
   realSignatureEditMode = false;
   realSignatureSaving = false;
   editEmailSignature = '';
   selectedTextColor = '#333333';
+  selectedBgColor = '#ffffff';
+  editorView: 'wysiwyg' | 'code' | 'split' = 'wysiwyg';
+  uploadingImage = false;
   
   @ViewChild('htmlTextarea') htmlTextarea!: ElementRef<HTMLTextAreaElement>;
-  
-  // Accordion
-  showDetails = false;
-  showSignature = false;
-  showRealSignature = false;
+  @ViewChild('wysiwygEditor') wysiwygEditor!: ElementRef<HTMLDivElement>;
+  @ViewChild('imageUpload') imageUpload!: ElementRef<HTMLInputElement>;
 
   constructor(
     private authService: AuthService,
@@ -92,25 +91,7 @@ export class ProfileComponent implements OnInit {
     };
   }
 
-  // ==================== AI Context Signature Methods ====================
-  
-  toggleSignatureSection(): void {
-    this.showSignature = !this.showSignature;
-  }
-
-  toggleSignatureEditMode(): void {
-    this.signatureEditMode = !this.signatureEditMode;
-    if (this.signatureEditMode && this.user) {
-      this.loadSignatureFromUser(this.user);
-    }
-  }
-
-  cancelSignatureEdit(): void {
-    this.signatureEditMode = false;
-    if (this.user) {
-      this.loadSignatureFromUser(this.user);
-    }
-  }
+  // ==================== AI Context Methods ====================
 
   saveSignature(): void {
     if (!this.user) return;
@@ -129,9 +110,8 @@ export class ProfileComponent implements OnInit {
       next: (updatedUser) => {
         localStorage.setItem('current_user', JSON.stringify(updatedUser));
         this.user = updatedUser;
-        this.signatureEditMode = false;
         this.signatureSaving = false;
-        this.toasts.success('KI-Signatur erfolgreich gespeichert!');
+        this.toasts.success('KI-Kontext erfolgreich gespeichert!');
       },
       error: (err) => {
         this.signatureSaving = false;
@@ -140,32 +120,19 @@ export class ProfileComponent implements OnInit {
     });
   }
 
-  getSignaturePreview(): string {
-    const parts: string[] = [];
-    if (this.editSignature.name) parts.push(this.editSignature.name);
-    if (this.editSignature.position) parts.push(this.editSignature.position);
-    if (this.editSignature.company) parts.push(this.editSignature.company);
-    if (this.editSignature.phone) parts.push(`Tel: ${this.editSignature.phone}`);
-    if (this.editSignature.website) parts.push(this.editSignature.website);
-    return parts.length > 0 ? parts.join('\n') : 'Keine KI-Signatur konfiguriert';
-  }
-
   hasSignature(): boolean {
     return !!(this.user?.signatureName || this.user?.signaturePosition || 
               this.user?.signatureCompany || this.user?.signaturePhone || 
               this.user?.signatureWebsite);
   }
 
-  // ==================== Real Email Signature Methods (HTML, like Outlook) ====================
-
-  toggleRealSignatureSection(): void {
-    this.showRealSignature = !this.showRealSignature;
-  }
+  // ==================== Email Signature Methods (WYSIWYG) ====================
 
   toggleRealSignatureEditMode(): void {
     this.realSignatureEditMode = !this.realSignatureEditMode;
     if (this.realSignatureEditMode && this.user) {
       this.editEmailSignature = this.user.emailSignature || '';
+      this.editorView = 'wysiwyg';
     }
   }
 
@@ -178,6 +145,9 @@ export class ProfileComponent implements OnInit {
 
   saveRealSignature(): void {
     if (!this.user) return;
+
+    // Sync from WYSIWYG if active
+    this.syncFromWysiwyg();
 
     this.realSignatureSaving = true;
 
@@ -205,148 +175,270 @@ export class ProfileComponent implements OnInit {
   }
 
   generateDefaultSignature(): void {
-    // Generate a default signature from AI context fields
-    const parts: string[] = [];
-    parts.push('<div style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">');
-    parts.push('<p>Mit freundlichen Grüßen,</p>');
+    const sig = this.editSignature;
+    const name = sig.name || this.user?.signatureName || '';
+    const position = sig.position || this.user?.signaturePosition || '';
+    const company = sig.company || this.user?.signatureCompany || '';
+    const phone = sig.phone || this.user?.signaturePhone || '';
+    const website = sig.website || this.user?.signatureWebsite || '';
+
+    let html = '<div style="font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6;">\n';
+    html += '<p style="margin: 0;">Mit freundlichen Grüßen</p>\n';
+    html += '<br>\n';
     
-    if (this.user?.signatureName || this.editSignature.name) {
-      parts.push(`<p><strong>${this.user?.signatureName || this.editSignature.name}</strong></p>`);
-    }
+    if (name) html += `<p style="margin: 0; font-weight: bold; font-size: 16px; color: #1a1a1a;">${name}</p>\n`;
+    if (position) html += `<p style="margin: 0; color: #555;">${position}</p>\n`;
+    if (company) html += `<p style="margin: 4px 0 0; font-weight: 600; color: #1565c0;">${company}</p>\n`;
     
-    if (this.user?.signaturePosition || this.editSignature.position) {
-      parts.push(`<p>${this.user?.signaturePosition || this.editSignature.position}</p>`);
-    }
+    html += '<hr style="border: none; border-top: 2px solid #1565c0; margin: 12px 0; width: 60px;">\n';
     
-    if (this.user?.signatureCompany || this.editSignature.company) {
-      parts.push(`<p>${this.user?.signatureCompany || this.editSignature.company}</p>`);
-    }
-    
-    const contactLines: string[] = [];
-    if (this.user?.signaturePhone || this.editSignature.phone) {
-      contactLines.push(`Tel: ${this.user?.signaturePhone || this.editSignature.phone}`);
-    }
-    if (this.user?.signatureWebsite || this.editSignature.website) {
-      const website = this.user?.signatureWebsite || this.editSignature.website || '';
+    const contactParts: string[] = [];
+    if (phone) contactParts.push(`<span>Tel: ${phone}</span>`);
+    if (website) {
       const href = website.startsWith('http') ? website : `https://${website}`;
-      contactLines.push(`<a href="${href}" style="color: #007bff;">${website}</a>`);
+      contactParts.push(`<a href="${href}" style="color: #1565c0; text-decoration: none;">${website}</a>`);
     }
+    if (contactParts.length) html += `<p style="margin: 0; font-size: 13px; color: #666;">${contactParts.join(' &nbsp;|&nbsp; ')}</p>\n`;
     
-    if (contactLines.length > 0) {
-      parts.push(`<p>${contactLines.join(' | ')}</p>`);
-    }
+    html += '</div>';
     
-    parts.push('</div>');
-    
-    this.editEmailSignature = parts.join('\n');
+    this.editEmailSignature = html;
+    this.syncToWysiwyg();
   }
 
-  // ==================== HTML Editor Methods ====================
+  // ==================== WYSIWYG Editor Core ====================
 
-  insertHtmlTag(tag: string): void {
-    const textarea = this.htmlTextarea?.nativeElement;
-    if (!textarea) return;
+  /**
+   * Execute a document command on the contenteditable area
+   */
+  execCommand(command: string, value?: string): void {
+    // Focus the editor to ensure commands work
+    this.wysiwygEditor?.nativeElement?.focus();
+    document.execCommand(command, false, value || '');
+    this.syncFromWysiwyg();
+  }
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = this.editEmailSignature.substring(start, end);
-    const before = this.editEmailSignature.substring(0, start);
-    const after = this.editEmailSignature.substring(end);
+  /**
+   * Sync WYSIWYG content → editEmailSignature
+   */
+  onWysiwygInput(): void {
+    if (this.wysiwygEditor?.nativeElement) {
+      this.editEmailSignature = this.wysiwygEditor.nativeElement.innerHTML;
+    }
+  }
 
-    const newText = selectedText 
-      ? `<${tag}>${selectedText}</${tag}>`
-      : `<${tag}></${tag}>`;
-    
-    this.editEmailSignature = before + newText + after;
-    
-    // Set cursor position
+  /**
+   * Sync editEmailSignature → WYSIWYG (when switching views or loading)
+   */
+  syncToWysiwyg(): void {
     setTimeout(() => {
-      textarea.focus();
-      const cursorPos = selectedText 
-        ? start + newText.length 
-        : start + tag.length + 2;
-      textarea.setSelectionRange(cursorPos, cursorPos);
+      if (this.wysiwygEditor?.nativeElement) {
+        this.wysiwygEditor.nativeElement.innerHTML = this.editEmailSignature;
+      }
     }, 0);
   }
 
-  insertLineBreak(): void {
-    this.insertAtCursor('<br>');
+  /**
+   * Read current WYSIWYG content into the model
+   */
+  syncFromWysiwyg(): void {
+    if (this.wysiwygEditor?.nativeElement && (this.editorView === 'wysiwyg' || this.editorView === 'split')) {
+      this.editEmailSignature = this.wysiwygEditor.nativeElement.innerHTML;
+    }
   }
 
-  insertParagraph(): void {
-    this.insertAtCursor('<p></p>', 3);
+  /**
+   * When code textarea changes, sync to WYSIWYG
+   */
+  onCodeInput(): void {
+    this.syncToWysiwyg();
   }
 
-  insertHorizontalRule(): void {
-    this.insertAtCursor('<hr>');
+  /**
+   * Handle paste in WYSIWYG — allow images from clipboard
+   */
+  onWysiwygPaste(event: ClipboardEvent): void {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        event.preventDefault();
+        const file = items[i].getAsFile();
+        if (file) this.insertImageFile(file);
+        return;
+      }
+    }
+    // For non-image pastes, let the default paste happen, then sync
+    setTimeout(() => this.onWysiwygInput(), 0);
   }
 
-  insertLink(): void {
+  /**
+   * Handle drag & drop images into the editor
+   */
+  onWysiwygDrop(event: DragEvent): void {
+    event.preventDefault();
+    const files = event.dataTransfer?.files;
+    if (!files) return;
+
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].type.startsWith('image/')) {
+        this.insertImageFile(files[i]);
+      }
+    }
+  }
+
+  // ==================== Image Handling ====================
+
+  /**
+   * Trigger the hidden file input
+   */
+  triggerImageUpload(): void {
+    this.imageUpload?.nativeElement?.click();
+  }
+
+  /**
+   * Handle file selection from input
+   */
+  onImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files) return;
+
+    for (let i = 0; i < input.files.length; i++) {
+      this.insertImageFile(input.files[i]);
+    }
+    // Reset input so same file can be selected again
+    input.value = '';
+  }
+
+  /**
+   * Convert image file to base64 and insert into editor
+   */
+  private insertImageFile(file: File): void {
+    if (file.size > 2 * 1024 * 1024) {
+      this.toasts.error('Bild zu groß. Maximal 2 MB erlaubt.');
+      return;
+    }
+
+    this.uploadingImage = true;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      
+      // Create an img element with the image
+      const img = new Image();
+      img.onload = () => {
+        // Resize if too large (max 600px wide for email signatures)
+        let width = img.width;
+        let height = img.height;
+        const maxWidth = 600;
+        
+        if (width > maxWidth) {
+          const ratio = maxWidth / width;
+          width = maxWidth;
+          height = Math.round(height * ratio);
+        }
+
+        // Use canvas to resize
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to base64 (JPEG for photos, PNG for transparency)
+        const resizedBase64 = file.type === 'image/png' 
+          ? canvas.toDataURL('image/png')
+          : canvas.toDataURL('image/jpeg', 0.85);
+        
+        const imgHtml = `<img src="${resizedBase64}" alt="Signatur-Bild" style="max-width: 100%; height: auto; display: block;" width="${width}" height="${height}">`;
+        
+        if (this.editorView === 'wysiwyg' || this.editorView === 'split') {
+          // Insert at cursor in WYSIWYG
+          this.wysiwygEditor?.nativeElement?.focus();
+          document.execCommand('insertHTML', false, imgHtml);
+          this.onWysiwygInput();
+        } else {
+          // Insert at cursor in code editor
+          this.insertAtCursor(imgHtml);
+        }
+        
+        this.uploadingImage = false;
+      };
+      img.onerror = () => {
+        this.toasts.error('Bild konnte nicht geladen werden.');
+        this.uploadingImage = false;
+      };
+      img.src = base64;
+    };
+    reader.onerror = () => {
+      this.toasts.error('Fehler beim Lesen der Datei.');
+      this.uploadingImage = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ==================== WYSIWYG Insert Helpers ====================
+
+  insertLinkWysiwyg(): void {
     const url = prompt('URL eingeben:', 'https://');
     if (!url) return;
     
-    const text = prompt('Link-Text eingeben:', url);
+    const selection = window.getSelection();
+    const selectedText = selection?.toString() || '';
+    const text = selectedText || prompt('Link-Text eingeben:', url);
     if (!text) return;
 
-    const linkHtml = `<a href="${url}" style="color: #007bff;">${text}</a>`;
-    this.insertAtCursor(linkHtml);
-  }
-
-  insertImage(): void {
-    const url = prompt('Bild-URL eingeben:', 'https://');
-    if (!url) return;
-
-    const alt = prompt('Alternativer Text (für Barrierefreiheit):', 'Bild');
-    const imgHtml = `<img src="${url}" alt="${alt || 'Bild'}" style="max-width: 100%; height: auto;">`;
-    this.insertAtCursor(imgHtml);
-  }
-
-  insertColorSpan(event: Event): void {
-    const color = (event.target as HTMLInputElement).value;
-    this.selectedTextColor = color;
-    
-    const textarea = this.htmlTextarea?.nativeElement;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = this.editEmailSignature.substring(start, end);
-
-    if (selectedText) {
-      const before = this.editEmailSignature.substring(0, start);
-      const after = this.editEmailSignature.substring(end);
-      this.editEmailSignature = before + `<span style="color: ${color};">${selectedText}</span>` + after;
+    if (this.editorView === 'wysiwyg' || this.editorView === 'split') {
+      this.wysiwygEditor?.nativeElement?.focus();
+      if (selectedText) {
+        document.execCommand('createLink', false, url);
+      } else {
+        document.execCommand('insertHTML', false, `<a href="${url}" style="color: #1565c0;">${text}</a>`);
+      }
+      this.onWysiwygInput();
     } else {
-      this.insertAtCursor(`<span style="color: ${color};"></span>`, 7 + color.length + 2);
+      this.insertAtCursor(`<a href="${url}" style="color: #1565c0;">${text}</a>`);
     }
   }
 
-  insertFontSize(event: Event): void {
-    const size = (event.target as HTMLSelectElement).value;
-    if (!size) return;
+  insertTable(): void {
+    const rows = parseInt(prompt('Anzahl Zeilen:', '2') || '0', 10);
+    const cols = parseInt(prompt('Anzahl Spalten:', '2') || '0', 10);
+    if (!rows || !cols) return;
 
-    const textarea = this.htmlTextarea?.nativeElement;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = this.editEmailSignature.substring(start, end);
-
-    if (selectedText) {
-      const before = this.editEmailSignature.substring(0, start);
-      const after = this.editEmailSignature.substring(end);
-      this.editEmailSignature = before + `<span style="font-size: ${size};">${selectedText}</span>` + after;
-    } else {
-      this.insertAtCursor(`<span style="font-size: ${size};"></span>`, 7 + 12 + size.length + 2);
+    let tableHtml = '<table style="border-collapse: collapse; width: 100%; margin: 8px 0;" cellpadding="6" cellspacing="0">';
+    for (let r = 0; r < rows; r++) {
+      tableHtml += '<tr>';
+      for (let c = 0; c < cols; c++) {
+        const tag = r === 0 ? 'th' : 'td';
+        const style = r === 0 
+          ? 'border: 1px solid #ddd; padding: 8px; background: #f5f5f5; font-weight: bold; text-align: left;'
+          : 'border: 1px solid #ddd; padding: 8px;';
+        tableHtml += `<${tag} style="${style}">&nbsp;</${tag}>`;
+      }
+      tableHtml += '</tr>';
     }
+    tableHtml += '</table>';
 
-    // Reset select
-    (event.target as HTMLSelectElement).value = '';
+    if (this.editorView === 'wysiwyg' || this.editorView === 'split') {
+      this.wysiwygEditor?.nativeElement?.focus();
+      document.execCommand('insertHTML', false, tableHtml);
+      this.onWysiwygInput();
+    } else {
+      this.insertAtCursor(tableHtml);
+    }
   }
+
+  // ==================== Code Editor Helpers (kept for code view) ====================
 
   private insertAtCursor(text: string, cursorOffset?: number): void {
     const textarea = this.htmlTextarea?.nativeElement;
-    if (!textarea) return;
+    if (!textarea) {
+      this.editEmailSignature += text;
+      return;
+    }
 
     const start = textarea.selectionStart;
     const before = this.editEmailSignature.substring(0, start);
@@ -362,27 +454,50 @@ export class ProfileComponent implements OnInit {
   }
 
   onTextareaKeydown(event: KeyboardEvent): void {
-    // Ctrl+B for bold
     if (event.ctrlKey && event.key === 'b') {
       event.preventDefault();
       this.insertHtmlTag('strong');
     }
-    // Ctrl+I for italic
     if (event.ctrlKey && event.key === 'i') {
       event.preventDefault();
       this.insertHtmlTag('em');
     }
-    // Ctrl+U for underline
     if (event.ctrlKey && event.key === 'u') {
       event.preventDefault();
       this.insertHtmlTag('u');
     }
-    // Tab for indentation
     if (event.key === 'Tab') {
       event.preventDefault();
       this.insertAtCursor('  ');
     }
   }
+
+  private insertHtmlTag(tag: string): void {
+    const textarea = this.htmlTextarea?.nativeElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = this.editEmailSignature.substring(start, end);
+    const before = this.editEmailSignature.substring(0, start);
+    const after = this.editEmailSignature.substring(end);
+
+    const newText = selectedText 
+      ? `<${tag}>${selectedText}</${tag}>`
+      : `<${tag}></${tag}>`;
+    
+    this.editEmailSignature = before + newText + after;
+    
+    setTimeout(() => {
+      textarea.focus();
+      const cursorPos = selectedText 
+        ? start + newText.length 
+        : start + tag.length + 2;
+      textarea.setSelectionRange(cursorPos, cursorPos);
+    }, 0);
+  }
+
+  // ==================== Profile Methods ====================
 
   toggleEditMode() {
     this.editMode = !this.editMode;
@@ -407,7 +522,6 @@ export class ProfileComponent implements OnInit {
     this.saving = true;
     this.apiService.updateMe({ name: this.editName.trim() }).subscribe({
       next: (updatedUser) => {
-        // Update local storage and auth service
         localStorage.setItem('current_user', JSON.stringify(updatedUser));
         this.user = updatedUser;
         this.editMode = false;
@@ -419,26 +533,6 @@ export class ProfileComponent implements OnInit {
         this.toasts.error('Fehler beim Speichern: ' + (err.error?.message || 'Unbekannter Fehler'));
       }
     });
-  }
-
-  toggleNewsletter() {
-    if (!this.user) return;
-
-    const newValue = !this.user.wantsNewsletter;
-    this.apiService.updateMe({ wantsNewsletter: newValue }).subscribe({
-      next: (updatedUser) => {
-        localStorage.setItem('current_user', JSON.stringify(updatedUser));
-        this.user = updatedUser;
-        this.toasts.success(newValue ? 'Newsletter abonniert!' : 'Newsletter abbestellt.');
-      },
-      error: (err) => {
-        this.toasts.error('Fehler: ' + (err.error?.message || 'Konnte Newsletter-Status nicht ändern'));
-      }
-    });
-  }
-
-  toggleDetails() {
-    this.showDetails = !this.showDetails;
   }
 
   copyToClipboard(text: string) {
@@ -480,13 +574,8 @@ export class ProfileComponent implements OnInit {
 
   formatDate(dateString: Date | undefined): string {
     if (!dateString) return '-';
-
     const date = new Date(dateString);
-    return date.toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
+    return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   getRoleIcon(): string {

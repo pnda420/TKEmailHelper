@@ -18,6 +18,7 @@ import { PageTitleComponent } from '../../shared/page-title/page-title.component
 import { AttachmentPreviewComponent, AttachmentInfo } from '../../shared/attachment-preview/attachment-preview.component';
 import { ConfigService } from '../../services/config.service';
 import { AuthService } from '../../services/auth.service';
+import { ConfirmationService } from '../../shared/confirmation/confirmation.service';
 
 @Component({
   selector: 'app-email-list',
@@ -95,7 +96,8 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
     private configService: ConfigService,
     private http: HttpClient,
     private authService: AuthService,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private confirmationService: ConfirmationService
   ) {}
 
   ngOnInit(): void {
@@ -290,8 +292,19 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
 
-  recalculateAi(): void {
+  async recalculateAi(): Promise<void> {
     if (this.aiProcessing || !this.isAdmin) return;
+
+    const confirmed = await this.confirmationService.confirm({
+      title: 'Alle E-Mails neu analysieren',
+      message: 'Alle vorhandenen KI-Daten werden zurückgesetzt und sämtliche E-Mails im Posteingang werden erneut analysiert. Dieser Vorgang kann einige Minuten dauern.',
+      confirmText: 'Neu analysieren',
+      cancelText: 'Abbrechen',
+      type: 'danger',
+      icon: 'auto_awesome'
+    });
+
+    if (!confirmed) return;
     
     // Clear AI data from all emails immediately for better UX
     this.clearAiDataFromEmails();
@@ -621,8 +634,19 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   // Recalculate AI for a single email (admin only) — with sidebar & SSE like batch
-  recalculateSingleEmail(email: Email): void {
+  async recalculateSingleEmail(email: Email): Promise<void> {
     if (!this.isAdmin || this.aiProcessing) return;
+
+    const confirmed = await this.confirmationService.confirm({
+      title: 'E-Mail neu analysieren',
+      message: `Möchtest du die KI-Analyse für "${email.subject?.substring(0, 60) || 'Kein Betreff'}" zurücksetzen und erneut durchführen?`,
+      confirmText: 'Neu analysieren',
+      cancelText: 'Abbrechen',
+      type: 'info',
+      icon: 'refresh'
+    });
+
+    if (!confirmed) return;
 
     // Clear AI data for this email
     const idx = this.emails.findIndex(e => e.id === email.id);

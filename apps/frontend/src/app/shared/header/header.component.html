@@ -21,14 +21,18 @@
           <span class="material-symbols-outlined ms-size-18">inbox</span>
           Posteingang
         </a>
-        <a routerLink="/templates" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
+        <!-- <a routerLink="/templates" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
           <span class="material-symbols-outlined ms-size-18">description</span>
           Vorlagen
-        </a>
+        </a> -->
         <a routerLink="/history" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
           <span class="material-symbols-outlined ms-size-18">history</span>
           Verlauf
         </a>
+        <!-- <a routerLink="/help" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
+          <span class="material-symbols-outlined ms-size-18">help</span>
+          Hilfe
+        </a> -->
         <a *ngIf="user?.role === UserRole.ADMIN" routerLink="/admin" routerLinkActive="active"
           class="nav-link--admin-main" (click)="servicesDropdownOpen = false; closeMenu()">
           <span class="material-symbols-outlined ms-size-18">admin_panel_settings</span>

@@ -7,6 +7,9 @@
 
 @import '../../utils/shared-styles';
 
+// Override for admin pages: glass-border must be visible on light backgrounds
+$glass-border: #e2e8f0;
+
 // ============================================
 // 🎯 DESIGN TOKENS
 // ============================================

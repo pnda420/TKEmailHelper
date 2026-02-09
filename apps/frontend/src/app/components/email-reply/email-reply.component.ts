@@ -7,7 +7,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 import { trigger, transition, style, animate, state } from '@angular/animations';
 import { AngularSplitModule } from 'angular-split';
-import { ApiService, Email, EmailTemplate, GenerateEmailDto } from '../../api/api.service';
+import { ApiService, Email, EmailTemplate, GenerateEmailDto, ReviseEmailDto } from '../../api/api.service';
 import { ToastService } from '../../shared/toasts/toast.service';
 import { AttachmentPreviewComponent, AttachmentInfo } from '../../shared/attachment-preview/attachment-preview.component';
 import { ConfigService } from '../../services/config.service';
@@ -139,6 +139,20 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   hasDraft = false;       // true when a pre-computed reply was loaded
   draftEdited = false;    // true when user has modified the draft
   
+  // Revision feature
+  originalReplyBody = ''; // Stores the original AI-generated reply for diff tracking
+  originalReplySubject = '';
+  revisionInstructions = ''; // TTS/text instructions for revision
+  revisingReply = false;     // Loading state for revision
+  showDiffView = false;      // Toggle diff highlighting
+  revisionCount = 0;         // Track how many revisions were made
+
+  // AI animation state
+  scrambleDisplayText = '';
+  private scrambleInterval: any;
+  private scrambleTargetText = '';
+  private scrambleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&!?<>{}[]|/\\~äöüß';
+  
   private emailId: string = '';
   private sub?: Subscription;
 
@@ -179,6 +193,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
     this.stopListening();
+    this.stopInsaneAnimation();
   }
 
   loadEmail(): void {
@@ -488,6 +503,9 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
         this.saveToHistory();
         this.replySubject = result.subject;
         this.replyBody = result.body;
+        this.originalReplyBody = result.body;
+        this.originalReplySubject = result.subject;
+        this.revisionCount = 0;
         this.generatingGPT = false;
         this.toasts.success('Antwort wurde generiert');
         // Go directly to 'edit' step
@@ -551,6 +569,9 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
         this.saveToHistory();
         this.replySubject = result.subject;
         this.replyBody = result.body;
+        this.originalReplyBody = result.body;
+        this.originalReplySubject = result.subject;
+        this.revisionCount = 0;
         this.generatingGPT = false;
         this.toasts.success(`Vorlage "${this.selectedTemplate!.name}" angepasst`);
         this.currentStep = 'edit';
@@ -606,6 +627,9 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
         this.saveToHistory();
         this.replySubject = result.subject;
         this.replyBody = result.body;
+        this.originalReplyBody = result.body;
+        this.originalReplySubject = result.subject;
+        this.revisionCount = 0;
         this.generatingGPT = false;
         this.toasts.success('Antwort wurde generiert');
         this.nextStep();
@@ -622,6 +646,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     if (!this.email || !this.replyBody.trim()) return;
 
     this.polishingGPT = true;
+    this.startInsaneAnimation('Feinschliff wird angewendet…');
     
     const dto: GenerateEmailDto = {
       originalEmail: {
@@ -639,12 +664,14 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
         this.replySubject = result.subject;
         this.replyBody = result.body;
         this.polishingGPT = false;
+        this.stopInsaneAnimation();
         this.toasts.success('Text wurde poliert');
       },
       error: (err) => {
         console.error('Polish Fehler:', err);
         this.toasts.error('Fehler beim Polieren');
         this.polishingGPT = false;
+        this.stopInsaneAnimation();
       }
     });
   }
@@ -688,25 +715,23 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     this.sendingReply = true;
 
     this.api.sendEmailReply({
+      emailId: this.email.id,
       to: this.email.fromAddress,
       subject: this.replySubject,
       body: this.replyBody,
-      inReplyTo: this.email.messageId
+      inReplyTo: this.email.messageId,
+      references: this.email.references || this.email.messageId,
+      originalFrom: this.email.fromName
+        ? `${this.email.fromName} <${this.email.fromAddress}>`
+        : this.email.fromAddress,
+      originalDate: this.email.receivedAt?.toString(),
+      originalHtmlBody: this.email.htmlBody || undefined,
+      originalTextBody: this.email.textBody || undefined,
     }).subscribe({
       next: () => {
-        // Mark as sent
-        this.api.markEmailAsSent(this.email!.id, this.replySubject, this.replyBody).subscribe({
-          next: () => {
-            this.toasts.success('E-Mail wurde gesendet und archiviert!');
-            this.sendingReply = false;
-            this.router.navigate(['/emails']);
-          },
-          error: () => {
-            this.toasts.success('E-Mail gesendet, aber Status konnte nicht aktualisiert werden');
-            this.sendingReply = false;
-            this.router.navigate(['/emails']);
-          }
-        });
+        this.toasts.success('E-Mail wurde gesendet und archiviert!');
+        this.sendingReply = false;
+        this.router.navigate(['/emails']);
       },
       error: (err) => {
         console.error('Senden fehlgeschlagen:', err);
@@ -858,6 +883,8 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
         const fullText = this.baseInstructions + (interimText ? ' ' + interimText : '');
         if (this.currentSpeechTarget === 'customizeInstructions') {
           this.customizeInstructions = fullText;
+        } else if (this.currentSpeechTarget === 'revisionInstructions') {
+          this.revisionInstructions = fullText;
         } else {
           this.gptInstructions = fullText;
         }
@@ -908,9 +935,9 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     }
   }
 
-  currentSpeechTarget: 'gptInstructions' | 'customizeInstructions' = 'gptInstructions';
+  currentSpeechTarget: 'gptInstructions' | 'customizeInstructions' | 'revisionInstructions' = 'gptInstructions';
 
-  startListening(target: 'gptInstructions' | 'customizeInstructions' = 'gptInstructions'): void {
+  startListening(target: 'gptInstructions' | 'customizeInstructions' | 'revisionInstructions' = 'gptInstructions'): void {
     if (!this.speechRecognition) {
       this.initSpeechRecognition();
     }
@@ -918,7 +945,11 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     try {
       this.currentSpeechTarget = target;
       // Store current text as base for appending
-      this.baseInstructions = target === 'gptInstructions' ? this.gptInstructions : this.customizeInstructions;
+      this.baseInstructions = target === 'gptInstructions' 
+        ? this.gptInstructions 
+        : target === 'customizeInstructions' 
+          ? this.customizeInstructions 
+          : this.revisionInstructions;
       this.interimTranscript = '';
       this.isListening = true;
       this.speechRecognition.start();
@@ -961,6 +992,176 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     }, 500);
   }
 
+  toggleSpeechRecognitionForRevision(): void {
+    if (!this.speechSupported) {
+      this.toasts.warning('Spracherkennung wird von deinem Browser nicht unterstützt');
+      return;
+    }
+
+    if (this.isListening && this.currentSpeechTarget === 'revisionInstructions') {
+      this.stopListeningForRevision();
+    } else {
+      this.startListening('revisionInstructions');
+    }
+  }
+
+  stopListeningForRevision(): void {
+    this.isListening = false;
+    this.isProcessingSpeech = true;
+    
+    if (this.speechRecognition) {
+      this.speechRecognition.stop();
+    }
+    
+    setTimeout(() => {
+      this.revisionInstructions = this.baseInstructions;
+      this.interimTranscript = '';
+      this.isProcessingSpeech = false;
+    }, 500);
+  }
+
+  // ==================== REVISION FEATURE ====================
+
+  /**
+   * Check if the user has made edits to the reply body compared to the original
+   */
+  get hasUserEdits(): boolean {
+    return this.originalReplyBody.trim() !== '' && this.replyBody.trim() !== this.originalReplyBody.trim();
+  }
+
+  /**
+   * Compute a simple word-level diff between original and current reply.
+   * Returns an array of { text, type } segments where type is 'same', 'added', or 'removed'.
+   */
+  computeDiff(): { text: string; type: 'same' | 'added' | 'removed' }[] {
+    if (!this.originalReplyBody) return [{ text: this.replyBody, type: 'same' }];
+    
+    const originalWords = this.originalReplyBody.split(/(\s+)/);
+    const currentWords = this.replyBody.split(/(\s+)/);
+    
+    // Simple LCS-based diff
+    const result: { text: string; type: 'same' | 'added' | 'removed' }[] = [];
+    
+    const m = originalWords.length;
+    const n = currentWords.length;
+    
+    // For very long texts, fall back to a simpler line-based diff
+    if (m * n > 500000) {
+      return this.computeLineDiff();
+    }
+    
+    // Build LCS table
+    const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (originalWords[i - 1] === currentWords[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+      }
+    }
+    
+    // Backtrack to find diff
+    let i = m, j = n;
+    const segments: { text: string; type: 'same' | 'added' | 'removed' }[] = [];
+    
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && originalWords[i - 1] === currentWords[j - 1]) {
+        segments.unshift({ text: originalWords[i - 1], type: 'same' });
+        i--; j--;
+      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        segments.unshift({ text: currentWords[j - 1], type: 'added' });
+        j--;
+      } else {
+        segments.unshift({ text: originalWords[i - 1], type: 'removed' });
+        i--;
+      }
+    }
+    
+    // Merge consecutive segments of the same type
+    for (const seg of segments) {
+      if (result.length > 0 && result[result.length - 1].type === seg.type) {
+        result[result.length - 1].text += seg.text;
+      } else {
+        result.push({ ...seg });
+      }
+    }
+    
+    return result;
+  }
+
+  private computeLineDiff(): { text: string; type: 'same' | 'added' | 'removed' }[] {
+    const originalLines = this.originalReplyBody.split('\n');
+    const currentLines = this.replyBody.split('\n');
+    const result: { text: string; type: 'same' | 'added' | 'removed' }[] = [];
+    
+    const maxLen = Math.max(originalLines.length, currentLines.length);
+    
+    for (let i = 0; i < maxLen; i++) {
+      const orig = i < originalLines.length ? originalLines[i] : undefined;
+      const curr = i < currentLines.length ? currentLines[i] : undefined;
+      
+      if (orig === curr) {
+        result.push({ text: orig + '\n', type: 'same' });
+      } else {
+        if (orig !== undefined) result.push({ text: orig + '\n', type: 'removed' });
+        if (curr !== undefined) result.push({ text: curr + '\n', type: 'added' });
+      }
+    }
+    
+    return result;
+  }
+
+  /**
+   * Send revision request to AI with original, edited reply, and instructions
+   */
+  reviseReply(): void {
+    if (!this.email || this.revisingReply) return;
+    if (!this.revisionInstructions.trim() && !this.hasUserEdits) {
+      this.toasts.warning('Bitte gib Anweisungen ein oder bearbeite den Text');
+      return;
+    }
+
+    this.revisingReply = true;
+    this.startInsaneAnimation('KI überarbeitet den Entwurf…');
+
+    const dto: ReviseEmailDto = {
+      originalEmail: {
+        subject: this.email.subject,
+        from: this.email.fromName || this.email.fromAddress,
+        body: this.email.textBody || this.stripHtml(this.email.htmlBody || '')
+      },
+      originalReply: this.originalReplyBody,
+      editedReply: this.replyBody,
+      revisionInstructions: this.revisionInstructions,
+      tone: this.gptTone,
+      currentSubject: this.replySubject
+    };
+
+    this.api.reviseEmailWithGPT(dto).subscribe({
+      next: (result) => {
+        this.saveToHistory();
+        this.replySubject = result.subject;
+        this.replyBody = result.body;
+        // Update original to the new version for continued diffing
+        this.originalReplyBody = result.body;
+        this.revisionInstructions = '';
+        this.revisionCount++;
+        this.revisingReply = false;
+        this.stopInsaneAnimation();
+        this.showDiffView = false;
+        this.toasts.success('Antwort wurde überarbeitet');
+      },
+      error: (err) => {
+        console.error('Revision error:', err);
+        this.toasts.error('Fehler bei der Überarbeitung');
+        this.revisingReply = false;
+        this.stopInsaneAnimation();
+      }
+    });
+  }
+
   /**
    * Check if user has a signature configured
    */
@@ -1000,9 +1201,12 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     // Auto-load pre-computed reply draft into editor and jump to edit step
     if (this.email.suggestedReply) {
       this.replyBody = this.email.suggestedReply;
+      this.originalReplyBody = this.email.suggestedReply;
       if (this.email.suggestedReplySubject) {
         this.replySubject = this.email.suggestedReplySubject;
+        this.originalReplySubject = this.email.suggestedReplySubject;
       }
+      this.revisionCount = 0;
       this.hasDraft = true;
       this.draftEdited = false;
       this.useTemplate = false;
@@ -1050,10 +1254,50 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     this.currentStep = 'select';
   }
 
+  // ==================== AI TEXT SCRAMBLE ANIMATION ====================
+
+  startInsaneAnimation(_label: string): void {
+    this.scrambleTargetText = this.replyBody || ' ';
+    this.scrambleDisplayText = this.scrambleTargetText;
+
+    let tick = 0;
+    this.scrambleInterval = setInterval(() => {
+      tick++;
+      this.scrambleDisplayText = this.scrambleTargetText
+        .split('')
+        .map((char, i) => {
+          if (char === ' ' || char === '\n' || char === '\r' || char === '\t') return char;
+          // Wave: brief moments of clarity sweep across the text
+          const wave = (tick * 3 + i) % 28;
+          if (wave < 3) return this.scrambleTargetText[i];
+          return this.scrambleChars[Math.floor(Math.random() * this.scrambleChars.length)];
+        })
+        .join('');
+    }, 45);
+  }
+
+  stopInsaneAnimation(): void {
+    if (this.scrambleInterval) {
+      clearInterval(this.scrambleInterval);
+      this.scrambleInterval = null;
+    }
+    this.scrambleDisplayText = '';
+  }
+
   /** Track when user modifies the draft body */
   onDraftChange(): void {
     if (this.hasDraft) {
       this.draftEdited = true;
+    }
+  }
+
+  /** Sync the backdrop scroll position with the textarea */
+  syncBackdropScroll(event: Event): void {
+    const textarea = event.target as HTMLTextAreaElement;
+    const backdrop = textarea.parentElement?.querySelector('.editor-backdrop') as HTMLElement;
+    if (backdrop) {
+      backdrop.scrollTop = textarea.scrollTop;
+      backdrop.scrollLeft = textarea.scrollLeft;
     }
   }
 

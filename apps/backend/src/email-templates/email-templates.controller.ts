@@ -8,7 +8,7 @@ import {
   Param,
   UseGuards,
 } from '@nestjs/common';
-import { EmailTemplatesService, CreateTemplateDto, UpdateTemplateDto, GenerateEmailDto, SendReplyDto } from './email-templates.service';
+import { EmailTemplatesService, CreateTemplateDto, UpdateTemplateDto, GenerateEmailDto, ReviseEmailDto, SendReplyDto } from './email-templates.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/users.entity';
@@ -51,6 +51,13 @@ export class EmailTemplatesController {
   @Post('generate')
   async generateEmail(@Body() dto: GenerateEmailDto, @CurrentUser() user: User) {
     return this.templatesService.generateEmailWithGPT(dto, user);
+  }
+
+  // ==================== GPT EMAIL REVISION ====================
+
+  @Post('revise')
+  async reviseEmail(@Body() dto: ReviseEmailDto, @CurrentUser() user: User) {
+    return this.templatesService.reviseEmailWithGPT(dto, user);
   }
 
   // ==================== AI EMAIL SUMMARY ====================

@@ -1,0 +1,572 @@
+<section class="help-page" @fadeIn>
+
+  <!-- Hero -->
+  <div class="help-hero">
+    <div class="hero-content">
+      <span class="material-symbols-outlined hero-icon">menu_book</span>
+      <h1>Hilfe & Anleitung</h1>
+      <p class="hero-subtitle">Alles was du brauchst, um MailFlow effektiv zu nutzen</p>
+    </div>
+  </div>
+
+  <div class="help-layout">
+
+    <!-- Sidebar Navigation -->
+    <nav class="help-nav">
+      <button 
+        *ngFor="let sec of sections"
+        class="nav-item"
+        [class.active]="activeSection === sec.id"
+        (click)="scrollTo(sec.id)">
+        <span class="material-symbols-outlined">{{ sec.icon }}</span>
+        {{ sec.label }}
+      </button>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="help-content">
+
+      <!-- ========== SCHNELLSTART ========== -->
+      <div id="section-quickstart" class="help-section" @staggerIn>
+        <div class="section-header">
+          <span class="material-symbols-outlined section-icon">rocket_launch</span>
+          <div>
+            <h2>Schnellstart</h2>
+            <p>In 4 Schritten startklar</p>
+          </div>
+        </div>
+
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="step-number">1</div>
+            <div class="step-body">
+              <h3>Account einrichten</h3>
+              <p>Registriere dich oder melde dich an. Das geht in Sekunden unter <strong>Login</strong>.</p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-number">2</div>
+            <div class="step-body">
+              <h3>Profil konfigurieren</h3>
+              <p>Geh zu <a routerLink="/profile">Profil</a> und hinterlege deinen <strong>Namen, Position und Firma</strong>. 
+                Die KI nutzt diese Daten, um deine Antworten persönlich zu gestalten.</p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-number">3</div>
+            <div class="step-body">
+              <h3>E-Mail-Signatur anlegen</h3>
+              <p>Im Profil unter <strong>E-Mail-Signatur</strong> kannst du deine HTML-Signatur erstellen.
+                Diese wird automatisch an jede Antwort angehängt — wie bei Outlook.</p>
+            </div>
+          </div>
+
+          <div class="step-card">
+            <div class="step-number">4</div>
+            <div class="step-body">
+              <h3>Posteingang öffnen</h3>
+              <p>Klicke auf <a routerLink="/emails">Posteingang</a> — deine E-Mails werden automatisch geladen 
+                und von der KI analysiert. Fertig!</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="tip-box">
+          <span class="material-symbols-outlined">lightbulb</span>
+          <div>
+            <strong>Tipp:</strong> Je vollständiger dein Profil ist, desto besser werden die KI-generierten Antworten.
+            Name, Position und Firma machen einen großen Unterschied!
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== POSTEINGANG ========== -->
+      <div id="section-inbox" class="help-section" @staggerIn>
+        <div class="section-header">
+          <span class="material-symbols-outlined section-icon">inbox</span>
+          <div>
+            <h2>Posteingang</h2>
+            <p>E-Mails empfangen, lesen und verarbeiten</p>
+          </div>
+        </div>
+
+        <div class="feature-cards">
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">sync</span>
+            </div>
+            <h3>E-Mails abrufen</h3>
+            <p>Klicke auf <strong>„Abrufen"</strong> oben im Posteingang, um neue E-Mails vom Server zu laden. 
+              Das System holt automatisch alle neuen Nachrichten ab.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">auto_awesome</span>
+            </div>
+            <h3>KI-Analyse</h3>
+            <p>Klicke auf <strong>„Analysieren"</strong>, um die KI alle neuen E-Mails verarbeiten zu lassen.
+              Die KI erstellt Zusammenfassungen, Tags und schlägt passende Antworten vor.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">terminal</span>
+            </div>
+            <h3>Live-Terminal</h3>
+            <p>Während der KI-Analyse siehst du rechts ein <strong>Live-Terminal</strong> mit dem Fortschritt 
+              in Echtzeit — inklusive Schritte, Tool-Aufrufe und Ergebnis.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">visibility</span>
+            </div>
+            <h3>Zwei Ansichten</h3>
+            <p>Wechsle zwischen <strong>KI-Ansicht</strong> (bereinigter Text + Zusammenfassung) und 
+              <strong>Original-Ansicht</strong> (HTML-E-Mail wie empfangen).</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">attach_file</span>
+            </div>
+            <h3>Anhänge</h3>
+            <p>Anhänge werden als Chips unter der E-Mail angezeigt. Klick darauf öffnet eine 
+              <strong>Vorschau</strong> direkt in der App — kein Download nötig.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">reply</span>
+            </div>
+            <h3>Antworten</h3>
+            <p>Wähle eine E-Mail aus und klicke <strong>„Antworten"</strong>, um den KI-gestützten 
+              Antwort-Workflow zu starten.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== ANTWORT-WORKFLOW ========== -->
+      <div id="section-reply" class="help-section" @staggerIn>
+        <div class="section-header">
+          <span class="material-symbols-outlined section-icon">reply</span>
+          <div>
+            <h2>Antwort-Workflow</h2>
+            <p>So beantwortest du E-Mails in 4 Schritten</p>
+          </div>
+        </div>
+
+        <div class="workflow-visual">
+          <div class="workflow-step-card">
+            <div class="wf-step-badge">1</div>
+            <div class="wf-step-icon">
+              <span class="material-symbols-outlined">list_alt</span>
+            </div>
+            <h3>Auswahl</h3>
+            <p>Wähle wie du antworten willst:</p>
+            <ul>
+              <li><strong>KI-Empfehlung nutzen</strong> — Die KI schlägt die beste Vorlage vor</li>
+              <li><strong>Vorlage wählen</strong> — Wähle manuell eine Vorlage aus</li>
+              <li><strong>Direkt mit KI</strong> — Die KI generiert eine Antwort ohne Vorlage</li>
+            </ul>
+          </div>
+
+          <div class="workflow-arrow">
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </div>
+
+          <div class="workflow-step-card">
+            <div class="wf-step-badge">2</div>
+            <div class="wf-step-icon">
+              <span class="material-symbols-outlined">auto_fix_high</span>
+            </div>
+            <h3>Anpassen</h3>
+            <p>Passe die Vorlage für diesen Fall an:</p>
+            <ul>
+              <li><strong>Tonalität wählen</strong> — Professionell, Freundlich, Formell oder Locker</li>
+              <li><strong>Anweisungen geben</strong> — Sag der KI, worauf es ankommt</li>
+              <li><strong>Spracheingabe</strong> — Diktiere deine Anweisungen per Mikrofon</li>
+            </ul>
+          </div>
+
+          <div class="workflow-arrow">
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </div>
+
+          <div class="workflow-step-card">
+            <div class="wf-step-badge">3</div>
+            <div class="wf-step-icon">
+              <span class="material-symbols-outlined">edit_note</span>
+            </div>
+            <h3>Bearbeiten</h3>
+            <p>Verfeinere deine Antwort:</p>
+            <ul>
+              <li><strong>Text bearbeiten</strong> — Passe den Entwurf manuell an</li>
+              <li><strong>Feinschliff</strong> — KI optimiert Grammatik & Stil</li>
+              <li><strong>Überarbeiten</strong> — Gib der KI neue Anweisungen per Text oder Sprache</li>
+              <li><strong>Änderungen vergleichen</strong> — Diff-Ansicht zeigt alle Änderungen</li>
+            </ul>
+          </div>
+
+          <div class="workflow-arrow">
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </div>
+
+          <div class="workflow-step-card">
+            <div class="wf-step-badge success">4</div>
+            <div class="wf-step-icon">
+              <span class="material-symbols-outlined">send</span>
+            </div>
+            <h3>Senden</h3>
+            <p>Letzte Prüfung:</p>
+            <ul>
+              <li><strong>Vorschau</strong> — Sieh die E-Mail so, wie der Empfänger sie bekommt</li>
+              <li><strong>Signatur</strong> — Deine Signatur wird automatisch angehängt</li>
+              <li><strong>Absenden</strong> — Ein Klick und die Antwort ist raus</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tip-box">
+          <span class="material-symbols-outlined">lightbulb</span>
+          <div>
+            <strong>Tipp:</strong> Du kannst jede Überarbeitung mit <strong>Rückgängig</strong> zurücknehmen — 
+            das System speichert bis zu 5 Versionen deines Entwurfs.
+          </div>
+        </div>
+
+        <!-- Kundenanalyse-Abschnitt -->
+        <div class="sub-section">
+          <h3>
+            <span class="material-symbols-outlined">person_search</span>
+            Kundenanalyse
+          </h3>
+          <p>Auf der Antwort-Seite siehst du links eine <strong>Kundenanalyse</strong>, die automatisch von der KI erstellt wird.
+            Diese zeigt dir alle wichtigen Infos zum Kunden auf einen Blick:</p>
+          <ul class="clean-list">
+            <li>Kontaktdaten (Name, E-Mail, Telefon)</li>
+            <li>Firmen-Informationen</li>
+            <li>Relevante Details zum Anliegen</li>
+            <li>Vorgeschlagene Antwort-Strategie</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ========== VORLAGEN ========== -->
+      <div id="section-templates" class="help-section" @staggerIn>
+        <div class="section-header">
+          <span class="material-symbols-outlined section-icon">description</span>
+          <div>
+            <h2>Vorlagen</h2>
+            <p>Wiederverwendbare Antwort-Bausteine</p>
+          </div>
+        </div>
+
+        <div class="feature-cards two-col">
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">add_circle</span>
+            </div>
+            <h3>Vorlage erstellen</h3>
+            <p>Geh zu <a routerLink="/templates">Vorlagen</a> und klicke <strong>„Neue Vorlage"</strong>.
+              Gib einen Namen, eine Kategorie, optional einen Betreff und den Text ein.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">category</span>
+            </div>
+            <h3>Kategorien</h3>
+            <p>Ordne Vorlagen in Kategorien ein: <strong>Support, Vertrieb, Allgemein, Technik</strong> oder 
+              <strong>Buchhaltung</strong>. So behältst du den Überblick.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">auto_awesome</span>
+            </div>
+            <h3>KI-Empfehlung</h3>
+            <p>Beim Antworten analysiert die KI die E-Mail und <strong>empfiehlt automatisch</strong> die 
+              passendste Vorlage — mit Begründung.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">bar_chart</span>
+            </div>
+            <h3>Nutzungszähler</h3>
+            <p>Jede Vorlage zeigt an, wie oft sie schon verwendet wurde.
+              So siehst du auf einen Blick, welche Vorlagen am nützlichsten sind.</p>
+          </div>
+        </div>
+
+        <div class="tip-box">
+          <span class="material-symbols-outlined">lightbulb</span>
+          <div>
+            <strong>Tipp:</strong> Je mehr Vorlagen du anlegst, desto besser kann die KI die richtige empfehlen.
+            Erstelle Vorlagen für deine häufigsten Antwort-Typen!
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== PROFIL ========== -->
+      <div id="section-profile" class="help-section" @staggerIn>
+        <div class="section-header">
+          <span class="material-symbols-outlined section-icon">person</span>
+          <div>
+            <h2>Profil & Einstellungen</h2>
+            <p>Personalisierung für bessere KI-Antworten</p>
+          </div>
+        </div>
+
+        <div class="profile-sections">
+          <div class="feature-card wide">
+            <div class="feature-icon-wrap accent">
+              <span class="material-symbols-outlined">smart_toy</span>
+            </div>
+            <h3>KI-Kontext (Wichtig!)</h3>
+            <p>Im Abschnitt <strong>„KI-Kontext / Signatur-Daten"</strong> hinterlegst du Informationen, 
+              die die KI für personalisierte Antworten nutzt:</p>
+            <ul class="clean-list">
+              <li><strong>Name</strong> — Dein vollständiger Name für die Grußformel</li>
+              <li><strong>Position</strong> — z.B. „Kundenberater" oder „Geschäftsführer"</li>
+              <li><strong>Firma</strong> — Der Firmenname für einen professionellen Auftritt</li>
+              <li><strong>Telefon</strong> — Wird in Antworten eingebaut, wenn relevant</li>
+              <li><strong>Website</strong> — Für Verweise in E-Mails</li>
+            </ul>
+            <div class="inline-tip">
+              <span class="material-symbols-outlined">warning</span>
+              Ohne KI-Kontext wirken KI-Antworten generisch. Nimm dir 1 Minute, um das auszufüllen!
+            </div>
+          </div>
+
+          <div class="feature-card wide">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">signature</span>
+            </div>
+            <h3>E-Mail-Signatur</h3>
+            <p>Erstelle eine HTML-basierte Signatur, die automatisch an jede gesendete Antwort gehängt wird:</p>
+            <ul class="clean-list">
+              <li><strong>Formatierungs-Toolbar</strong> — Fett, Kursiv, Links, Bilder, Farben etc.</li>
+              <li><strong>Split-Ansicht</strong> — HTML-Editor links, Live-Vorschau rechts</li>
+              <li><strong>Auto-Generierung</strong> — Klick auf „Aus KI-Daten generieren" erstellt eine Signatur aus deinem KI-Kontext</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== ADMIN ========== -->
+      <div id="section-admin" class="help-section" @staggerIn>
+        <div class="section-header">
+          <span class="material-symbols-outlined section-icon">admin_panel_settings</span>
+          <div>
+            <h2>Admin-Bereich</h2>
+            <p>Nur für Administratoren sichtbar</p>
+          </div>
+        </div>
+
+        <div class="feature-cards two-col">
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">bug_report</span>
+            </div>
+            <h3>Error Logs</h3>
+            <p>Übersicht aller Systemfehler und Warnungen. Filtern nach Level, Quelle und Datum.
+              Auto-Refresh alle 30 Sekunden.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">smart_toy</span>
+            </div>
+            <h3>KI-Nutzung</h3>
+            <p>Dashboard mit Kosten, Token-Verbrauch und Anfragen. Aufschlüsselung nach Modell, 
+              Feature und Benutzer.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">gavel</span>
+            </div>
+            <h3>Antwort-Regeln</h3>
+            <p>Definiere Regeln, die die KI beim Generieren von Antworten befolgt.
+              Regeln können sortiert und priorisiert werden.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-wrap">
+              <span class="material-symbols-outlined">group</span>
+            </div>
+            <h3>Benutzerverwaltung</h3>
+            <p>Alle registrierten Benutzer einsehen, Rollen verwalten und Accounts löschen.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== FAQ ========== -->
+      <div id="section-faq" class="help-section">
+        <div class="section-header">
+          <span class="material-symbols-outlined section-icon">help</span>
+          <div>
+            <h2>Häufige Fragen</h2>
+            <p>Schnelle Antworten auf typische Fragen</p>
+          </div>
+        </div>
+
+        <div class="faq-list">
+          <div class="faq-item" [class.expanded]="expandedFaq === 0" (click)="toggleFaq(0)">
+            <div class="faq-question">
+              <span>Wie werden meine E-Mails abgerufen?</span>
+              <span class="material-symbols-outlined faq-arrow">expand_more</span>
+            </div>
+            <div class="faq-answer">
+              <p>MailFlow verbindet sich über IMAP mit deinem E-Mail-Server. Wenn du auf „Abrufen" klickst,
+                werden neue E-Mails heruntergeladen und in der App gespeichert. 
+                Deine Zugangsdaten werden sicher auf dem Server gespeichert.</p>
+            </div>
+          </div>
+
+          <div class="faq-item" [class.expanded]="expandedFaq === 1" (click)="toggleFaq(1)">
+            <div class="faq-question">
+              <span>Was macht die KI mit meinen E-Mails?</span>
+              <span class="material-symbols-outlined faq-arrow">expand_more</span>
+            </div>
+            <div class="faq-answer">
+              <p>Die KI liest den E-Mail-Text und erstellt: eine kurze Zusammenfassung, thematische Tags, 
+                eine Kundenanalyse und einen Antwort-Vorschlag. Die Daten werden nicht an Dritte weitergegeben — 
+                die KI-Verarbeitung läuft über die konfigurierte API.</p>
+            </div>
+          </div>
+
+          <div class="faq-item" [class.expanded]="expandedFaq === 2" (click)="toggleFaq(2)">
+            <div class="faq-question">
+              <span>Kann ich die KI-Antwort noch ändern?</span>
+              <span class="material-symbols-outlined faq-arrow">expand_more</span>
+            </div>
+            <div class="faq-answer">
+              <p>Ja, absolut! Die KI erstellt nur einen Entwurf. Du kannst den Text frei bearbeiten, 
+                die KI nochmal überarbeiten lassen (mit neuen Anweisungen), oder den Feinschliff nutzen.
+                Du hast immer die volle Kontrolle bevor die E-Mail rausgeht.</p>
+            </div>
+          </div>
+
+          <div class="faq-item" [class.expanded]="expandedFaq === 3" (click)="toggleFaq(3)">
+            <div class="faq-question">
+              <span>Was bedeutet „Tonalität"?</span>
+              <span class="material-symbols-outlined faq-arrow">expand_more</span>
+            </div>
+            <div class="faq-answer">
+              <p>Die Tonalität bestimmt den Stil der KI-Antwort:</p>
+              <ul>
+                <li><strong>Professionell</strong> — Sachlich und geschäftsmäßig</li>
+                <li><strong>Freundlich</strong> — Warm und zugewandt</li>
+                <li><strong>Formell</strong> — Sehr höflich, distanziert</li>
+                <li><strong>Locker</strong> — Entspannt und direkt</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="faq-item" [class.expanded]="expandedFaq === 4" (click)="toggleFaq(4)">
+            <div class="faq-question">
+              <span>Kann ich Spracheingabe nutzen?</span>
+              <span class="material-symbols-outlined faq-arrow">expand_more</span>
+            </div>
+            <div class="faq-answer">
+              <p>Ja! Überall wo ein Mikrofon-Symbol angezeigt wird, kannst du deine Anweisungen einsprechen
+                statt zu tippen. Das funktioniert über die Web Speech API deines Browsers. 
+                Am besten funktioniert es in Chrome.</p>
+            </div>
+          </div>
+
+          <div class="faq-item" [class.expanded]="expandedFaq === 5" (click)="toggleFaq(5)">
+            <div class="faq-question">
+              <span>Was passiert mit gelöschten E-Mails?</span>
+              <span class="material-symbols-outlined faq-arrow">expand_more</span>
+            </div>
+            <div class="faq-answer">
+              <p>Gelöschte E-Mails und E-Mails, die als „keine Antwort nötig" markiert werden, landen im
+                <strong>Papierkorb</strong>. Du findest sie unter <a routerLink="/history">Verlauf → Papierkorb</a>.
+                Von dort kannst du sie jederzeit wiederherstellen.</p>
+            </div>
+          </div>
+
+          <div class="faq-item" [class.expanded]="expandedFaq === 6" (click)="toggleFaq(6)">
+            <div class="faq-question">
+              <span>Wo finde ich gesendete E-Mails?</span>
+              <span class="material-symbols-outlined faq-arrow">expand_more</span>
+            </div>
+            <div class="faq-answer">
+              <p>Alle gesendeten Antworten findest du unter <a routerLink="/history">Verlauf → Gesendet</a>.
+                Dort siehst du sowohl deine Antwort als auch die ursprüngliche E-Mail.</p>
+            </div>
+          </div>
+
+          <div class="faq-item" [class.expanded]="expandedFaq === 7" (click)="toggleFaq(7)">
+            <div class="faq-question">
+              <span>Warum soll ich das Profil vollständig ausfüllen?</span>
+              <span class="material-symbols-outlined faq-arrow">expand_more</span>
+            </div>
+            <div class="faq-answer">
+              <p>Die KI nutzt deine Profildaten (Name, Position, Firma) um Antworten zu personalisieren.
+                Ohne diese Daten kann die KI keine passende Grußformel oder Signatur erstellen und die Antworten
+                wirken unpersönlich.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== KONTAKT ========== -->
+      <div id="section-contact" class="help-section">
+        <div class="section-header">
+          <span class="material-symbols-outlined section-icon">support_agent</span>
+          <div>
+            <h2>Hilfe & Kontakt</h2>
+            <p>Brauchst du persönliche Unterstützung?</p>
+          </div>
+        </div>
+
+        <div class="contact-card">
+          <div class="contact-avatar">
+            <span class="material-symbols-outlined">person</span>
+          </div>
+          <div class="contact-info">
+            <h3>Tom Leonards</h3>
+            <p class="contact-role">Entwickler & Ansprechpartner</p>
+            <p class="contact-desc">
+              Bei Fragen, Problemen oder Wünschen — melde dich einfach direkt bei mir. 
+              Ich helfe schnell und unkompliziert.
+            </p>
+            <div class="contact-methods">
+              <a href="tel:01755590966" class="contact-method">
+                <span class="material-symbols-outlined">call</span>
+                <div>
+                  <span class="method-label">Telefon</span>
+                  <span class="method-value">0175 559 0966</span>
+                </div>
+              </a>
+              <a href="mailto:tom.leonards2003@gmail.com" class="contact-method">
+                <span class="material-symbols-outlined">mail</span>
+                <div>
+                  <span class="method-label">E-Mail</span>
+                  <span class="method-value">tom.leonards2003&#64;gmail.com</span>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="tip-box success">
+          <span class="material-symbols-outlined">schedule</span>
+          <div>
+            <strong>Erreichbarkeit:</strong> Am besten erreichst du mich telefonisch. 
+            Auf E-Mails antworte ich in der Regel innerhalb von 24 Stunden.
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /help-content -->
+  </div><!-- /help-layout -->
+</section>

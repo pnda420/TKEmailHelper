@@ -1894,6 +1894,81 @@ textarea.text-input {
   line-height: 1.6;
 }
 
+// ==================== LIVE-DIFF HIGHLIGHT EDITOR ====================
+
+.editor-highlight-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+
+// Backdrop behind the textarea — renders highlighted diff text
+.editor-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 0.875rem 1rem;
+  z-index: 0;
+  background: white;
+  visibility: hidden;
+
+  &.has-edits {
+    visibility: visible;
+  }
+
+  .backdrop-text {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: $gray-900;
+  }
+
+  .hl-added {
+    background: rgba(#10b981, 0.13);
+    border-bottom: 2px solid rgba(#10b981, 0.35);
+    border-radius: 2px;
+    padding: 0 1px;
+    color: inherit;
+  }
+
+  .hl-removed {
+    // Don't show removed text inline in the editor backdrop
+    display: none;
+  }
+}
+
+// Textarea on top — transparent text when highlights are active
+.editor-textarea {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  background: transparent !important;
+  resize: none;
+
+  &.has-highlights {
+    color: transparent;
+    caret-color: $gray-900;
+
+    &::selection {
+      background: rgba($primary, 0.25);
+      color: transparent;
+    }
+  }
+
+  &:focus {
+    // Keep the focus border on top
+    z-index: 2;
+  }
+}
+
 .template-actions {
   display: flex;
   gap: 0.75rem;
@@ -2291,14 +2366,22 @@ textarea.text-input {
   &.is-polishing {
     pointer-events: none;
 
-    .text-input {
-      opacity: 0.5;
-      filter: blur(1px);
-      transition: all 0.4s ease;
+    .editor-highlight-wrap {
+      display: none;
+    }
+
+    .diff-view {
+      display: none;
     }
 
     .field-label {
       opacity: 0.5;
+      transition: opacity 0.3s ease;
+    }
+
+    .text-input:not(.message-input) {
+      opacity: 0.4;
+      transition: opacity 0.3s ease;
     }
   }
 
@@ -2306,6 +2389,12 @@ textarea.text-input {
     flex: 1;
     display: flex;
     flex-direction: column;
+
+    .editor-highlight-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
     .message-input {
       flex: 1;
@@ -2315,84 +2404,183 @@ textarea.text-input {
   }
 }
 
-// Polish Overlay
-.polish-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 10;
-  border-radius: 16px;
+// ==================== AI PROCESSING (WHITE MODE) ====================
+
+// Processing indicator bar
+.ai-processing-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(4px);
+  gap: 0.625rem;
+  padding: 0.625rem 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba($primary, 0.04), rgba(#8b5cf6, 0.06));
+  border: 1px solid rgba($primary, 0.15);
+  position: relative;
   overflow: hidden;
-}
-
-.polish-overlay-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  z-index: 2;
-}
-
-.polish-spinner {
-  font-size: 40px;
-  color: $primary;
-  animation: polishPulse 1.5s ease-in-out infinite;
-}
-
-.polish-label {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: $primary-dark;
-  letter-spacing: 0.01em;
-}
-
-.polish-shimmer {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  overflow: hidden;
-  border-radius: 16px;
 
   &::after {
     content: '';
     position: absolute;
     top: 0;
     left: -100%;
-    width: 50%;
+    width: 60%;
     height: 100%;
     background: linear-gradient(
       90deg,
       transparent,
       rgba($primary, 0.06),
-      rgba($primary, 0.12),
-      rgba($primary, 0.06),
+      rgba(#8b5cf6, 0.08),
       transparent
     );
-    animation: polishShimmer 2s ease-in-out infinite;
+    animation: procShimmer 2s ease-in-out infinite;
   }
 }
 
-@keyframes polishPulse {
+.ai-proc-icon {
+  font-size: 20px;
+  color: $primary;
+  animation: procPulse 2s ease-in-out infinite;
+}
+
+.ai-proc-text {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: darken($primary, 10%);
+}
+
+.ai-proc-dots {
+  display: flex;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.p-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: $primary;
+  opacity: 0.3;
+  animation: dotPulse 1.4s ease-in-out infinite;
+
+  &:nth-child(1) { animation-delay: 0s; }
+  &:nth-child(2) { animation-delay: 0.2s; }
+  &:nth-child(3) { animation-delay: 0.4s; }
+}
+
+@keyframes dotPulse {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
+  40% { transform: scale(1.2); opacity: 1; background: darken($primary, 5%); box-shadow: 0 0 6px rgba($primary, 0.4); }
+}
+
+@keyframes procPulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes procShimmer {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+// Scramble text display — replaces textarea during AI processing
+// Scramble wrapper with centered spinner
+.scramble-wrap {
+  flex: 1;
+  min-height: 200px;
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.scramble-display {
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  margin: 0;
+  padding: 0.875rem 1rem;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: rgba($primary, 0.25);
+  border: 1px solid rgba($primary, 0.2);
+  border-radius: 10px;
+  background: white;
+  overflow-y: auto;
+  animation: scrambleGlow 2.5s ease-in-out infinite;
+  transition: border-color 0.3s ease;
+  // Blue line-highlight wave
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent calc(1.7em * 0.95),
+    rgba($primary, 0.04) calc(1.7em * 0.95),
+    rgba($primary, 0.04) 1.7em
+  );
+  background-size: 100% 1.7em;
+  background-position-y: 0.875rem;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba($primary, 0.06) 30%,
+      rgba($primary, 0.10) 50%,
+      rgba($primary, 0.06) 70%,
+      transparent 100%
+    );
+    background-size: 100% 120px;
+    animation: blueWaveScan 3s ease-in-out infinite;
+    pointer-events: none;
+    border-radius: 10px;
+  }
+}
+
+.scramble-spinner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.scramble-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 4px 24px rgba($primary, 0.15), 0 0 0 1px rgba($primary, 0.1);
+
+  .material-symbols-outlined {
+    font-size: 32px;
+    color: $primary;
+  }
+}
+
+@keyframes blueWaveScan {
+  0% { background-position-y: -120px; }
+  100% { background-position-y: calc(100% + 120px); }
+}
+
+@keyframes scrambleGlow {
   0%, 100% {
-    transform: scale(1) rotate(0deg);
-    opacity: 0.8;
+    border-color: rgba($primary, 0.15);
+    box-shadow: 0 0 0 rgba($primary, 0);
   }
   50% {
-    transform: scale(1.15) rotate(8deg);
-    opacity: 1;
-  }
-}
-
-@keyframes polishShimmer {
-  0% {
-    left: -100%;
-  }
-  100% {
-    left: 200%;
+    border-color: rgba($primary, 0.35);
+    box-shadow: 0 0 16px rgba($primary, 0.06);
   }
 }
 
@@ -2486,6 +2674,237 @@ textarea.text-input {
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+}
+
+// ==================== DIFF VIEW ====================
+
+.diff-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid $gray-200;
+  border-radius: 6px;
+  background: white;
+  color: $gray-500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  .material-symbols-outlined {
+    font-size: 14px;
+  }
+
+  &:hover {
+    background: $gray-50;
+    border-color: $gray-300;
+    color: $gray-700;
+  }
+
+  &.active {
+    background: rgba($secondary, 0.1);
+    border-color: rgba($secondary, 0.3);
+    color: $secondary;
+  }
+}
+
+.diff-view {
+  border: 1px solid $gray-200;
+  border-radius: 10px;
+  background: $gray-50;
+  flex: 1;
+  min-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.diff-legend {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid $gray-200;
+  background: white;
+  border-radius: 10px 10px 0 0;
+  font-size: 0.75rem;
+  color: $gray-500;
+}
+
+.diff-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+
+  .diff-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+  }
+
+  &.added .diff-dot {
+    background: #10b981;
+  }
+
+  &.removed .diff-dot {
+    background: #ef4444;
+  }
+}
+
+.diff-content {
+  padding: 0.75rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  color: $gray-800;
+}
+
+.diff-added {
+  background: rgba(#10b981, 0.15);
+  border-bottom: 2px solid rgba(#10b981, 0.4);
+  color: #065f46;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.diff-removed {
+  background: rgba(#ef4444, 0.12);
+  text-decoration: line-through;
+  color: #991b1b;
+  border-radius: 2px;
+  padding: 0 1px;
+  opacity: 0.7;
+}
+
+// Edit indicator
+.edit-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
+  border-radius: 8px;
+  background: rgba($secondary, 0.08);
+  border: 1px solid rgba($secondary, 0.15);
+  font-size: 0.8125rem;
+  color: darken($secondary, 15%);
+
+  .material-symbols-outlined {
+    font-size: 16px;
+  }
+}
+
+// ==================== REVISION PANEL ====================
+
+.revision-panel {
+  background: white;
+  border: 1px solid $gray-200;
+  border-radius: 14px;
+  margin-top: 0.75rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.revision-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba($primary, 0.04), rgba(#8b5cf6, 0.04));
+  border-bottom: 1px solid $gray-200;
+
+  .material-symbols-outlined {
+    font-size: 20px;
+    color: $primary;
+  }
+
+  h4 {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: $gray-800;
+  }
+}
+
+.revision-badge {
+  margin-left: auto;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  border-radius: 10px;
+  background: rgba($primary, 0.1);
+  color: $primary;
+}
+
+.revision-body {
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.revision-textarea {
+  textarea.text-input {
+    min-height: 60px;
+    max-height: 120px;
+    resize: vertical;
+    font-size: 0.8125rem;
+  }
+}
+
+.revision-info {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: $gray-400;
+  padding: 0 0.25rem;
+
+  .material-symbols-outlined {
+    font-size: 14px;
+  }
+}
+
+.btn-revise {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 2px solid $primary;
+  border-radius: 10px;
+  background: linear-gradient(135deg, $primary, #8b5cf6);
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-end;
+
+  .material-symbols-outlined {
+    font-size: 18px;
+  }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba($primary, 0.35);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
   }
 }
 

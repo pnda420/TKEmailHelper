@@ -8,8 +8,9 @@ $transition-sidebar: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 // ===== BASE LAYOUT =====
 .admin-layout {
     display: flex;
-    min-height: 100vh;
+    height: calc(100vh - 57px);
     background: $gradient-bg;
+    overflow: hidden;
 }
 
 // ===== SIDEBAR =====
@@ -215,10 +216,11 @@ $transition-sidebar: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 .admin-main {
     flex: 1;
     margin-left: $sidebar-width;
-    min-height: calc(100vh - 72px);
+    height: 100%;
     transition: margin-left $transition-sidebar;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 
     @media (max-width: 1024px) {
         margin-left: 0;
@@ -229,6 +231,8 @@ $transition-sidebar: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 .admin-content {
     flex: 1;
     position: relative;
+    min-height: 0;
+    overflow: auto;
 }
 
 // ===== MOBILE BOTTOM NAVIGATION =====

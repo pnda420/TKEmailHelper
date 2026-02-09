@@ -17,6 +17,7 @@ import { EmailTemplatesComponent } from './components/email-templates/email-temp
 import { EmailReplyComponent } from './components/email-reply/email-reply.component';
 import { EmailHistoryComponent } from './components/email-history/email-history.component';
 import { AdminSqlComponent } from './components/admin/admin-sql/admin-sql.component';
+import { HelpComponent } from './components/help/help.component';
 
 const pageMainName = 'MailFlow';
 export const routes: Routes = [
@@ -31,6 +32,7 @@ export const routes: Routes = [
     { path: 'emails/:id/reply', component: EmailReplyComponent, canActivate: [authGuard], title: pageMainName + ' | Antworten', data: { description: 'E-Mail beantworten.' } },
     { path: 'history', component: EmailHistoryComponent, canActivate: [authGuard], title: pageMainName + ' | Verlauf', data: { description: 'E-Mail Verlauf – Gesendet & Papierkorb.' } },
     { path: 'templates', component: EmailTemplatesComponent, canActivate: [authGuard], title: pageMainName + ' | Vorlagen', data: { description: 'E-Mail Vorlagen verwalten.' } },
+    { path: 'help', component: HelpComponent, title: pageMainName + ' | Hilfe', data: { description: 'Hilfe & Anleitung für MailFlow.' } },
     { path: 'admin', redirectTo: 'admin/logs', pathMatch: 'full' },
     { path: 'admin/logs', component: AdminLogsComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Admin Logs', data: { description: 'Error Logs & Monitoring.' } },
     { path: 'admin/users', component: AdminUsersComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Admin Users', data: { description: 'Admin Users verwalten.' } },

@@ -1,16 +1,16 @@
 @import '../admin-shared.scss';
 
-// ===== AI CONFIG PAGE =====
+// ===== AI CONFIG PAGE - ONE PAGER =====
 
 .ai-config-page {
-  min-height: calc(100vh - 72px);
-  padding: $admin-space-lg;
+  height: 95%;
+  display: flex;
+  margin-top: 20px;
+  flex-direction: column;
+  padding: $admin-space-md $admin-space-lg;
   background: $gradient-bg;
-  animation: pageEnter 0.4s ease-out;
-
-  @media (max-width: $admin-container-md) {
-    padding: $admin-space-md;
-  }
+  overflow: hidden;
+  gap: $admin-space-md;
 }
 
 // ===== PAGE HEADER =====
@@ -21,7 +21,7 @@
   border: 1px solid $glass-border;
   border-radius: $radius-lg;
   box-shadow: $shadow-glass;
-  margin-bottom: $admin-space-lg;
+  flex-shrink: 0;
 
   h1 {
     font-size: 1.25rem;
@@ -50,8 +50,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  flex: 1;
   gap: $admin-space-sm;
-  padding: $admin-space-2xl;
   color: $color-text-secondary;
 
   .material-symbols-outlined { font-size: 2rem; }
@@ -68,15 +69,18 @@
 
 // ===== CONTENT LAYOUT =====
 .config-content {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: $admin-space-lg;
-  max-width: $admin-container-xl;
-  margin: 0 auto;
 }
 
 // ===== SECTION =====
 .config-section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   background: $glass-bg;
   backdrop-filter: blur(20px);
   border: 1px solid $glass-border;
@@ -89,8 +93,9 @@
   display: flex;
   align-items: flex-start;
   gap: $admin-space-md;
-  padding: $admin-space-lg;
+  padding: $admin-space-md $admin-space-lg;
   border-bottom: 1px solid $border-light;
+  flex-shrink: 0;
 
   .section-icon {
     font-size: 1.5rem;
@@ -101,11 +106,6 @@
     &.rules {
       color: $accent-orange;
       background: rgba($accent-orange, 0.1);
-    }
-
-    &.prompts {
-      color: $accent-purple;
-      background: rgba($accent-purple, 0.1);
     }
   }
 
@@ -125,7 +125,17 @@
   }
 }
 
-// ===== RULES =====
+// ===== RULES - scrollable area =====
+.rules-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: $color-gray-300; border-radius: 2px; }
+}
+
 .rules-list {
   padding: $admin-space-sm $admin-space-lg;
 }
@@ -139,7 +149,7 @@
   transition: background $transition-fast;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(249, 115, 22, 0.04);
   }
 
   & + .rule-item {
@@ -195,7 +205,7 @@
   .material-symbols-outlined { font-size: 0.95rem; }
 
   &:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(59, 130, 246, 0.06);
     color: $color-text-primary;
   }
 
@@ -215,6 +225,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  flex: 1;
   gap: $admin-space-sm;
   padding: $admin-space-xl $admin-space-lg;
   text-align: center;
@@ -238,14 +250,15 @@
   gap: $admin-space-sm;
   padding: $admin-space-md $admin-space-lg;
   border-top: 1px solid $border-light;
-  background: rgba(0, 0, 0, 0.06);
+  background: #f1f5f9;
+  flex-shrink: 0;
 }
 
 .rule-input {
   flex: 1;
   padding: $admin-space-sm $admin-space-md;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid $border-light;
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
   border-radius: $radius-md;
   color: $color-text-primary;
   font-size: 0.8rem;
@@ -284,250 +297,6 @@
 
   &:disabled {
     opacity: 0.4;
-    cursor: not-allowed;
-  }
-}
-
-// ===== PROMPTS =====
-.prompts-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.prompt-card {
-  padding: $admin-space-lg;
-  border-bottom: 1px solid $border-light;
-  transition: background $transition-fast;
-
-  &:last-child { border-bottom: none; }
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.02);
-  }
-
-  &__header {
-    display: flex;
-    align-items: flex-start;
-    gap: $admin-space-md;
-  }
-}
-
-.prompt-icon {
-  font-size: 1.25rem;
-  color: $accent-purple;
-  padding: $admin-space-sm;
-  background: rgba($accent-purple, 0.1);
-  border-radius: $radius-md;
-  flex-shrink: 0;
-}
-
-.prompt-info {
-  flex: 1;
-  min-width: 0;
-
-  h3 {
-    margin: 0;
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: $color-text-primary;
-  }
-
-  p {
-    margin: $admin-space-2xs 0 0;
-    font-size: 0.725rem;
-    color: $color-text-secondary;
-  }
-}
-
-.edit-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  background: transparent;
-  color: $accent-purple;
-  border: 1px solid rgba($accent-purple, 0.3);
-  border-radius: $radius-md;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all $transition-fast;
-  white-space: nowrap;
-  flex-shrink: 0;
-
-  .material-symbols-outlined { font-size: 0.9rem; }
-
-  &:hover {
-    background: rgba($accent-purple, 0.1);
-    border-color: $accent-purple;
-  }
-}
-
-.prompt-preview {
-  margin-top: $admin-space-sm;
-  padding: $admin-space-sm $admin-space-md;
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: $radius-sm;
-  overflow: hidden;
-
-  pre {
-    margin: 0;
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 0.7rem;
-    color: $color-text-secondary;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-}
-
-.prompt-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: $admin-space-sm;
-  font-size: 0.675rem;
-  color: $color-text-tertiary;
-}
-
-.prompt-key {
-  font-family: 'JetBrains Mono', monospace;
-  background: rgba(255, 255, 255, 0.04);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-// ===== MODAL =====
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: $admin-space-lg;
-}
-
-.modal-content {
-  background: $glass-bg;
-  border: 1px solid $glass-border;
-  border-radius: $radius-lg;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
-  width: 100%;
-  max-width: 800px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: $admin-space-lg;
-  border-bottom: 1px solid $border-light;
-
-  h2 {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: $color-text-primary;
-  }
-}
-
-.modal-description {
-  margin: 0;
-  padding: $admin-space-sm $admin-space-lg;
-  font-size: 0.775rem;
-  color: $color-text-secondary;
-}
-
-.prompt-editor {
-  flex: 1;
-  margin: $admin-space-sm $admin-space-lg;
-  padding: $admin-space-md;
-  background: rgba(0, 0, 0, 0.15);
-  border: 1px solid $border-light;
-  border-radius: $radius-md;
-  color: $color-text-primary;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 0.775rem;
-  line-height: 1.6;
-  resize: vertical;
-  outline: none;
-  min-height: 300px;
-  transition: border-color $transition-fast;
-
-  &::placeholder { color: $color-text-tertiary; }
-
-  &:focus {
-    border-color: $accent-purple;
-    box-shadow: 0 0 0 2px rgba($accent-purple, 0.15);
-  }
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: $admin-space-md $admin-space-lg;
-  border-top: 1px solid $border-light;
-}
-
-.char-count {
-  font-size: 0.7rem;
-  color: $color-text-tertiary;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.modal-actions {
-  display: flex;
-  gap: $admin-space-sm;
-}
-
-.cancel-btn {
-  padding: $admin-space-sm $admin-space-lg;
-  background: transparent;
-  color: $color-text-secondary;
-  border: 1px solid $border-light;
-  border-radius: $radius-md;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all $transition-fast;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: $color-text-primary;
-  }
-}
-
-.save-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: $admin-space-sm $admin-space-lg;
-  background: $accent-purple;
-  color: #fff;
-  border: none;
-  border-radius: $radius-md;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all $transition-fast;
-
-  .material-symbols-outlined { font-size: 1rem; }
-
-  &:hover:not(:disabled) {
-    background: darken($accent-purple, 8%);
-    transform: translateY(-1px);
-  }
-
-  &:disabled {
-    opacity: 0.5;
     cursor: not-allowed;
   }
 }

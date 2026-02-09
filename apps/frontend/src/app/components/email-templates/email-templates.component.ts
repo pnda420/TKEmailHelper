@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService, EmailTemplate, CreateTemplateDto } from '../../api/api.service';
 import { ToastService } from '../../shared/toasts/toast.service';
 import { PageTitleComponent } from '../../shared/page-title/page-title.component';
+import { ConfirmationService } from '../../shared/confirmation/confirmation.service';
 
 @Component({
   selector: 'app-email-templates',
@@ -30,7 +31,8 @@ export class EmailTemplatesComponent implements OnInit {
 
   constructor(
     private api: ApiService,
-    private toasts: ToastService
+    private toasts: ToastService,
+    private confirmationService: ConfirmationService
   ) {}
 
   ngOnInit(): void {
@@ -109,10 +111,17 @@ export class EmailTemplatesComponent implements OnInit {
     }
   }
 
-  deleteTemplate(template: EmailTemplate): void {
-    if (!confirm(`Template "${template.name}" wirklich löschen?`)) {
-      return;
-    }
+  async deleteTemplate(template: EmailTemplate): Promise<void> {
+    const confirmed = await this.confirmationService.confirm({
+      title: 'Template löschen',
+      message: `Möchtest du das Template "${template.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      type: 'danger',
+      icon: 'delete'
+    });
+
+    if (!confirmed) return;
 
     this.api.deleteEmailTemplate(template.id).subscribe({
       next: () => {

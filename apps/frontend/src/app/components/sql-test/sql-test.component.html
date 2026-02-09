@@ -1,105 +1,86 @@
 <div class="sql-test">
-  <div class="sql-test__content">
 
-  <div class="sql-test__header">
+  <!-- Header -->
+  <div class="page-header">
     <h1>
       <span class="material-symbols-outlined">database</span>
       SQL Query Tool
     </h1>
+    <span class="sql-test__stats" *ngIf="result">
+      {{ result.rowCount }} Ergebnis{{ result.rowCount !== 1 ? 'se' : '' }} in {{ result.duration }}ms
+    </span>
+    <span class="sql-test__hint">Ctrl + Enter</span>
+    <button class="btn-execute" (click)="executeQuery()" [disabled]="loading || !sqlInput.trim()">
+      <span class="material-symbols-outlined">play_arrow</span>
+      {{ loading ? 'Läuft...' : 'Ausführen' }}
+    </button>
   </div>
 
-  <!-- Query Input -->
-  <div class="sql-test__input-section">
-    <label for="sql-textarea" class="sql-test__label">SQL Query:</label>
+  <!-- Input Section -->
+  <div class="input-section">
     <textarea
-      id="sql-textarea"
-      class="sql-test__textarea"
+      class="sql-textarea"
       [(ngModel)]="sqlInput"
       (keydown)="onKeydown($event)"
       placeholder="SELECT * FROM ..."
-      rows="8"
       spellcheck="false"
       autocomplete="off"
     ></textarea>
-
-    <div class="sql-test__actions">
-      <button
-        class="sql-test__btn-execute"
-        (click)="executeQuery()"
-        [disabled]="loading || !sqlInput.trim()"
-      >
-        <span class="material-symbols-outlined">play_arrow</span>
-        {{ loading ? 'Wird ausgeführt...' : 'Ausführen' }}
-      </button>
-
-      <span class="sql-test__hint">Ctrl + Enter</span>
-
-      <span class="sql-test__stats" *ngIf="result">
-        {{ result.rowCount }} Ergebnis{{ result.rowCount !== 1 ? 'se' : '' }}
-        in {{ result.duration }}ms
-      </span>
-    </div>
   </div>
 
   <!-- Loading -->
-  <div class="sql-test__loading" *ngIf="loading">
-    <div class="sql-test__spinner"></div>
+  <div class="state-fill" *ngIf="loading">
+    <div class="spinner"></div>
     <span>Query wird ausgeführt...</span>
   </div>
 
   <!-- Error -->
-  <div class="sql-test__error" *ngIf="error">
+  <div class="error-bar" *ngIf="error">
     <span class="material-symbols-outlined">error</span>
     <span>{{ error }}</span>
   </div>
 
   <!-- Results Table -->
-  <div class="sql-test__results" *ngIf="result && result.recordset.length > 0">
-    <div class="sql-test__table-wrapper">
-      <table class="sql-test__table">
-        <thead>
-          <tr>
-            <th *ngFor="let col of columns">{{ col }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let row of result.recordset">
-            <td *ngFor="let col of columns">{{ row[col] }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+  <div class="table-wrap" *ngIf="result && result.recordset.length > 0">
+    <table class="results-table">
+      <thead>
+        <tr>
+          <th *ngFor="let col of columns">{{ col }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of result.recordset">
+          <td *ngFor="let col of columns">{{ row[col] }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
   <!-- No Results -->
-  <div class="sql-test__no-results" *ngIf="result && result.recordset.length === 0">
+  <div class="state-fill" *ngIf="result && result.recordset.length === 0 && !loading">
     <span class="material-symbols-outlined">info</span>
-    Keine Ergebnisse gefunden.
+    <span>Keine Ergebnisse gefunden.</span>
   </div>
 
   <!-- Query History -->
-  <div class="sql-test__history" *ngIf="history.length > 0">
-    <h3>Letzte Queries:</h3>
-    <ul class="sql-test__history-list">
-      <li
+  <div class="history-strip" *ngIf="history.length > 0">
+    <span class="history-label">History:</span>
+    <div class="history-items">
+      <button
         *ngFor="let item of history"
-        class="sql-test__history-item"
-        [class.sql-test__history-item--error]="item.error"
+        class="history-item"
+        [class.history-item--error]="item.error"
         (click)="loadFromHistory(item)"
+        [title]="item.sql"
       >
-        <span class="sql-test__history-sql">{{ truncate(item.sql) }}</span>
-        <span class="sql-test__history-meta">
-          <ng-container *ngIf="!item.error">
-            {{ item.rowCount }} Zeilen
-          </ng-container>
-          <ng-container *ngIf="item.error">
-            <span class="material-symbols-outlined ms-size-14">error</span> Fehler
-          </ng-container>
-          &middot; {{ item.timestamp | date:'HH:mm:ss' }}
+        <span class="history-sql">{{ truncate(item.sql) }}</span>
+        <span class="history-meta">
+          <ng-container *ngIf="!item.error">{{ item.rowCount }} Zeilen</ng-container>
+          <ng-container *ngIf="item.error"><span class="material-symbols-outlined">error</span></ng-container>
+          &middot; {{ item.timestamp | date:'HH:mm' }}
         </span>
-      </li>
-    </ul>
+      </button>
+    </div>
   </div>
 
-  </div>
 </div>

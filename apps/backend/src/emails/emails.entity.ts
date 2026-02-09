@@ -22,6 +22,12 @@ export class Email {
   @Column({ unique: true })
   messageId: string; // Unique Message-ID from IMAP
 
+  @Column({ nullable: true })
+  inReplyTo: string; // In-Reply-To header from original email
+
+  @Column('text', { nullable: true })
+  references: string; // References header chain for threading
+
   @Column()
   subject: string;
 
