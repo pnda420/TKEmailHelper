@@ -18,7 +18,7 @@ import { EmailReplyComponent } from './components/email-reply/email-reply.compon
 import { EmailHistoryComponent } from './components/email-history/email-history.component';
 import { AdminSqlComponent } from './components/admin/admin-sql/admin-sql.component';
 
-const pageMainName = 'TK Email Helper';
+const pageMainName = 'MailFlow';
 export const routes: Routes = [
     { path: '', component: HomeComponent, title: pageMainName, data: { description: 'Email Helper Dashboard - Verwalte deine E-Mails effizient mit KI-Unterstützung.' } },
     { path: 'about', component: AboutComponent, title: pageMainName + ' | Über uns', data: { description: 'Über TK Email Helper.' } },

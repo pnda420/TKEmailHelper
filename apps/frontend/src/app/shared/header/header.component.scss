@@ -65,6 +65,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
   padding: 0;
   margin: 0;
   background: transparent;
@@ -102,7 +103,23 @@
   }
 
   @media (min-width: 900px) {
-    height: 40px;
+    height: 36px;
+  }
+}
+
+.brand-name {
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #1e40af, #2563eb);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  pointer-events: none;
+  line-height: 1;
+
+  @media (min-width: 900px) {
+    font-size: 1.25rem;
   }
 }
 

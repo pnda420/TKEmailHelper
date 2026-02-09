@@ -64,6 +64,9 @@ export class EmailListComponent implements OnInit, OnDestroy {
   private sub?: Subscription;
   private eventSource?: EventSource;
   private pollInterval?: any;
+  
+  // Admin status
+  isAdmin = false;
 
   constructor(
     private api: ApiService,
@@ -76,6 +79,7 @@ export class EmailListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.isAdmin = this.authService.isAdmin();
     this.loadEmails();
     this.checkProcessingAndConnect();
   }
@@ -166,7 +170,7 @@ export class EmailListComponent implements OnInit, OnDestroy {
   }
 
   recalculateAi(): void {
-    if (this.aiProcessing) return;
+    if (this.aiProcessing || !this.isAdmin) return;
     
     // Clear AI data from all emails immediately for better UX
     this.clearAiDataFromEmails();
@@ -419,6 +423,48 @@ export class EmailListComponent implements OnInit, OnDestroy {
   openReplyPage(): void {
     if (!this.selectedEmail) return;
     this.router.navigate(['/emails', this.selectedEmail.id, 'reply']);
+  }
+
+  // Recalculate AI for a single email (admin only)
+  recalculateSingleEmail(email: Email): void {
+    if (!this.isAdmin) return;
+
+    // Clear AI data for this email
+    const idx = this.emails.findIndex(e => e.id === email.id);
+    if (idx !== -1) {
+      this.emails[idx] = {
+        ...this.emails[idx],
+        aiSummary: null,
+        aiTags: null,
+        aiProcessedAt: null,
+        cleanedBody: null,
+        agentAnalysis: null,
+        agentKeyFacts: null,
+        suggestedReply: null,
+        customerPhone: null,
+      };
+      if (this.selectedEmail?.id === email.id) {
+        this.selectedEmail = this.emails[idx];
+      }
+    }
+
+    this.api.processEmailWithAi(email.id).subscribe({
+      next: (updated) => {
+        const i = this.emails.findIndex(e => e.id === updated.id);
+        if (i !== -1) {
+          this.emails[i] = updated;
+          if (this.selectedEmail?.id === updated.id) {
+            this.selectedEmail = updated;
+          }
+        }
+        this.toasts.success('E-Mail neu analysiert');
+      },
+      error: (err) => {
+        console.error('Recalculate single email error:', err);
+        this.toasts.error('Neuberechnung fehlgeschlagen');
+        this.loadEmails();
+      }
+    });
   }
 
   // Move to trash (no reply needed)

@@ -1206,6 +1206,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     const addressLabels = ['Straße', 'Ort'];
     const accountLabels = ['Kunde seit', 'Sperre'];
     const orderLabels = ['Umsatz', 'Bestellungen', 'Letzte Bestellung', 'Zahlungsart', 'Tracking', 'Versandstatus', 'Offene Tickets'];
+    const productLabels = ['Artikel', 'Artikelnr.', 'VK-Preis', 'Preis', 'Verfügbarkeit', 'Lagerbestand', 'Warengruppe', 'Bestellter Artikel', 'Bestellte Artikel'];
     const contextLabels = ['Anliegen', 'Empfehlung'];
 
     const copyableLabels = new Set(['E-Mail', 'Telefon', 'Mobil', 'Kd-Nr.', 'Tracking']);
@@ -1232,10 +1233,11 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     buildSection('Adresse', 'location_on', addressLabels);
     buildSection('Konto', 'manage_accounts', accountLabels);
     buildSection('Bestellungen & Umsatz', 'shopping_cart', orderLabels);
+    buildSection('Produkte', 'inventory_2', productLabels);
     buildSection('Anfrage', 'support_agent', contextLabels);
 
     // Catch any facts that don't fit into predefined sections
-    const allKnownLabels = new Set([...contactLabels, ...addressLabels, ...accountLabels, ...orderLabels, ...contextLabels]);
+    const allKnownLabels = new Set([...contactLabels, ...addressLabels, ...accountLabels, ...orderLabels, ...productLabels, ...contextLabels]);
     const uncategorized = this.analysisKeyFacts.filter(f => !allKnownLabels.has(f.label));
     if (uncategorized.length > 0) {
       this.analysisFactSections.push({

@@ -29,6 +29,14 @@ export class JtlToolsService {
         return this.getCustomerTickets(args.kKunde);
       case 'get_customer_full_context':
         return this.getCustomerFullContext(args.email);
+      case 'search_product':
+        return this.searchProduct(args.search);
+      case 'get_product_details':
+        return this.getProductDetails(args.artNrOrId);
+      case 'get_product_stock':
+        return this.getProductStock(args.artNrOrId);
+      case 'get_customer_bought_products':
+        return this.getCustomerBoughtProducts(args.kKunde, args.limit);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -230,5 +238,126 @@ export class JtlToolsService {
       { email: { type: sql.NVarChar(200), value: email } },
     );
     return result.recordset[0] || null;
+  }
+
+  // ==================== TOOL 9: search_product ====================
+
+  async searchProduct(search: string): Promise<any[]> {
+    const result = await this.db.queryWithParams(
+      `SELECT TOP 20
+        ar.kArtikel, ar.cArtNr, ar.cBarcode, ar.cHAN,
+        ab.cName,
+        ab.cKurzBeschreibung,
+        ar.fVKNetto,
+        ar.fUVP,
+        ar.nLagerbestand,
+        ar.cAktiv,
+        wg.cName AS Warengruppe,
+        ar.nIstVater,
+        ar.kVaterArtikel
+      FROM dbo.tArtikel ar
+      LEFT JOIN dbo.tArtikelBeschreibung ab ON ab.kArtikel = ar.kArtikel AND ab.kSprache = 1 AND ab.kPlattform = 1
+      LEFT JOIN dbo.tWarengruppe wg ON wg.kWarengruppe = ar.kWarengruppe
+      WHERE ar.nDelete = 0
+        AND (
+          ar.cArtNr LIKE '%' + @search + '%'
+          OR ar.cBarcode LIKE '%' + @search + '%'
+          OR ar.cHAN LIKE '%' + @search + '%'
+          OR ab.cName LIKE '%' + @search + '%'
+          OR ar.cSuchbegriffe LIKE '%' + @search + '%'
+        )
+      ORDER BY ar.cAktiv DESC, ab.cName`,
+      { search: { type: sql.NVarChar(200), value: search } },
+    );
+    return result.recordset;
+  }
+
+  // ==================== TOOL 10: get_product_details ====================
+
+  async getProductDetails(artNrOrId: string): Promise<any | null> {
+    const result = await this.db.queryWithParams(
+      `SELECT TOP 1
+        ar.kArtikel, ar.cArtNr, ar.cBarcode, ar.cHAN,
+        ab.cName,
+        ab.cKurzBeschreibung,
+        ar.fVKNetto,
+        ar.fUVP,
+        ar.fEKNetto,
+        ar.fGewicht,
+        ar.fArtGewicht,
+        ar.cAktiv,
+        ar.nLagerbestand,
+        ar.nMidestbestand AS nMindestbestand,
+        ar.cLagerArtikel,
+        ar.nIstVater,
+        ar.kVaterArtikel,
+        wg.cName AS Warengruppe,
+        lb.fLagerbestand AS LagerbestandDetail,
+        lb.fVerfuegbar,
+        lb.fZulauf,
+        lb.fInAuftraegen,
+        lb.fAuslieferungGesperrt
+      FROM dbo.tArtikel ar
+      LEFT JOIN dbo.tArtikelBeschreibung ab ON ab.kArtikel = ar.kArtikel AND ab.kSprache = 1 AND ab.kPlattform = 1
+      LEFT JOIN dbo.tWarengruppe wg ON wg.kWarengruppe = ar.kWarengruppe
+      LEFT JOIN dbo.tlagerbestand lb ON lb.kArtikel = ar.kArtikel
+      WHERE ar.nDelete = 0
+        AND (ar.cArtNr = @search OR CAST(ar.kArtikel AS NVARCHAR(20)) = @search)`,
+      { search: { type: sql.NVarChar(200), value: artNrOrId } },
+    );
+    return result.recordset[0] || null;
+  }
+
+  // ==================== TOOL 11: get_product_stock ====================
+
+  async getProductStock(artNrOrId: string): Promise<any | null> {
+    const result = await this.db.queryWithParams(
+      `SELECT
+        ar.kArtikel, ar.cArtNr,
+        ab.cName,
+        ar.cAktiv,
+        ar.nLagerbestand,
+        lb.fLagerbestand,
+        lb.fVerfuegbar,
+        lb.fZulauf,
+        lb.fInAuftraegen,
+        lb.fAuslieferungGesperrt,
+        CASE
+          WHEN lb.fVerfuegbar > 0 THEN 'Auf Lager'
+          WHEN lb.fZulauf > 0 THEN 'Zulauf erwartet'
+          ELSE 'Nicht verfügbar'
+        END AS VerfuegbarkeitsStatus
+      FROM dbo.tArtikel ar
+      LEFT JOIN dbo.tArtikelBeschreibung ab ON ab.kArtikel = ar.kArtikel AND ab.kSprache = 1 AND ab.kPlattform = 1
+      LEFT JOIN dbo.tlagerbestand lb ON lb.kArtikel = ar.kArtikel
+      WHERE ar.nDelete = 0
+        AND (ar.cArtNr = @search OR CAST(ar.kArtikel AS NVARCHAR(20)) = @search)`,
+      { search: { type: sql.NVarChar(200), value: artNrOrId } },
+    );
+    return result.recordset[0] || null;
+  }
+
+  // ==================== TOOL 12: get_customer_bought_products ====================
+
+  async getCustomerBoughtProducts(kKunde: number, limit = 20): Promise<any[]> {
+    const result = await this.db.queryWithParams(
+      `SELECT TOP (@limit)
+        p.cArtNr,
+        p.cName AS BestellterName,
+        p.fAnzahl,
+        p.fVkNetto,
+        a.cAuftragsNr,
+        a.dErstellt AS BestellDatum
+      FROM Verkauf.tAuftragPosition p
+      JOIN Verkauf.tAuftrag a ON a.kAuftrag = p.kAuftrag
+      WHERE a.kKunde = @kKunde
+        AND p.nType = 0
+      ORDER BY a.dErstellt DESC`,
+      {
+        kKunde: { type: sql.Int, value: kKunde },
+        limit: { type: sql.Int, value: Math.min(limit, 100) },
+      },
+    );
+    return result.recordset;
   }
 }

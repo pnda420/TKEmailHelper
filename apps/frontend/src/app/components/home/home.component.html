@@ -1,179 +1,73 @@
-<div class="dashboard" [class.loading]="loading">
+<div class="landing" *ngIf="!loading" @fadeIn>
 
-  <!-- TOP BAR -->
-  <header class="dash-header">
-    <div class="dash-header__greeting">
-      <h1>{{ getGreeting() }} 👋</h1>
-      <p>{{ formattedDate }}</p>
-    </div>
-    <button class="refresh-btn" (click)="refreshEmails()" [disabled]="refreshing">
-      <span class="material-symbols-outlined" [class.spin]="refreshing">sync</span>
-      {{ refreshing ? 'Lädt…' : 'E-Mails abrufen' }}
+  <!-- Animated background orbs -->
+  <div class="bg-orbs">
+    <div class="orb orb--1"></div>
+    <div class="orb orb--2"></div>
+    <div class="orb orb--3"></div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero" @fadeUp>
+    <img class="hero__logo" src="assets/logos/lm_s.png" alt="MailFlow" />
+    <h1 class="hero__title">MailFlow</h1>
+    <p class="hero__greeting">{{ getGreeting() }} &mdash; {{ formattedDate }}</p>
+  </div>
+
+  <!-- Stats 4×2 -->
+  <div class="stats" @staggerCards>
+    <button class="stat-card" (click)="router.navigate(['/emails'])">
+      <span class="stat-card__icon"><span class="material-symbols-outlined">inbox</span></span>
+      <span class="stat-card__val">{{ emailStats.inbox }}</span>
+      <span class="stat-card__lbl">Posteingang</span>
     </button>
-  </header>
-
-  <!-- STAT CARDS -->
-  <section class="stats">
-    <div class="stat-card stat-card--inbox" (click)="router.navigate(['/emails'])">
-      <div class="stat-card__icon"><span class="material-symbols-outlined">inbox</span></div>
-      <div class="stat-card__body">
-        <span class="stat-card__value">{{ emailStats.inbox }}</span>
-        <span class="stat-card__label">Posteingang</span>
-      </div>
-    </div>
-
-    <div class="stat-card stat-card--unread" (click)="router.navigate(['/emails'])">
-      <div class="stat-card__icon"><span class="material-symbols-outlined">mark_email_unread</span></div>
-      <div class="stat-card__body">
-        <span class="stat-card__value">{{ emailStats.unread }}</span>
-        <span class="stat-card__label">Ungelesen</span>
-      </div>
-    </div>
-
-    <div class="stat-card stat-card--sent" (click)="router.navigate(['/history'])">
-      <div class="stat-card__icon"><span class="material-symbols-outlined">send</span></div>
-      <div class="stat-card__body">
-        <span class="stat-card__value">{{ emailStats.sent }}</span>
-        <span class="stat-card__label">Gesendet</span>
-      </div>
-    </div>
-
-    <div class="stat-card stat-card--templates" (click)="router.navigate(['/templates'])">
-      <div class="stat-card__icon"><span class="material-symbols-outlined">description</span></div>
-      <div class="stat-card__body">
-        <span class="stat-card__value">{{ templateCount }}</span>
-        <span class="stat-card__label">Vorlagen</span>
-      </div>
-    </div>
-
-    <div class="stat-card stat-card--trash" (click)="router.navigate(['/history'])">
-      <div class="stat-card__icon"><span class="material-symbols-outlined">delete</span></div>
-      <div class="stat-card__body">
-        <span class="stat-card__value">{{ emailStats.trash }}</span>
-        <span class="stat-card__label">Papierkorb</span>
-      </div>
-    </div>
-
-    <div class="stat-card stat-card--ai" *ngIf="aiStats">
-      <div class="stat-card__icon"><span class="material-symbols-outlined">smart_toy</span></div>
-      <div class="stat-card__body">
-        <span class="stat-card__value">{{ aiStats.totalRequests }}</span>
-        <span class="stat-card__label">KI-Anfragen (30d)</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- MAIN GRID -->
-  <div class="main-grid">
-
-    <!-- RECENT EMAILS -->
-    <section class="card recent-emails">
-      <div class="card__header">
-        <h2>
-          <span class="material-symbols-outlined">schedule</span>
-          Letzte E-Mails
-        </h2>
-        <a routerLink="/emails" class="card__link">Alle anzeigen →</a>
-      </div>
-      <div class="card__body">
-        <div class="email-row" *ngFor="let email of recentEmails" (click)="router.navigate(['/emails'])">
-          <span class="email-row__avatar" [class.unread]="!email.isRead">
-            {{ getInitials(email) }}
-          </span>
-          <div class="email-row__content">
-            <div class="email-row__top">
-              <span class="email-row__sender" [class.unread]="!email.isRead">
-                {{ email.fromName || email.fromAddress }}
-              </span>
-              <span class="email-row__time">{{ timeAgo(email.receivedAt || email.createdAt) }}</span>
-            </div>
-            <span class="email-row__subject" [class.unread]="!email.isRead">{{ email.subject }}</span>
-          </div>
-        </div>
-        <div class="email-empty" *ngIf="!loading && recentEmails.length === 0">
-          <span class="material-symbols-outlined">inbox</span>
-          <p>Keine E-Mails vorhanden</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- QUICK ACTIONS + AI -->
-    <div class="side-col">
-
-      <!-- QUICK ACTIONS -->
-      <section class="card quick-actions">
-        <div class="card__header">
-          <h2>
-            <span class="material-symbols-outlined">bolt</span>
-            Schnellzugriff
-          </h2>
-        </div>
-        <div class="card__body actions-grid">
-          <button class="action-btn action-btn--primary" (click)="router.navigate(['/emails'])">
-            <span class="material-symbols-outlined">inbox</span>
-            Posteingang
-          </button>
-          <button class="action-btn action-btn--green" (click)="refreshEmails()" [disabled]="refreshing">
-            <span class="material-symbols-outlined" [class.spin]="refreshing">sync</span>
-            Abrufen
-          </button>
-          <button class="action-btn action-btn--purple" (click)="router.navigate(['/templates'])">
-            <span class="material-symbols-outlined">description</span>
-            Vorlagen
-          </button>
-          <button class="action-btn action-btn--amber" (click)="router.navigate(['/history'])">
-            <span class="material-symbols-outlined">history</span>
-            Verlauf
-          </button>
-        </div>
-      </section>
-
-      <!-- AI OVERVIEW -->
-      <section class="card ai-overview" *ngIf="aiStats">
-        <div class="card__header">
-          <h2>
-            <span class="material-symbols-outlined">smart_toy</span>
-            KI-Nutzung (30 Tage)
-          </h2>
-        </div>
-        <div class="card__body">
-          <div class="ai-stat-row">
-            <span class="ai-stat-row__label">Anfragen</span>
-            <span class="ai-stat-row__value">{{ aiStats.totalRequests }}</span>
-          </div>
-          <div class="ai-stat-row">
-            <span class="ai-stat-row__label">Tokens</span>
-            <span class="ai-stat-row__value">{{ aiStats.totalTokens | number }}</span>
-          </div>
-          <div class="ai-stat-row">
-            <span class="ai-stat-row__label">Kosten</span>
-            <span class="ai-stat-row__value cost">{{ formatCost(aiStats.totalCostUsd) }}</span>
-          </div>
-          <div class="ai-stat-row" *ngIf="aiStats.totalErrors > 0">
-            <span class="ai-stat-row__label">Fehler</span>
-            <span class="ai-stat-row__value error">{{ aiStats.totalErrors }}</span>
-          </div>
-
-          <div class="ai-models" *ngIf="aiStats.costByModel.length">
-            <h4>Modelle</h4>
-            <div class="ai-model-row" *ngFor="let m of aiStats.costByModel">
-              <span class="ai-model-row__name">{{ m.model }}</span>
-              <span class="ai-model-row__meta">{{ m.requests }} Req &middot; {{ formatCost(m.cost) }}</span>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
+    <button class="stat-card" (click)="router.navigate(['/emails'])">
+      <span class="stat-card__icon unread"><span class="material-symbols-outlined">mark_email_unread</span></span>
+      <span class="stat-card__val">{{ emailStats.unread }}</span>
+      <span class="stat-card__lbl">Ungelesen</span>
+    </button>
+    <button class="stat-card" (click)="router.navigate(['/history'])">
+      <span class="stat-card__icon sent"><span class="material-symbols-outlined">send</span></span>
+      <span class="stat-card__val">{{ emailStats.sent }}</span>
+      <span class="stat-card__lbl">Gesendet</span>
+    </button>
+    <button class="stat-card" (click)="router.navigate(['/history'])">
+      <span class="stat-card__icon trash"><span class="material-symbols-outlined">delete</span></span>
+      <span class="stat-card__val">{{ emailStats.trash }}</span>
+      <span class="stat-card__lbl">Papierkorb</span>
+    </button>
+    <button class="stat-card" (click)="router.navigate(['/templates'])">
+      <span class="stat-card__icon tmpl"><span class="material-symbols-outlined">description</span></span>
+      <span class="stat-card__val">{{ templateCount }}</span>
+      <span class="stat-card__lbl">Vorlagen</span>
+    </button>
+    <button class="stat-card" (click)="router.navigate(['/admin'])">
+      <span class="stat-card__icon ai"><span class="material-symbols-outlined">auto_awesome</span></span>
+      <span class="stat-card__val">{{ aiStats?.totalRequests ?? 0 }}</span>
+      <span class="stat-card__lbl">KI-Anfragen</span>
+    </button>
+    <button class="stat-card" (click)="router.navigate(['/admin'])">
+      <span class="stat-card__icon tokens"><span class="material-symbols-outlined">token</span></span>
+      <span class="stat-card__val">{{ aiStats ? (aiStats.totalTokens / 1000).toFixed(0) + 'k' : '0k' }}</span>
+      <span class="stat-card__lbl">Tokens</span>
+    </button>
+    <button class="stat-card" (click)="router.navigate(['/admin'])">
+      <span class="stat-card__icon cost"><span class="material-symbols-outlined">payments</span></span>
+      <span class="stat-card__val">{{ formatCost(aiStats?.totalCostUsd ?? 0) }}</span>
+      <span class="stat-card__lbl">KI-Kosten</span>
+    </button>
   </div>
 
-  <!-- LOADING SKELETON -->
-  <div class="skeleton-overlay" *ngIf="loading">
-    <div class="skeleton-stats">
-      <div class="skel-card" *ngFor="let _ of [1,2,3,4,5]"></div>
-    </div>
-    <div class="skeleton-grid">
-      <div class="skel-block skel-block--main"></div>
-      <div class="skel-block skel-block--side"></div>
-    </div>
+  <!-- CTA -->
+  <div class="cta" @fadeUp>
+    <button class="cta__btn" (click)="router.navigate(['/emails'])">
+      <span class="material-symbols-outlined">arrow_forward</span>
+      Zum Posteingang
+    </button>
   </div>
+</div>
+
+<!-- Loading -->
+<div class="loading-screen" *ngIf="loading">
+  <div class="loader"></div>
 </div>

@@ -132,10 +132,83 @@ $global-header-height: 57px;
 .workflow-nav {
   background: white;
   border-bottom: 1px solid $gray-200;
-  padding: 1rem 0rem;
+  padding: 0.75rem 1.5rem;
   position: relative;
   z-index: 90;
   flex-shrink: 0;
+}
+
+.workflow-nav-inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-back-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid $gray-200;
+  background: white;
+  color: $gray-600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+
+  .material-symbols-outlined {
+    font-size: 20px;
+  }
+
+  &:hover {
+    background: $gray-50;
+    border-color: $gray-300;
+    color: $gray-800;
+  }
+}
+
+.nav-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.nav-action-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid $gray-200;
+  background: white;
+  color: $gray-500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+
+  .material-symbols-outlined {
+    font-size: 20px;
+  }
+
+  &:hover {
+    background: $gray-50;
+    border-color: $gray-300;
+    color: $gray-700;
+  }
+
+  &.danger:hover {
+    background: rgba($danger, 0.06);
+    border-color: rgba($danger, 0.3);
+    color: $danger;
+  }
+}
+
+.workflow-center {
+  flex: 1;
+  min-width: 0;
 }
 
 .workflow-track {
@@ -2212,6 +2285,22 @@ textarea.text-input {
   flex: 1;
   display: flex;
   flex-direction: column;
+  position: relative;
+  transition: all 0.3s ease;
+
+  &.is-polishing {
+    pointer-events: none;
+
+    .text-input {
+      opacity: 0.5;
+      filter: blur(1px);
+      transition: all 0.4s ease;
+    }
+
+    .field-label {
+      opacity: 0.5;
+    }
+  }
 
   .field-group.flex-grow {
     flex: 1;
@@ -2223,6 +2312,87 @@ textarea.text-input {
       min-height: 200px;
       resize: none;
     }
+  }
+}
+
+// Polish Overlay
+.polish-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(4px);
+  overflow: hidden;
+}
+
+.polish-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 2;
+}
+
+.polish-spinner {
+  font-size: 40px;
+  color: $primary;
+  animation: polishPulse 1.5s ease-in-out infinite;
+}
+
+.polish-label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: $primary-dark;
+  letter-spacing: 0.01em;
+}
+
+.polish-shimmer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: 16px;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba($primary, 0.06),
+      rgba($primary, 0.12),
+      rgba($primary, 0.06),
+      transparent
+    );
+    animation: polishShimmer 2s ease-in-out infinite;
+  }
+}
+
+@keyframes polishPulse {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.15) rotate(8deg);
+    opacity: 1;
+  }
+}
+
+@keyframes polishShimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
   }
 }
 
@@ -2405,6 +2575,10 @@ textarea.text-input {
   border: 1px solid $gray-200;
   border-radius: 16px;
   overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .preview-header {
@@ -2437,8 +2611,9 @@ textarea.text-input {
 
 .preview-body {
   padding: 1.5rem;
-  max-height: 600px;
+  flex: 1;
   overflow-y: auto;
+  min-height: 0;
 
   pre {
     margin: 0;

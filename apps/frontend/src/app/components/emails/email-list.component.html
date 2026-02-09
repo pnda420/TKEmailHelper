@@ -28,6 +28,7 @@
                 {{ aiStatus.pending }} analysieren
             </button>
             <button class="action-btn"
+                *ngIf="isAdmin"
                 (click)="recalculateAi()"
                 [disabled]="aiProcessing || refreshing"
                 title="Alle E-Mails neu analysieren">
@@ -108,27 +109,35 @@
 
         <!-- Detail pane -->
         <main class="detail-pane" *ngIf="selectedEmail" @slideIn>
-            <!-- Actions -->
-            <div class="detail-actions">
-                <button class="action-btn success" (click)="openReplyPage()">
-                    <span class="material-symbols-outlined">reply</span>
-                    Antworten
+            <!-- Top toolbar -->
+            <div class="detail-toolbar">
+                <button class="toolbar-btn back-btn" (click)="closeDetail()" title="Zurück">
+                    <span class="material-symbols-outlined">arrow_back</span>
                 </button>
-                <button class="action-btn danger-ghost" (click)="moveToTrash()" title="Keine Antwort nötig">
-                    <span class="material-symbols-outlined">delete_outline</span>
-                </button>
-                <div class="spacer"></div>
-                <div class="view-switch" *ngIf="selectedEmail.aiProcessedAt">
-                    <button [class.active]="showAiView" (click)="showAiView = true">
-                        <span class="material-symbols-outlined">auto_awesome</span> KI
+
+                <div class="toolbar-center">
+                    <div class="view-switch" *ngIf="selectedEmail.aiProcessedAt">
+                        <button [class.active]="showAiView" (click)="showAiView = true">
+                            <span class="material-symbols-outlined">auto_awesome</span> KI
+                        </button>
+                        <button [class.active]="!showAiView" (click)="showAiView = false">
+                            <span class="material-symbols-outlined">article</span> Original
+                        </button>
+                    </div>
+                </div>
+
+                <div class="toolbar-actions">
+                    <button class="toolbar-btn" *ngIf="isAdmin" (click)="recalculateSingleEmail(selectedEmail)" title="Neu analysieren">
+                        <span class="material-symbols-outlined">refresh</span>
                     </button>
-                    <button [class.active]="!showAiView" (click)="showAiView = false">
-                        <span class="material-symbols-outlined">article</span> Original
+                    <button class="toolbar-btn danger" (click)="moveToTrash()" title="Löschen">
+                        <span class="material-symbols-outlined">delete_outline</span>
+                    </button>
+                    <button class="reply-btn" (click)="openReplyPage()">
+                        <span class="material-symbols-outlined">reply</span>
+                        Antworten
                     </button>
                 </div>
-                <button class="action-btn ghost" (click)="closeDetail()">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
             </div>
 
             <!-- Header -->

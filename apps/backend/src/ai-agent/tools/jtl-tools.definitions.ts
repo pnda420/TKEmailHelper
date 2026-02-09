@@ -130,4 +130,65 @@ export const JTL_TOOLS: Array<{
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'search_product',
+      description:
+        'Sucht Artikel/Produkte per Name, Artikelnummer, EAN/Barcode oder Suchbegriff. Nutze dies wenn ein Kunde nach einem Produkt fragt.',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string', description: 'Suchbegriff: Artikelname, Artikelnummer, EAN oder Schlagwort' },
+        },
+        required: ['search'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_product_details',
+      description:
+        'Zeigt alle Details eines Artikels: Preis, Beschreibung, Gewicht, Lagerbestand, Warengruppe. Suche per Artikelnummer oder Artikel-ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          artNrOrId: { type: 'string', description: 'Artikelnummer (cArtNr) oder Artikel-ID (kArtikel)' },
+        },
+        required: ['artNrOrId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_product_stock',
+      description:
+        'Zeigt den aktuellen Lagerbestand und Verfügbarkeit eines Artikels.',
+      parameters: {
+        type: 'object',
+        properties: {
+          artNrOrId: { type: 'string', description: 'Artikelnummer oder Artikel-ID' },
+        },
+        required: ['artNrOrId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_customer_bought_products',
+      description:
+        'Zeigt alle Artikel die ein Kunde in der Vergangenheit bestellt hat. Nützlich für Nachbestellungen oder Ersatzteil-Anfragen.',
+      parameters: {
+        type: 'object',
+        properties: {
+          kKunde: { type: 'number', description: 'Kunden-ID' },
+          limit: { type: 'number', description: 'Max Ergebnisse (default 20)' },
+        },
+        required: ['kKunde'],
+      },
+    },
+  },
 ];
