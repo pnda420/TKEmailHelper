@@ -1,15 +1,29 @@
 <app-page-title title="Posteingang"></app-page-title>
 
 <div class="inbox">
-    <!-- Processing progress bar (thin, unobtrusive) -->
-    <div class="progress-strip" *ngIf="aiProcessing && aiStatus">
-        <div class="progress-strip__bar"
-            [style.width.%]="aiStatus.total > 0 ? (aiStatus.processed / aiStatus.total) * 100 : 0"></div>
-        <span class="progress-strip__label">
-            <span class="material-symbols-outlined spin">auto_awesome</span>
-            {{ aiStatus.processed }}/{{ aiStatus.total }} analysiert
-            <span class="progress-strip__hint">— läuft im Hintergrund</span>
-        </span>
+    <!-- AI processing banner -->
+    <div class="ai-banner" *ngIf="aiProcessing && aiStatus" (click)="terminalOpen = !terminalOpen">
+        <div class="ai-banner__track">
+            <div class="ai-banner__fill"
+                [style.width.%]="aiStatus.total > 0 ? (aiStatus.processed / aiStatus.total) * 100 : 0"></div>
+        </div>
+        <div class="ai-banner__content">
+            <div class="ai-banner__left">
+                <span class="ai-banner__pulse"></span>
+                <span class="ai-banner__icon material-symbols-outlined">auto_awesome</span>
+                <span class="ai-banner__text">
+                    <strong>{{ aiStatus.processed }}<span class="ai-banner__sep">/</span>{{ aiStatus.total }}</strong>
+                    E-Mails analysiert
+                </span>
+            </div>
+            <div class="ai-banner__right">
+                <span class="ai-banner__eta" *ngIf="terminalEta">{{ terminalEta }}</span>
+                <span class="ai-banner__eta" *ngIf="!terminalEta && terminalElapsed">{{ terminalElapsed }}</span>
+                <span class="ai-banner__badge">
+                    <span class="material-symbols-outlined">{{ terminalOpen ? 'close' : 'terminal' }}</span>
+                </span>
+            </div>
+        </div>
     </div>
 
     <!-- Toolbar -->
@@ -56,7 +70,7 @@
     </div>
 
     <!-- Main split view -->
-    <div class="inbox-split" *ngIf="!loading">
+    <div class="inbox-split" [class.has-sidebar]="terminalOpen" *ngIf="!loading">
         <!-- List pane -->
         <aside class="list-pane" [class.has-detail]="selectedEmail" [@listAnimation]="emails.length">
             <div class="mail-item" *ngFor="let email of emails"
@@ -134,8 +148,8 @@
                         <span class="material-symbols-outlined">delete_outline</span>
                     </button>
                     <button class="reply-btn" (click)="openReplyPage()">
-                        <span class="material-symbols-outlined">reply</span>
                         Antworten
+                        <span class="material-symbols-outlined">chevron_right</span>
                     </button>
                 </div>
             </div>
@@ -189,10 +203,79 @@
         </main>
 
         <!-- No Selection -->
-        <div class="detail-empty" *ngIf="!selectedEmail">
+        <div class="detail-empty" *ngIf="!selectedEmail && !terminalOpen">
             <span class="material-symbols-outlined">mail</span>
             <p>Wähle eine E-Mail aus</p>
         </div>
+        <div class="detail-empty" *ngIf="!selectedEmail && terminalOpen">
+        </div>
+
+        <!-- AI Sidebar (right split pane) -->
+        <aside class="ai-sidebar" *ngIf="terminalOpen">
+            <div class="ai-sidebar__header">
+                <div class="ai-sidebar__title">
+                    <span class="material-symbols-outlined">terminal</span>
+                    <span>KI-Verarbeitung</span>
+                    <span class="ai-sidebar__badge live" *ngIf="aiProcessing">LIVE</span>
+                    <span class="ai-sidebar__badge done" *ngIf="!aiProcessing && terminalLogs.length">DONE</span>
+                </div>
+                <div class="ai-sidebar__actions">
+                    <button class="ai-sidebar__btn" (click)="clearTerminal()" title="Leeren">
+                        <span class="material-symbols-outlined">delete_sweep</span>
+                    </button>
+                    <button class="ai-sidebar__btn" (click)="terminalOpen = false" title="Schließen">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats strip -->
+            <div class="ai-sidebar__stats" *ngIf="aiStatus">
+                <div class="ai-stat">
+                    <span class="ai-stat__val">{{ aiStatus.processed }}/{{ aiStatus.total }}</span>
+                    <span class="ai-stat__lbl">Verarbeitet</span>
+                </div>
+                <div class="ai-stat" *ngIf="terminalElapsed">
+                    <span class="ai-stat__val">{{ terminalElapsed }}</span>
+                    <span class="ai-stat__lbl">Laufzeit</span>
+                </div>
+                <div class="ai-stat" *ngIf="terminalEta && aiProcessing">
+                    <span class="ai-stat__val highlight">{{ terminalEta }}</span>
+                    <span class="ai-stat__lbl">ETA</span>
+                </div>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="ai-sidebar__progress" *ngIf="aiProcessing && aiStatus && aiStatus.total > 0">
+                <div class="ai-sidebar__progress-bar"
+                    [style.width.%]="(aiStatus.processed / aiStatus.total) * 100"></div>
+            </div>
+
+            <!-- Log body -->
+            <div class="ai-sidebar__body" #terminalBody>
+                <div class="log-line" *ngFor="let log of terminalLogs" [ngClass]="'log-' + log.type">
+                    <span class="log-ts">{{ log.timestamp | date:'HH:mm:ss' }}</span>
+                    <span class="log-icon">
+                        <ng-container [ngSwitch]="log.type">
+                            <span *ngSwitchCase="'system'" class="material-symbols-outlined">terminal</span>
+                            <span *ngSwitchCase="'info'" class="material-symbols-outlined">info</span>
+                            <span *ngSwitchCase="'step'" class="material-symbols-outlined">precision_manufacturing</span>
+                            <span *ngSwitchCase="'progress'" class="material-symbols-outlined">check_circle</span>
+                            <span *ngSwitchCase="'success'" class="material-symbols-outlined">task_alt</span>
+                            <span *ngSwitchCase="'warn'" class="material-symbols-outlined">warning</span>
+                            <span *ngSwitchCase="'error'" class="material-symbols-outlined">error</span>
+                        </ng-container>
+                    </span>
+                    <div class="log-content">
+                        <span class="log-msg">{{ log.message }}</span>
+                        <span class="log-detail" *ngIf="log.detail">{{ log.detail }}</span>
+                    </div>
+                </div>
+                <div class="log-cursor" *ngIf="aiProcessing">
+                    <span class="cursor-blink">▎</span>
+                </div>
+            </div>
+        </aside>
     </div>
 
     <!-- Attachment Preview Modal -->

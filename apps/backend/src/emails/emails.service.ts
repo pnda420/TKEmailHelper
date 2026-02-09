@@ -28,6 +28,7 @@ export class EmailsService {
   // IMAP folder configuration (from environment)
   private readonly SOURCE_FOLDER: string;
   private readonly DONE_FOLDER: string;
+  private readonly TRASH_FOLDER: string;
 
   // Background processing state (in-memory, survives client disconnect)
   private processingStatus: ProcessingStatus = {
@@ -54,6 +55,7 @@ export class EmailsService {
   ) {
     this.SOURCE_FOLDER = this.configService.get<string>('IMAP_SOURCE_FOLDER') || 'INBOX';
     this.DONE_FOLDER = this.configService.get<string>('IMAP_DONE_FOLDER') || 'PROCESSED';
+    this.TRASH_FOLDER = this.configService.get<string>('IMAP_TRASH_FOLDER') || 'Trash';
     this.initImapConnection();
   }
 
@@ -262,17 +264,18 @@ export class EmailsService {
   }
 
   /**
-   * Move email on IMAP server from KUNDEN to KUNDEN_FERTIG folder
+   * Move email on IMAP server between folders
+   * Searches for the email by Message-ID in the source folder and moves it to the target folder.
    */
-  private async moveEmailToImapFolder(messageId: string): Promise<boolean> {
+  private async moveImapEmail(messageId: string, fromFolder: string, toFolder: string): Promise<boolean> {
     return new Promise((resolve) => {
       this.initImapConnection();
       
       this.imap.once('ready', () => {
         // Open source folder with write access (false = read-write)
-        this.imap.openBox(this.SOURCE_FOLDER, false, (err) => {
+        this.imap.openBox(fromFolder, false, (err) => {
           if (err) {
-            this.logger.error(`Error opening ${this.SOURCE_FOLDER} for move:`, err.message);
+            this.logger.error(`Error opening ${fromFolder} for move:`, err.message);
             this.imap.end();
             return resolve(false);
           }
@@ -286,23 +289,22 @@ export class EmailsService {
             }
 
             if (!uids || uids.length === 0) {
-              this.logger.warn(`Email with messageId ${messageId} not found in ${this.SOURCE_FOLDER}`);
+              this.logger.warn(`Email with messageId ${messageId} not found in ${fromFolder}`);
               this.imap.end();
               return resolve(false);
             }
 
             const uid = uids[0];
-            this.logger.log(`Found email with UID ${uid}, moving to ${this.DONE_FOLDER}`);
+            this.logger.log(`Found email UID ${uid} in ${fromFolder}, moving to ${toFolder}`);
 
-            // Move email to KUNDEN_FERTIG folder
-            this.imap.move(uid, this.DONE_FOLDER, (moveErr) => {
+            this.imap.move(uid, toFolder, (moveErr) => {
               if (moveErr) {
-                this.logger.error(`Error moving email to ${this.DONE_FOLDER}:`, moveErr.message);
+                this.logger.error(`Error moving email to ${toFolder}:`, moveErr.message);
                 this.imap.end();
                 return resolve(false);
               }
 
-              this.logger.log(`Successfully moved email to ${this.DONE_FOLDER}`);
+              this.logger.log(`Successfully moved email ${fromFolder} → ${toFolder}`);
               this.imap.end();
               resolve(true);
             });
@@ -320,14 +322,14 @@ export class EmailsService {
   }
 
   /**
-   * Mark email as sent (replied) and move to KUNDEN_FERTIG folder
+   * Mark email as sent (replied) and move to DONE folder on IMAP
    */
   async markAsSent(id: string, replySubject: string, replyBody: string): Promise<Email | null> {
     const email = await this.getEmailById(id);
     
     if (email?.messageId) {
-      // Move email to KUNDEN_FERTIG folder on IMAP server
-      await this.moveEmailToImapFolder(email.messageId);
+      // Move email from SOURCE → DONE on IMAP server
+      await this.moveImapEmail(email.messageId, this.SOURCE_FOLDER, this.DONE_FOLDER);
     }
 
     await this.emailRepository.update(id, { 
@@ -341,14 +343,14 @@ export class EmailsService {
   }
 
   /**
-   * Move email to trash (no reply needed) and move to KUNDEN_FERTIG folder
+   * Move email to trash — moves to TRASH folder on IMAP
    */
   async moveToTrash(id: string): Promise<Email | null> {
     const email = await this.getEmailById(id);
     
     if (email?.messageId) {
-      // Move email to KUNDEN_FERTIG folder on IMAP server
-      await this.moveEmailToImapFolder(email.messageId);
+      // Move email from SOURCE → TRASH on IMAP server
+      await this.moveImapEmail(email.messageId, this.SOURCE_FOLDER, this.TRASH_FOLDER);
     }
 
     await this.emailRepository.update(id, { 
@@ -359,9 +361,16 @@ export class EmailsService {
   }
 
   /**
-   * Restore email from trash back to inbox
+   * Restore email from trash back to inbox — moves from TRASH → SOURCE on IMAP
    */
   async restoreFromTrash(id: string): Promise<Email | null> {
+    const email = await this.getEmailById(id);
+
+    if (email?.messageId) {
+      // Move email from TRASH → SOURCE on IMAP server
+      await this.moveImapEmail(email.messageId, this.TRASH_FOLDER, this.SOURCE_FOLDER);
+    }
+
     await this.emailRepository.update(id, { 
       status: EmailStatus.INBOX,
     });
@@ -401,6 +410,12 @@ export class EmailsService {
       // Try done folder if not found in source
       this.logger.log(`Attachment not found in ${this.SOURCE_FOLDER}, trying ${this.DONE_FOLDER}`);
       result = await this.fetchAttachmentWithNewConnection(this.DONE_FOLDER, messageId, attachmentIndex);
+    }
+
+    if (!result) {
+      // Try trash folder
+      this.logger.log(`Attachment not found in ${this.DONE_FOLDER}, trying ${this.TRASH_FOLDER}`);
+      result = await this.fetchAttachmentWithNewConnection(this.TRASH_FOLDER, messageId, attachmentIndex);
     }
     
     return result;
@@ -670,9 +685,25 @@ export class EmailsService {
 
         this.logger.log(`processEmailWithAi: Starting agent analysis for ${emailId}`);
 
+        // Forward agent steps to SSE subscribers for live monitoring
+        const onStep = (step: any) => {
+          this.emitProcessingEvent({
+            type: 'step',
+            emailId,
+            step: {
+              type: step.type,
+              tool: step.tool,
+              status: step.status,
+              summary: step.type === 'tool_result'
+                ? `${step.tool}: ${JSON.stringify(step.result).substring(0, 120)}`
+                : step.content?.substring(0, 150),
+            },
+          });
+        };
+
         const agentResult = await this.aiAgentService.analyzeEmail(
           emailData,
-          () => {}, // No live step callback needed for batch processing
+          onStep,
         );
 
         // Try to parse structured JSON from agent response, fall back to regex extraction
@@ -697,6 +728,11 @@ export class EmailsService {
         // ---- STEP 3: Pre-generate professional reply with JTL context ----
         try {
           this.logger.log(`processEmailWithAi: Generating pre-computed reply for ${emailId}`);
+          this.emitProcessingEvent({
+            type: 'step',
+            emailId,
+            step: { type: 'reply', status: 'running', summary: 'Antwort wird generiert...' },
+          });
 
           // Build JTL context block from agent analysis for the reply prompt
           const contextBlock = `[JTL-KUNDENKONTEXT]\n${cleanAnalysis.substring(0, 2000)}\n[/JTL-KUNDENKONTEXT]`;
@@ -1089,6 +1125,54 @@ export class EmailsService {
 
     this.processingStatus.isProcessing = false;
     this.processingStatus.currentEmailId = null;
+  }
+
+  /**
+   * Start background reprocessing for a SINGLE email (with SSE events).
+   * Resets its AI data, then runs the full pipeline in background — identical UX to batch.
+   */
+  async startSingleEmailReprocessing(emailId: string): Promise<ProcessingStatus> {
+    if (this.processingStatus.isProcessing) {
+      return this.processingStatus;
+    }
+
+    // Reset AI fields for this email
+    await this.emailRepository.update(emailId, {
+      aiSummary: null,
+      aiTags: null,
+      aiProcessedAt: null,
+      cleanedBody: null,
+      agentAnalysis: null,
+      agentKeyFacts: null,
+      suggestedReply: null,
+      customerPhone: null,
+    });
+
+    const email = await this.getEmailById(emailId);
+    if (!email) {
+      return { isProcessing: false, total: 0, processed: 0, failed: 0, currentEmailId: null, startedAt: null, mode: null };
+    }
+
+    this.processingStatus = {
+      isProcessing: true,
+      total: 1,
+      processed: 0,
+      failed: 0,
+      currentEmailId: emailId,
+      startedAt: new Date(),
+      mode: 'recalculate',
+    };
+
+    this.emitProcessingEvent({ type: 'start', total: 1, processed: 0 });
+
+    // Fire and forget — same pattern as batch
+    this.runBackgroundProcessing([email]).catch(err => {
+      this.logger.error(`Single email reprocessing crashed: ${err.message}`);
+      this.processingStatus.isProcessing = false;
+      this.emitProcessingEvent({ type: 'fatal-error', error: err.message });
+    });
+
+    return this.processingStatus;
   }
 
   /**

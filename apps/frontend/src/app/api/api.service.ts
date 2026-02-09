@@ -997,7 +997,7 @@ getAiStatus(): Observable<{ total: number; processed: number; processing: number
 /**
  * Lightweight polling endpoint for background processing status
  */
-getProcessingStatus(): Observable<{ isProcessing: boolean; total: number; processed: number; failed: number; mode: string | null }> {
+getProcessingStatus(): Observable<{ isProcessing: boolean; total: number; processed: number; failed: number; mode: string | null; startedAt: string | null }> {
   return this.http.get<any>(
     `${this.apiUrl}/emails/ai/processing-status`,
     { headers: this.getHeaders() }
@@ -1032,6 +1032,17 @@ recalculateAllEmailsWithAi(): Observable<any> {
 processEmailWithAi(id: string): Observable<Email> {
   return this.http.post<Email>(
     `${this.apiUrl}/emails/${id}/ai/process`,
+    {},
+    { headers: this.getHeaders() }
+  );
+}
+
+/**
+ * Reprocess a single email with AI (background, returns immediately — use SSE for progress)
+ */
+reprocessEmailWithAi(id: string): Observable<any> {
+  return this.http.post<any>(
+    `${this.apiUrl}/emails/${id}/ai/reprocess`,
     {},
     { headers: this.getHeaders() }
   );

@@ -302,4 +302,13 @@ export class EmailsController {
     }
     return email;
   }
+
+  /**
+   * POST /emails/:id/ai/reprocess - Reprocess a single email with AI (background, with SSE)
+   * Returns immediately; live progress via /ai/process-stream SSE
+   */
+  @Post(':id/ai/reprocess')
+  async reprocessEmailWithAi(@Param('id') id: string) {
+    return this.emailsService.startSingleEmailReprocessing(id);
+  }
 }

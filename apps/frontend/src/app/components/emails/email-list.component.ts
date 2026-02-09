@@ -1,10 +1,17 @@
-import { Component, OnInit, OnDestroy, NgZone } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { trigger, transition, style, animate, stagger, query } from '@angular/animations';
+
+export interface TerminalLogEntry {
+  timestamp: Date;
+  type: 'info' | 'success' | 'error' | 'progress' | 'system' | 'step' | 'warn';
+  message: string;
+  detail?: string;
+}
 import { ApiService, Email } from '../../api/api.service';
 import { ToastService } from '../../shared/toasts/toast.service';
 import { PageTitleComponent } from '../../shared/page-title/page-title.component';
@@ -40,7 +47,7 @@ import { AuthService } from '../../services/auth.service';
     ])
   ]
 })
-export class EmailListComponent implements OnInit, OnDestroy {
+export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   emails: Email[] = [];
   totalEmails = 0;
   loading = false;
@@ -58,6 +65,19 @@ export class EmailListComponent implements OnInit, OnDestroy {
   attachmentPreviewOpen = false;
   selectedAttachment: AttachmentInfo | null = null;
   currentAttachments: AttachmentInfo[] = [];
+
+  // Terminal log panel
+  terminalOpen = false;
+  terminalLogs: TerminalLogEntry[] = [];
+  terminalEta: string | null = null;
+  terminalElapsed: string | null = null;
+  private processingStartTime: number | null = null;
+  private shouldScrollTerminal = false;
+  private etaInterval?: any;
+  private sseReconnectAttempts = 0;
+  private maxReconnectAttempts = 10;
+
+  @ViewChild('terminalBody') terminalBody?: ElementRef<HTMLDivElement>;
   
   private limit = 50;
   private offset = 0;
@@ -84,10 +104,93 @@ export class EmailListComponent implements OnInit, OnDestroy {
     this.checkProcessingAndConnect();
   }
 
+  ngAfterViewChecked(): void {
+    if (this.shouldScrollTerminal) {
+      this.scrollTerminalToBottom();
+      this.shouldScrollTerminal = false;
+    }
+  }
+
+  // ==================== TERMINAL LOG ====================
+
+  private pushLog(type: TerminalLogEntry['type'], message: string, detail?: string): void {
+    this.terminalLogs.push({ timestamp: new Date(), type, message, detail });
+    // Keep max 500 entries
+    if (this.terminalLogs.length > 500) {
+      this.terminalLogs = this.terminalLogs.slice(-400);
+    }
+    this.shouldScrollTerminal = true;
+  }
+
+  private scrollTerminalToBottom(): void {
+    if (this.terminalBody?.nativeElement) {
+      const el = this.terminalBody.nativeElement;
+      el.scrollTop = el.scrollHeight;
+    }
+  }
+
+  private updateEta(): void {
+    if (!this.processingStartTime || !this.aiStatus || this.aiStatus.processed === 0) {
+      this.terminalEta = null;
+      return;
+    }
+    const elapsed = Date.now() - this.processingStartTime;
+    const avgPerItem = elapsed / this.aiStatus.processed;
+    const remaining = this.aiStatus.total - this.aiStatus.processed;
+    const etaMs = remaining * avgPerItem;
+
+    if (etaMs < 1000) {
+      this.terminalEta = '< 1s';
+    } else if (etaMs < 60000) {
+      this.terminalEta = `~${Math.ceil(etaMs / 1000)}s`;
+    } else {
+      const mins = Math.floor(etaMs / 60000);
+      const secs = Math.ceil((etaMs % 60000) / 1000);
+      this.terminalEta = `~${mins}m ${secs}s`;
+    }
+  }
+
+  private startEtaTimer(): void {
+    this.stopEtaTimer();
+    this.etaInterval = setInterval(() => {
+      if (this.processingStartTime) {
+        const elapsed = Date.now() - this.processingStartTime;
+        this.terminalElapsed = this.formatMs(elapsed);
+        this.updateEta();
+      }
+    }, 1000);
+  }
+
+  private stopEtaTimer(): void {
+    if (this.etaInterval) {
+      clearInterval(this.etaInterval);
+      this.etaInterval = undefined;
+    }
+  }
+
+  private formatMs(ms: number): string {
+    const s = Math.floor(ms / 1000) % 60;
+    const m = Math.floor(ms / 60000);
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  }
+
+  toggleTerminal(): void {
+    this.terminalOpen = !this.terminalOpen;
+    if (this.terminalOpen) {
+      this.shouldScrollTerminal = true;
+    }
+  }
+
+  clearTerminal(): void {
+    this.terminalLogs = [];
+    this.terminalEta = null;
+  }
+
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
     this.closeEventSource();
     this.stopPolling();
+    this.stopEtaTimer();
   }
 
   private closeEventSource(): void {
@@ -114,12 +217,17 @@ export class EmailListComponent implements OnInit, OnDestroy {
         if (status.isProcessing) {
           // Backend is already processing — reconnect SSE for live updates
           this.aiProcessing = true;
+          this.terminalOpen = true;
+          this.processingStartTime = status.startedAt ? new Date(status.startedAt).getTime() : Date.now();
           this.aiStatus = { 
             total: status.total, 
             processed: status.processed, 
             processing: 1, 
             pending: status.total - status.processed 
           };
+          this.pushLog('system', `Reconnect — Backend verarbeitet ${status.mode === 'recalculate' ? 'Neuberechnung' : 'Analyse'}`);
+          this.pushLog('info', `${status.processed}/${status.total} bereits verarbeitet, ${status.failed || 0} fehlgeschlagen`);
+          this.startEtaTimer();
           this.connectToProcessingStream();
         } else {
           // Not processing — load AI status normally
@@ -149,21 +257,34 @@ export class EmailListComponent implements OnInit, OnDestroy {
   processWithAi(): void {
     if (this.aiProcessing) return;
     this.aiProcessing = true;
+    this.terminalOpen = true;
+    this.terminalLogs = [];
+    this.processingStartTime = Date.now();
+    this.sseReconnectAttempts = 0;
+    this.pushLog('system', 'KI-Analyse gestartet');
+    this.pushLog('info', 'Prüfe ausstehende E-Mails...');
+    this.startEtaTimer();
     
     // POST to start background processing, then connect SSE
     this.api.processAllEmailsWithAi().subscribe({
       next: (status) => {
         if (!status.isProcessing && status.total === 0) {
           this.aiProcessing = false;
+          this.stopEtaTimer();
+          this.pushLog('info', 'Keine E-Mails zur Verarbeitung gefunden');
           this.toasts.info('Keine E-Mails zur Verarbeitung');
           return;
         }
         this.aiStatus = { total: status.total, processed: status.processed || 0, processing: 1, pending: status.total };
+        this.pushLog('info', `${status.total} E-Mails in der Warteschlange`);
+        this.pushLog('system', 'SSE-Stream wird verbunden...');
         this.connectToProcessingStream();
       },
       error: (err) => {
         console.error('Start processing error:', err);
         this.aiProcessing = false;
+        this.stopEtaTimer();
+        this.pushLog('error', `Fehler beim Starten: ${err?.message || 'Unbekannt'}`);
         this.toasts.error('Konnte Verarbeitung nicht starten');
       }
     });
@@ -176,22 +297,36 @@ export class EmailListComponent implements OnInit, OnDestroy {
     this.clearAiDataFromEmails();
     this.selectedEmail = null; // Close detail while recalculating
     this.aiProcessing = true;
+    this.terminalOpen = true;
+    this.terminalLogs = [];
+    this.processingStartTime = Date.now();
+    this.sseReconnectAttempts = 0;
     this.aiStatus = { total: this.emails.length, processed: 0, processing: 1, pending: this.emails.length };
+    this.pushLog('system', 'Neuberechnung gestartet');
+    this.pushLog('warn', 'Alle KI-Daten werden zurückgesetzt');
+    this.pushLog('info', `${this.emails.length} E-Mails werden neu analysiert`);
+    this.startEtaTimer();
     
     // POST to start background recalculation, then connect SSE
     this.api.recalculateAllEmailsWithAi().subscribe({
       next: (status) => {
         if (!status.isProcessing && status.total === 0) {
           this.aiProcessing = false;
+          this.stopEtaTimer();
+          this.pushLog('info', 'Keine E-Mails vorhanden');
           this.loadEmails();
           return;
         }
         this.aiStatus = { total: status.total, processed: 0, processing: 1, pending: status.total };
+        this.pushLog('info', `Backend bestätigt: ${status.total} E-Mails`);
+        this.pushLog('system', 'SSE-Stream wird verbunden...');
         this.connectToProcessingStream();
       },
       error: (err) => {
         console.error('Start recalculation error:', err);
         this.aiProcessing = false;
+        this.stopEtaTimer();
+        this.pushLog('error', `Fehler beim Starten: ${err?.message || 'Unbekannt'}`);
         this.toasts.error('Konnte Neuberechnung nicht starten');
         this.loadEmails();
       }
@@ -231,14 +366,37 @@ export class EmailListComponent implements OnInit, OnDestroy {
         this.ngZone.run(() => {
           try {
             const data = JSON.parse(event.data);
+            this.sseReconnectAttempts = 0; // Reset on successful message
             
             switch (data.type) {
               case 'reconnect':
+                this.aiStatus = { total: data.total, processed: data.processed || 0, processing: 1, pending: data.total - (data.processed || 0) };
+                this.pushLog('system', `Stream reconnected — ${data.processed || 0}/${data.total} verarbeitet`);
+                break;
               case 'start':
                 this.aiStatus = { total: data.total, processed: data.processed || 0, processing: 1, pending: data.total - (data.processed || 0) };
+                this.pushLog('system', `Stream verbunden — ${data.total} E-Mails`);
                 break;
+
+              case 'step': {
+                // Agent step events (tool_call, tool_result, reply, complete)
+                const step = data.step;
+                if (!step) break;
+                if (step.type === 'tool_call') {
+                  this.pushLog('step', `→ Tool: ${step.tool}`, step.summary);
+                } else if (step.type === 'tool_result') {
+                  this.pushLog('step', `← ${step.tool} fertig`, step.summary);
+                } else if (step.type === 'reply') {
+                  this.pushLog('step', '✎ Antwort wird generiert...');
+                } else if (step.type === 'complete') {
+                  this.pushLog('step', '✓ Agent-Analyse abgeschlossen');
+                } else if (step.type === 'error') {
+                  this.pushLog('error', `Agent-Fehler: ${step.summary || 'Unbekannt'}`);
+                }
+                break;
+              }
                 
-              case 'progress':
+              case 'progress': {
                 this.aiStatus = { 
                   total: data.total, 
                   processed: data.processed, 
@@ -247,31 +405,53 @@ export class EmailListComponent implements OnInit, OnDestroy {
                 };
                 if (data.email) {
                   this.updateEmailInList(data.email);
+                  const subject = data.email.subject?.substring(0, 60) || `#${data.email.id}`;
+                  const tags = data.email.aiTags?.length ? ` [${data.email.aiTags.join(', ')}]` : '';
+                  this.pushLog('progress', `[${data.processed}/${data.total}] ✓ ${subject}${tags}`);
+                } else {
+                  this.pushLog('progress', `[${data.processed}/${data.total}] verarbeitet`);
                 }
+                if (data.failed > 0) {
+                  this.pushLog('warn', `${data.failed} fehlgeschlagen bisher`);
+                }
+                this.updateEta();
                 break;
+              }
                 
               case 'complete': {
                 const failed = data.failed || 0;
+                const elapsed = this.terminalElapsed || '?';
                 this.aiStatus = { total: data.total, processed: data.processed, processing: 0, pending: 0 };
                 this.aiProcessing = false;
+                this.processingStartTime = null;
+                this.terminalEta = null;
+                this.stopEtaTimer();
                 this.closeEventSource();
                 this.loadEmails();
                 
+                this.pushLog('system', '━'.repeat(40));
                 if (failed > 0) {
+                  this.pushLog('warn', `Fertig in ${elapsed}: ${data.processed - failed}/${data.total} erfolgreich, ${failed} fehlgeschlagen`);
                   this.toasts.warning(`${data.processed - failed} von ${data.total} analysiert (${failed} fehlgeschlagen)`);
                 } else {
+                  this.pushLog('success', `Alle ${data.processed} E-Mails erfolgreich analysiert in ${elapsed}`);
                   this.toasts.success(`${data.processed} E-Mails vollständig analysiert`);
                 }
                 break;
               }
                 
               case 'error':
+                this.pushLog('error', `Fehler E-Mail #${data.emailId}: ${data.error || 'Unbekannt'}`);
                 console.error(`AI error for email ${data.emailId}:`, data.error);
                 break;
                 
               case 'fatal-error':
                 this.aiProcessing = false;
+                this.processingStartTime = null;
+                this.terminalEta = null;
+                this.stopEtaTimer();
                 this.closeEventSource();
+                this.pushLog('error', `FATAL: ${data.error || 'Unbekannter Fehler'}`);
                 this.toasts.error(`AI-Verarbeitung fehlgeschlagen: ${data.error || 'Unbekannter Fehler'}`);
                 this.loadEmails();
                 this.loadAiStatus();
@@ -286,9 +466,20 @@ export class EmailListComponent implements OnInit, OnDestroy {
       this.eventSource.onerror = () => {
         this.ngZone.run(() => {
           this.closeEventSource();
-          // Don't mark as not processing — backend might still be running
-          // Start polling instead to reconnect when possible
-          this.startPolling();
+          this.sseReconnectAttempts++;
+          if (this.sseReconnectAttempts <= this.maxReconnectAttempts) {
+            this.pushLog('warn', `Stream unterbrochen — Reconnect ${this.sseReconnectAttempts}/${this.maxReconnectAttempts}...`);
+            // Exponential backoff: 1s, 2s, 4s, 8s... capped at 15s
+            const delay = Math.min(1000 * Math.pow(2, this.sseReconnectAttempts - 1), 15000);
+            setTimeout(() => {
+              if (this.aiProcessing) {
+                this.connectToProcessingStream();
+              }
+            }, delay);
+          } else {
+            this.pushLog('warn', 'Max Reconnect-Versuche erreicht — wechsle zu Polling');
+            this.startPolling();
+          }
         });
       };
     });
@@ -315,9 +506,13 @@ export class EmailListComponent implements OnInit, OnDestroy {
           } else {
             // Processing finished while we were disconnected
             this.aiProcessing = false;
+            this.processingStartTime = null;
+            this.terminalEta = null;
+            this.stopEtaTimer();
             this.stopPolling();
             this.loadEmails();
             this.loadAiStatus();
+            this.pushLog('success', 'Verarbeitung im Hintergrund abgeschlossen');
             this.toasts.success('Verarbeitung im Hintergrund abgeschlossen');
           }
         }
@@ -425,9 +620,9 @@ export class EmailListComponent implements OnInit, OnDestroy {
     this.router.navigate(['/emails', this.selectedEmail.id, 'reply']);
   }
 
-  // Recalculate AI for a single email (admin only)
+  // Recalculate AI for a single email (admin only) — with sidebar & SSE like batch
   recalculateSingleEmail(email: Email): void {
-    if (!this.isAdmin) return;
+    if (!this.isAdmin || this.aiProcessing) return;
 
     // Clear AI data for this email
     const idx = this.emails.findIndex(e => e.id === email.id);
@@ -448,19 +643,35 @@ export class EmailListComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.api.processEmailWithAi(email.id).subscribe({
-      next: (updated) => {
-        const i = this.emails.findIndex(e => e.id === updated.id);
-        if (i !== -1) {
-          this.emails[i] = updated;
-          if (this.selectedEmail?.id === updated.id) {
-            this.selectedEmail = updated;
-          }
+    // Open sidebar & set loading state — same as batch
+    this.aiProcessing = true;
+    this.terminalOpen = true;
+    this.terminalLogs = [];
+    this.processingStartTime = Date.now();
+    this.sseReconnectAttempts = 0;
+    this.aiStatus = { total: 1, processed: 0, processing: 1, pending: 1 };
+    this.pushLog('system', `Einzelne E-Mail wird neu analysiert`);
+    this.pushLog('info', `"${email.subject?.substring(0, 60) || 'Kein Betreff'}"`);
+    this.startEtaTimer();
+
+    // POST to start background reprocessing, then connect SSE
+    this.api.reprocessEmailWithAi(email.id).subscribe({
+      next: (status) => {
+        if (!status.isProcessing && status.total === 0) {
+          this.aiProcessing = false;
+          this.stopEtaTimer();
+          this.pushLog('error', 'E-Mail nicht gefunden');
+          this.loadEmails();
+          return;
         }
-        this.toasts.success('E-Mail neu analysiert');
+        this.pushLog('system', 'SSE-Stream wird verbunden...');
+        this.connectToProcessingStream();
       },
       error: (err) => {
-        console.error('Recalculate single email error:', err);
+        console.error('Reprocess single email error:', err);
+        this.aiProcessing = false;
+        this.stopEtaTimer();
+        this.pushLog('error', `Fehler: ${err?.message || 'Unbekannt'}`);
         this.toasts.error('Neuberechnung fehlgeschlagen');
         this.loadEmails();
       }

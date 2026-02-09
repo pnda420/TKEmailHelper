@@ -6,6 +6,7 @@ import { JTL_TOOLS } from './tools/jtl-tools.definitions';
 import { AGENT_SYSTEM_PROMPT, AGENT_JSON_FORMAT_SUFFIX } from './prompts/system-prompt';
 import { AI_MODELS } from '../config/ai-models.config';
 import { AiUsageService } from '../ai-usage/ai-usage.service';
+import { AiConfigService } from '../ai-config/ai-config.service';
 
 export interface AnalysisStep {
   type: 'tool_call' | 'tool_result' | 'thinking' | 'complete' | 'error';
@@ -31,6 +32,7 @@ export class AiAgentService {
     private readonly jtlTools: JtlToolsService,
     private readonly configService: ConfigService,
     private readonly aiUsageService: AiUsageService,
+    private readonly aiConfigService: AiConfigService,
   ) {
     this.openai = new OpenAI({
       apiKey: this.configService.get<string>('OPENAI_API_KEY'),
@@ -55,8 +57,16 @@ export class AiAgentService {
     onStep: (step: AnalysisStep) => void,
     userInfo?: { userId?: string; userEmail?: string },
   ): Promise<string> {
-    // Use hardcoded agent system prompt + always append JSON format instructions
-    const agentPrompt = AGENT_SYSTEM_PROMPT + '\n\n' + AGENT_JSON_FORMAT_SUFFIX;
+    // Build agent system prompt with reply rules from admin panel
+    let agentPrompt = AGENT_SYSTEM_PROMPT;
+
+    // Inject reply rules so the agent's suggestedReply also respects them
+    const replyRules = await this.aiConfigService.getReplyRules();
+    if (replyRules.length > 0) {
+      agentPrompt += `\n\nZUSÄTZLICHE ANTWORT-REGELN (müssen in der suggestedReply IMMER beachtet werden):\n${replyRules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`;
+    }
+
+    agentPrompt += '\n\n' + AGENT_JSON_FORMAT_SUFFIX;
 
     const messages: OpenAI.ChatCompletionMessageParam[] = [
       { role: 'system', content: agentPrompt },
