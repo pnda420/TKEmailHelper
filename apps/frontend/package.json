@@ -6,8 +6,7 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "prebuild": "node tools/generate-seo-assets.mjs"
+    "test": "ng test"
   },
   "private": true,
   "dependencies": {
