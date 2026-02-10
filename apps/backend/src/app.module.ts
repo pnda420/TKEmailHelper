@@ -61,6 +61,8 @@ import { AppLog } from './logs/app-log.entity';
       synchronize: true,
       logging: process.env.NODE_ENV === 'development',
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+      retryAttempts: 20,     // Mehr Retries (default: 10)
+      retryDelay: 3000,      // 3s zwischen Retries
     }),
     UsersModule,
     AuthModule,

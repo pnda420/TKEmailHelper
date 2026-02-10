@@ -22,8 +22,9 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     container_name: lm_backend
-    ports:
-      - "13000:3000"  # ← Außen 13000 statt 3000
+    # Port nur intern im Docker-Netzwerk erreichbar (Nginx proxied)
+    expose:
+      - "3000"
     env_file:
       - ./apps/backend/.env.production
     depends_on:

@@ -60,11 +60,10 @@ info "Docker-Dienst aktiv und beim Boot gestartet."
 # ── 6. Firewall (optional – für lokalen Server minimal) ─────────────────────
 info "Firewall konfigurieren …"
 ufw allow OpenSSH          # SSH nicht aussperren!
-ufw allow 1111/tcp         # Frontend
-ufw allow 13000/tcp        # Backend API
+ufw allow 1111/tcp         # Frontend + API (Nginx reverse proxy)
 ufw allow 15432/tcp        # Postgres (nur wenn du extern zugreifen willst)
 ufw --force enable
-info "UFW aktiv. Offene Ports: SSH, 1111, 13000, 15432"
+info "UFW aktiv. Offene Ports: SSH, 1111, 15432"
 
 # ── 7. Projekt-Verzeichnis vorbereiten ───────────────────────────────────────
 PROJECT_DIR="/opt/tkemail"
