@@ -22,23 +22,19 @@ async function bootstrap() {
   const isProduction = process.env.NODE_ENV === 'production';
   
   app.enableCors({
-    origin: isProduction ? true : (origin, cb) => {
-      const allowList = [
-        'http://localhost:4200',           // Dev lokal
-        'http://localhost',                 // Docker Frontend (Port 80)
-        'http://localhost:80',              // Docker Frontend explizit
-        'http://192.168.178.111:4200',      // Dein lokales Netzwerk
-        'https://leonardsmedia.de', 
-        'https://www.leonardsmedia.de',
-      ];
-      // Kein Origin = Postman, curl, server-to-server
-      if (!origin) return cb(null, true);
-      return allowList.includes(origin) ? cb(null, true) : cb(new Error('CORS'), false);
-    },
+    // Production: Alles geht über Nginx Reverse Proxy → Origin immer erlauben
+    // Development: Localhost-Origins erlauben
+    origin: isProduction
+      ? true
+      : [
+          'http://localhost:4200',
+          'http://localhost',
+          'http://localhost:80',
+          /^http:\/\/192\.168\.\d+\.\d+:\d+$/,  // Lokales Netzwerk
+        ],
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Consent-Analytics'],
-    // 🛡️ Diese Header müssen exposed werden damit das Frontend sie lesen kann
     exposedHeaders: ['Retry-After', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
     optionsSuccessStatus: 204,
   });
