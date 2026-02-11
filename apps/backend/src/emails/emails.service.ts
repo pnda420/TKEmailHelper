@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, In, IsNull } from 'typeorm';
+import { Repository, Not, In, IsNull, ILike, Brackets } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as Imap from 'imap';
 import { simpleParser } from 'mailparser';
@@ -8,6 +8,7 @@ import { Readable } from 'stream';
 import { Email, EmailStatus } from './emails.entity';
 import { EmailTemplatesService } from '../email-templates/email-templates.service';
 import { AiAgentService } from '../ai-agent/ai-agent.service';
+import { EmailEventsService } from './email-events.service';
 
 // Background processing state (survives client disconnect)
 export interface ProcessingStatus {
@@ -52,6 +53,7 @@ export class EmailsService {
     private emailTemplatesService: EmailTemplatesService,
     @Inject(forwardRef(() => AiAgentService))
     private aiAgentService: AiAgentService,
+    private emailEvents: EmailEventsService,
   ) {
     this.SOURCE_FOLDER = this.configService.get<string>('IMAP_SOURCE_FOLDER') || 'INBOX';
     this.DONE_FOLDER = this.configService.get<string>('IMAP_DONE_FOLDER') || 'PROCESSED';
@@ -198,10 +200,15 @@ export class EmailsService {
       ? (Array.isArray(parsed.references) ? parsed.references.join(' ') : parsed.references)
       : null;
 
+    // Compute threadId from references/inReplyTo chain
+    // The first messageId in references is the root of the thread
+    const threadId = this.computeThreadId(parsed.messageId, inReplyTo, references);
+
     const email = this.emailRepository.create({
       messageId: parsed.messageId,
       inReplyTo: inReplyTo,
       references: references,
+      threadId: threadId,
       subject: parsed.subject || '(Kein Betreff)',
       fromAddress: parsed.from?.value?.[0]?.address || 'unknown',
       fromName: parsed.from?.value?.[0]?.name || null,
@@ -222,27 +229,61 @@ export class EmailsService {
   }
 
   /**
-   * Get all emails, newest first
+   * Get all emails, newest first — with optional search & filter
    */
-  async getAllEmails(limit = 50, offset = 0, status?: EmailStatus): Promise<{ emails: Email[]; total: number }> {
-    const whereClause = status ? { status } : { status: EmailStatus.INBOX };
-    
-    const [emails, total] = await this.emailRepository.findAndCount({
-      where: whereClause,
-      order: { receivedAt: 'DESC' },
-      take: limit,
-      skip: offset,
-      // ⚡ List-View braucht nicht die ganzen schweren Text-Felder
-      // htmlBody/textBody/agentAnalysis/suggestedReply werden erst bei getEmailById geladen
-      select: [
-        'id', 'messageId', 'subject', 'status', 'fromAddress', 'fromName',
-        'toAddresses', 'preview', 'receivedAt', 'isRead', 'hasAttachments',
-        'attachments', 'aiSummary', 'aiTags', 'aiProcessedAt', 'aiProcessing',
-        'cleanedBody', 'agentKeyFacts', 'customerPhone', 'suggestedReplySubject',
-        'repliedAt', 'createdAt', 'updatedAt',
-      ],
-    });
+  async getAllEmails(
+    limit = 50,
+    offset = 0,
+    status?: EmailStatus,
+    search?: string,
+    filterTag?: string,
+    filterRead?: boolean,
+  ): Promise<{ emails: Email[]; total: number }> {
+    const qb = this.emailRepository.createQueryBuilder('email');
 
+    // Status filter (default: INBOX)
+    qb.where('email.status = :status', { status: status || EmailStatus.INBOX });
+
+    // Full-text search across subject, fromAddress, fromName, preview, aiSummary
+    if (search && search.trim().length > 0) {
+      const term = `%${search.trim()}%`;
+      qb.andWhere(new Brackets(sub => {
+        sub.where('email.subject ILIKE :search', { search: term })
+           .orWhere('email.fromAddress ILIKE :search', { search: term })
+           .orWhere('email.fromName ILIKE :search', { search: term })
+           .orWhere('email.preview ILIKE :search', { search: term })
+           .orWhere('email.aiSummary ILIKE :search', { search: term });
+      }));
+    }
+
+    // Filter by AI tag
+    if (filterTag && filterTag.trim().length > 0) {
+      qb.andWhere(':tag = ANY(email.aiTags)', { tag: filterTag.trim() });
+    }
+
+    // Filter by read/unread
+    if (filterRead !== undefined) {
+      qb.andWhere('email.isRead = :isRead', { isRead: filterRead });
+    }
+
+    // Select only list-view fields (exclude heavy bodies)
+    qb.select([
+      'email.id', 'email.messageId', 'email.subject', 'email.status',
+      'email.fromAddress', 'email.fromName', 'email.toAddresses',
+      'email.preview', 'email.receivedAt', 'email.isRead',
+      'email.hasAttachments', 'email.attachments',
+      'email.aiSummary', 'email.aiTags', 'email.aiProcessedAt', 'email.aiProcessing',
+      'email.cleanedBody', 'email.agentKeyFacts', 'email.customerPhone',
+      'email.suggestedReplySubject', 'email.repliedAt',
+      'email.threadId', 'email.inReplyTo', 'email.references',
+      'email.createdAt', 'email.updatedAt',
+    ]);
+
+    qb.orderBy('email.receivedAt', 'DESC');
+    qb.take(limit);
+    qb.skip(offset);
+
+    const [emails, total] = await qb.getManyAndCount();
     return { emails, total };
   }
 
@@ -1084,6 +1125,12 @@ export class EmailsService {
     for (const sub of this.processingSubscribers) {
       try { sub(event); } catch (e) { /* subscriber disconnected */ }
     }
+    // Also broadcast to global SSE event bus
+    if (event.type === 'progress' && event.email) {
+      this.emailEvents.emit('processing-progress', event);
+    } else if (event.type === 'complete') {
+      this.emailEvents.emit('processing-complete', event);
+    }
   }
 
   /**
@@ -1307,5 +1354,105 @@ export class EmailsService {
       processing,
       pending: total - processed - processing,
     };
+  }
+
+  // ==================== THREADING ====================
+
+  /**
+   * Compute a threadId from email headers.
+   * Strategy: use the first messageId in the References chain (= original email).
+   * If no References, use inReplyTo. If neither, the email starts its own thread.
+   */
+  private computeThreadId(messageId: string, inReplyTo: string | null, references: string | null): string {
+    if (references) {
+      // References is space-separated list of messageIds, first one is the thread root
+      const refs = references.split(/\s+/).filter(r => r.length > 0);
+      if (refs.length > 0) return refs[0];
+    }
+    if (inReplyTo) {
+      return inReplyTo;
+    }
+    // This email starts its own thread
+    return messageId;
+  }
+
+  /**
+   * Get all emails in the same thread as a given email (conversation view).
+   * Returns emails across ALL statuses (inbox, sent, trash) for full conversation.
+   */
+  async getEmailThread(emailId: string): Promise<Email[]> {
+    const email = await this.emailRepository.findOne({ where: { id: emailId } });
+    if (!email || !email.threadId) return [];
+
+    return this.emailRepository.find({
+      where: { threadId: email.threadId },
+      order: { receivedAt: 'ASC' },
+      select: [
+        'id', 'messageId', 'subject', 'status', 'fromAddress', 'fromName',
+        'toAddresses', 'preview', 'receivedAt', 'isRead', 'hasAttachments',
+        'aiSummary', 'aiTags', 'threadId', 'inReplyTo',
+        'repliedAt', 'replySentSubject', 'replySentBody',
+        'createdAt',
+      ],
+    });
+  }
+
+  /**
+   * Get email history for a specific sender address (customer history).
+   * Returns all emails from the same fromAddress across all statuses.
+   */
+  async getCustomerHistory(fromAddress: string, limit = 20): Promise<Email[]> {
+    return this.emailRepository.find({
+      where: [
+        { fromAddress },
+        { toAddresses: fromAddress as any }, // Also include emails sent TO this address
+      ],
+      order: { receivedAt: 'DESC' },
+      take: limit,
+      select: [
+        'id', 'messageId', 'subject', 'status', 'fromAddress', 'fromName',
+        'toAddresses', 'preview', 'receivedAt', 'isRead',
+        'aiSummary', 'aiTags', 'threadId',
+        'repliedAt', 'replySentSubject',
+        'createdAt',
+      ],
+    });
+  }
+
+  /**
+   * Get all unique AI tags used across inbox emails (for filter dropdown).
+   */
+  async getAvailableTags(): Promise<string[]> {
+    const result = await this.emailRepository
+      .createQueryBuilder('email')
+      .select('DISTINCT unnest(email.aiTags)', 'tag')
+      .where('email.status = :status', { status: EmailStatus.INBOX })
+      .andWhere('email.aiTags IS NOT NULL')
+      .orderBy('tag', 'ASC')
+      .getRawMany();
+    return result.map(r => r.tag);
+  }
+
+  /**
+   * Backfill threadIds for existing emails that don't have one yet.
+   * Called on startup if needed.
+   */
+  async backfillThreadIds(): Promise<number> {
+    const emailsWithoutThread = await this.emailRepository.find({
+      where: { threadId: IsNull() },
+      select: ['id', 'messageId', 'inReplyTo', 'references'],
+    });
+
+    let updated = 0;
+    for (const email of emailsWithoutThread) {
+      const threadId = this.computeThreadId(email.messageId, email.inReplyTo, email.references);
+      await this.emailRepository.update(email.id, { threadId });
+      updated++;
+    }
+
+    if (updated > 0) {
+      this.logger.log(`Backfilled threadId for ${updated} emails`);
+    }
+    return updated;
   }
 }

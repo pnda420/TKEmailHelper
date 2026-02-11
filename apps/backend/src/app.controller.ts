@@ -5,6 +5,7 @@ import { Public } from './auth/decorators/public.decorator';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AdminGuard } from './auth/guards/admin.guard';
 import { DatabaseService } from './database/database.service';
+import { ImapIdleService } from './emails/imap-idle.service';
 import { DataSource } from 'typeorm';
 import * as net from 'net';
 
@@ -15,6 +16,7 @@ export class AppController {
     private readonly configService: ConfigService,
     private readonly databaseService: DatabaseService,
     private readonly dataSource: DataSource,
+    private readonly imapIdle: ImapIdleService,
   ) { }
 
   /**
@@ -80,6 +82,7 @@ export class AppController {
       vpnLatency: vpnProbe.latency,
       postgres: pgOk,
       mssql: this.databaseService.isConnected(),
+      imap: this.imapIdle.getStatus().connected,
       timestamp: new Date().toISOString(),
     };
   }
@@ -183,6 +186,9 @@ export class AppController {
           account: mailAccount ? mailAccount.replace(/(.{3}).*(@.*)/, '$1***$2') : 'not configured',
           imapHost,
           smtpHost,
+        },
+        imapIdle: {
+          ...this.imapIdle.getStatus(),
         },
       },
       system: {

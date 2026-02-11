@@ -69,10 +69,33 @@ export class UsersService {
             throw new NotFoundException(`User with ID ${id} not found`);
         }
 
+        // If password is being changed, hash it
+        if (dto.password) {
+            dto.password = await bcrypt.hash(dto.password, 10);
+        }
+
+        // If email is being changed, check for duplicates
+        if (dto.email && dto.email !== user.email) {
+            const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+            if (existing) {
+                throw new ConflictException('Email already in use');
+            }
+        }
+
         Object.assign(user, dto);
         const updated = await this.userRepo.save(user);
         delete updated.password;
         return updated;
+    }
+
+    async adminResetPassword(id: string, newPassword: string): Promise<{ message: string }> {
+        const user = await this.userRepo.findOne({ where: { id } });
+        if (!user) {
+            throw new NotFoundException(`User with ID ${id} not found`);
+        }
+        user.password = await bcrypt.hash(newPassword, 10);
+        await this.userRepo.save(user);
+        return { message: `Passwort für ${user.name} wurde zurückgesetzt` };
     }
 
     async delete(id: string): Promise<void> {

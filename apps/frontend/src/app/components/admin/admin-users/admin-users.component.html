@@ -1,173 +1,306 @@
 <app-admin-layout>
 <section class="admin-users">
-  <div class="container">
 
-    <!-- Header mit Stats -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1>Benutzer verwalten</h1>
-        <p class="subtitle">{{ users.length }} Benutzer registriert</p>
-      </div>
-      <div class="header-stats" *ngIf="stats && !loading">
-        <div class="mini-stat">
-          <span class="mini-stat__value">{{ stats.totalUsers }}</span>
-          <span class="mini-stat__label">Gesamt</span>
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1>
+        <span class="material-symbols-outlined">group</span>
+        Benutzerverwaltung
+      </h1>
+      <p class="subtitle" *ngIf="!loading">{{ users.length }} Benutzer registriert</p>
+    </div>
+    <div class="header-right">
+      <div class="stat-pills" *ngIf="stats && !loading">
+        <div class="stat-pill">
+          <span class="material-symbols-outlined">people</span>
+          <strong>{{ stats.totalUsers }}</strong>
+          <span>Gesamt</span>
         </div>
-        <div class="mini-stat">
-          <span class="mini-stat__value">{{ stats.newsletterSubscribers }}</span>
-          <span class="mini-stat__label">Newsletter</span>
+        <div class="stat-pill accent">
+          <span class="material-symbols-outlined">shield_person</span>
+          <strong>{{ adminCount }}</strong>
+          <span>Admins</span>
         </div>
-        <div class="mini-stat highlight">
-          <span class="mini-stat__value">{{ stats.subscriberRate }}%</span>
-          <span class="mini-stat__label">Rate</span>
+        <div class="stat-pill success">
+          <span class="material-symbols-outlined">verified</span>
+          <strong>{{ verifiedCount }}</strong>
+          <span>Verifiziert</span>
+        </div>
+        <div class="stat-pill info">
+          <span class="material-symbols-outlined">mail</span>
+          <strong>{{ stats.newsletterSubscribers }}</strong>
+          <span>Newsletter</span>
         </div>
       </div>
-    </div>
-
-    <!-- Compact Filters -->
-    <div class="filters-bar">
-      <div class="search-box">
-        <app-icon icon="search" class="search-icon"></app-icon>
-        <input 
-          type="text" 
-          [(ngModel)]="searchTerm" 
-          placeholder="Suchen..." 
-          class="search-input"
-        >
-        <button 
-          *ngIf="searchTerm" 
-          class="clear-btn" 
-          (click)="searchTerm = ''"
-        >
-          <app-icon icon="close"></app-icon>
-        </button>
-      </div>
-
-      <div class="filter-chips">
-        <button 
-          class="chip" 
-          [class.active]="filterRole === 'all'"
-          (click)="filterRole = 'all'"
-        >Alle</button>
-        <button 
-          class="chip" 
-          [class.active]="filterRole === 'admin'"
-          (click)="filterRole = 'admin'"
-        >
-          <app-icon icon="shield"></app-icon>
-          Admins
-        </button>
-        <button 
-          class="chip" 
-          [class.active]="filterRole === 'user'"
-          (click)="filterRole = 'user'"
-        >
-          <app-icon icon="person"></app-icon>
-          User
-        </button>
-      </div>
-    </div>
-
-    <!-- Loading State -->
-    <div *ngIf="loading" class="state-message">
-      <div class="spinner"></div>
-      <p>Lade Benutzer...</p>
-    </div>
-
-    <!-- Error State -->
-    <div *ngIf="error && !loading" class="state-message error">
-      <app-icon icon="error" size="3rem"></app-icon>
-      <p>{{ error }}</p>
-      <button class="btn btn--secondary" (click)="loadData()">Erneut versuchen</button>
-    </div>
-
-    <!-- Empty State -->
-    <div *ngIf="!loading && !error && filteredUsers.length === 0" class="state-message">
-      <app-icon icon="search_off" size="3rem"></app-icon>
-      <p>Keine Benutzer gefunden</p>
-      <button *ngIf="searchTerm || filterRole !== 'all'" class="btn btn--ghost" (click)="clearFilters()">
-        Filter zurücksetzen
+      <button class="btn-create" (click)="openCreateModal()">
+        <span class="material-symbols-outlined">person_add</span>
+        Neuer Benutzer
       </button>
     </div>
-
-    <!-- User List -->
-    <div *ngIf="!loading && !error && filteredUsers.length > 0" class="users-list">
-      <div 
-        *ngFor="let user of filteredUsers" 
-        class="user-card"
-        [class.is-admin]="user.role === UserRole.ADMIN"
-      >
-        <!-- Avatar & Info -->
-        <div class="user-main">
-          <div class="user-avatar" [class.admin]="user.role === UserRole.ADMIN">
-            {{ user.name.charAt(0).toUpperCase() }}
-            <span *ngIf="user.role === UserRole.ADMIN" class="admin-badge">
-              <app-icon icon="shield" size="0.75rem"></app-icon>
-            </span>
-          </div>
-          <div class="user-info">
-            <div class="user-name">{{ user.name }}</div>
-            <div class="user-email" (click)="copyEmail(user.email)" title="Klicken zum Kopieren">
-              {{ user.email }}
-              <app-icon icon="content_copy" class="copy-icon"></app-icon>
-            </div>
-          </div>
-        </div>
-
-        <!-- Meta -->
-        <div class="user-meta">
-          <span class="meta-item" title="Registriert am">
-            <app-icon icon="calendar_today"></app-icon>
-            {{ formatDate(user.createdAt) }}
-          </span>
-          <span *ngIf="user.wantsNewsletter" class="meta-item newsletter" title="Newsletter abonniert">
-            <app-icon icon="mail"></app-icon>
-          </span>
-        </div>
-
-        <!-- Actions -->
-        <div class="user-actions">
-          <button 
-            *ngIf="user.role === UserRole.USER" 
-            class="action-btn promote"
-            (click)="makeAdmin(user)"
-            title="Zum Admin machen"
-            [disabled]="processingUserId === user.id"
-          >
-            <app-icon icon="shield_person"></app-icon>
-          </button>
-          <button 
-            *ngIf="user.role === UserRole.ADMIN" 
-            class="action-btn demote"
-            (click)="removeAdmin(user)"
-            title="Admin-Rechte entfernen"
-            [disabled]="processingUserId === user.id"
-          >
-            <app-icon icon="remove_moderator"></app-icon>
-          </button>
-          <button 
-            class="action-btn delete"
-            (click)="deleteUser(user)"
-            title="Benutzer löschen"
-            [disabled]="processingUserId === user.id"
-          >
-            <app-icon icon="delete"></app-icon>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="list-footer" *ngIf="!loading && !error && filteredUsers.length > 0">
-      {{ filteredUsers.length }} von {{ users.length }} angezeigt
-    </div>
-
   </div>
+
+  <!-- Search & Filters -->
+  <div class="toolbar">
+    <div class="search-box">
+      <span class="material-symbols-outlined search-icon">search</span>
+      <input type="text" [(ngModel)]="searchTerm" placeholder="Name oder E-Mail suchen..." class="search-input">
+      <button *ngIf="searchTerm" class="clear-btn" (click)="searchTerm = ''">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="filter-chips">
+      <button class="chip" [class.active]="filterRole === 'all'" (click)="filterRole = 'all'">Alle</button>
+      <button class="chip" [class.active]="filterRole === 'admin'" (click)="filterRole = 'admin'">
+        <span class="material-symbols-outlined">shield</span> Admins
+      </button>
+      <button class="chip" [class.active]="filterRole === 'user'" (click)="filterRole = 'user'">
+        <span class="material-symbols-outlined">person</span> User
+      </button>
+    </div>
+    <button class="btn-refresh" (click)="loadData()" [disabled]="loading" title="Aktualisieren">
+      <span class="material-symbols-outlined" [class.spin]="loading">refresh</span>
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div class="state-card" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Lade Benutzer...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="state-card error" *ngIf="error && !loading">
+    <span class="material-symbols-outlined">error</span>
+    <p>{{ error }}</p>
+    <button class="btn-retry" (click)="loadData()">Erneut versuchen</button>
+  </div>
+
+  <!-- Empty State -->
+  <div class="state-card" *ngIf="!loading && !error && filteredUsers.length === 0">
+    <span class="material-symbols-outlined">search_off</span>
+    <p>Keine Benutzer gefunden</p>
+    <button *ngIf="searchTerm || filterRole !== 'all'" class="btn-retry" (click)="clearFilters()">Filter zurücksetzen</button>
+  </div>
+
+  <!-- Users Table -->
+  <div class="table-wrap" *ngIf="!loading && !error && filteredUsers.length > 0">
+    <table class="users-table">
+      <thead>
+        <tr>
+          <th class="col-user sortable" (click)="toggleSort('name')">
+            Benutzer
+            <span class="sort-icon" *ngIf="sortBy === 'name'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          </th>
+          <th class="col-email sortable" (click)="toggleSort('email')">
+            E-Mail
+            <span class="sort-icon" *ngIf="sortBy === 'email'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          </th>
+          <th class="col-role sortable" (click)="toggleSort('role')">
+            Rolle
+            <span class="sort-icon" *ngIf="sortBy === 'role'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          </th>
+          <th class="col-status">Status</th>
+          <th class="col-date sortable" (click)="toggleSort('createdAt')">
+            Registriert
+            <span class="sort-icon" *ngIf="sortBy === 'createdAt'">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          </th>
+          <th class="col-actions">Aktionen</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let user of filteredUsers" [class.is-admin]="user.role === UserRole.ADMIN" [class.is-self]="user.id === currentUserId">
+          <!-- User -->
+          <td class="col-user">
+            <div class="user-cell">
+              <div class="avatar" [class.admin]="user.role === UserRole.ADMIN">
+                {{ getInitials(user.name) }}
+                <span class="admin-shield" *ngIf="user.role === UserRole.ADMIN">
+                  <span class="material-symbols-outlined">shield</span>
+                </span>
+              </div>
+              <div class="user-name-wrap">
+                <span class="name">{{ user.name }}</span>
+                <span class="self-badge" *ngIf="user.id === currentUserId">Du</span>
+              </div>
+            </div>
+          </td>
+
+          <!-- Email -->
+          <td class="col-email">
+            <button class="email-btn" (click)="copyEmail(user.email)" title="Klicken zum Kopieren">
+              {{ user.email }}
+              <span class="material-symbols-outlined copy-icon">content_copy</span>
+            </button>
+          </td>
+
+          <!-- Role -->
+          <td class="col-role">
+            <span class="role-badge" [class.admin]="user.role === UserRole.ADMIN" [class.user]="user.role === UserRole.USER">
+              <span class="material-symbols-outlined">{{ user.role === UserRole.ADMIN ? 'shield' : 'person' }}</span>
+              {{ user.role === UserRole.ADMIN ? 'Admin' : 'User' }}
+            </span>
+          </td>
+
+          <!-- Status -->
+          <td class="col-status">
+            <div class="status-flags">
+              <span class="flag" [class.active]="user.isVerified" (click)="toggleVerified(user)" title="Verifiziert">
+                <span class="material-symbols-outlined">{{ user.isVerified ? 'verified' : 'new_releases' }}</span>
+              </span>
+              <span class="flag" [class.active]="user.wantsNewsletter" title="Newsletter">
+                <span class="material-symbols-outlined">{{ user.wantsNewsletter ? 'mark_email_read' : 'mail' }}</span>
+              </span>
+              <span class="flag" [class.active]="user.isProfileComplete" title="Profil vollständig">
+                <span class="material-symbols-outlined">{{ user.isProfileComplete ? 'task_alt' : 'pending' }}</span>
+              </span>
+            </div>
+          </td>
+
+          <!-- Date -->
+          <td class="col-date">
+            <span class="date-text" [title]="formatDateTime(user.createdAt)">{{ formatDate(user.createdAt) }}</span>
+          </td>
+
+          <!-- Actions -->
+          <td class="col-actions">
+            <div class="action-group">
+              <button class="act-btn edit" (click)="openEditModal(user)" title="Bearbeiten">
+                <span class="material-symbols-outlined">edit</span>
+              </button>
+              <button class="act-btn password" (click)="openPasswordModal(user)" title="Passwort zurücksetzen">
+                <span class="material-symbols-outlined">lock_reset</span>
+              </button>
+              <button class="act-btn role" (click)="toggleRole(user)" [title]="user.role === UserRole.ADMIN ? 'Admin entfernen' : 'Zum Admin machen'" [disabled]="user.id === currentUserId">
+                <span class="material-symbols-outlined">{{ user.role === UserRole.ADMIN ? 'remove_moderator' : 'shield_person' }}</span>
+              </button>
+              <button class="act-btn delete" (click)="deleteUser(user)" title="Löschen" [disabled]="user.id === currentUserId">
+                <span class="material-symbols-outlined">delete</span>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Footer -->
+  <div class="table-footer" *ngIf="!loading && !error && filteredUsers.length > 0">
+    {{ filteredUsers.length }} von {{ users.length }} Benutzer angezeigt
+  </div>
+
 </section>
 </app-admin-layout>
 
-<!-- Toast für Feedback -->
-<div class="toast" [class.visible]="toastMessage" [class.error]="toastType === 'error'">
-  <app-icon [icon]="toastType === 'error' ? 'error' : 'check_circle'"></app-icon>
-  {{ toastMessage }}
+<!-- ==================== MODAL ==================== -->
+<div class="modal-backdrop" *ngIf="modalOpen" (click)="closeModal()"></div>
+<div class="modal" *ngIf="modalOpen" role="dialog">
+  <div class="modal__header">
+    <span class="material-symbols-outlined modal__icon">{{ modalIcon }}</span>
+    <h2>{{ modalTitle }}</h2>
+    <button class="modal__close" (click)="closeModal()">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
+
+  <div class="modal__body">
+    <!-- Password Mode -->
+    <ng-container *ngIf="modalMode === 'password'">
+      <p class="modal__hint">Neues Passwort für <strong>{{ editingUser?.name }}</strong> ({{ editingUser?.email }}) setzen.</p>
+      <div class="field">
+        <label>Neues Passwort</label>
+        <div class="input-group">
+          <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="formPassword" placeholder="Min. 8 Zeichen" autocomplete="new-password">
+          <button class="toggle-pw" (click)="showPassword = !showPassword" type="button">
+            <span class="material-symbols-outlined">{{ showPassword ? 'visibility_off' : 'visibility' }}</span>
+          </button>
+        </div>
+        <span class="field-error" *ngIf="passwordTooShort">Mind. 8 Zeichen erforderlich</span>
+      </div>
+      <div class="field">
+        <label>Passwort bestätigen</label>
+        <div class="input-group">
+          <input [type]="showPasswordConfirm ? 'text' : 'password'" [(ngModel)]="formPasswordConfirm" placeholder="Passwort wiederholen" autocomplete="new-password">
+          <button class="toggle-pw" (click)="showPasswordConfirm = !showPasswordConfirm" type="button">
+            <span class="material-symbols-outlined">{{ showPasswordConfirm ? 'visibility_off' : 'visibility' }}</span>
+          </button>
+        </div>
+        <span class="field-error" *ngIf="passwordMismatch">Passwörter stimmen nicht überein</span>
+      </div>
+    </ng-container>
+
+    <!-- Create / Edit Mode -->
+    <ng-container *ngIf="modalMode !== 'password'">
+      <div class="field-row">
+        <div class="field">
+          <label>Name</label>
+          <input type="text" [(ngModel)]="formName" placeholder="Vor- und Nachname" autocomplete="name">
+        </div>
+        <div class="field">
+          <label>E-Mail</label>
+          <input type="email" [(ngModel)]="formEmail" placeholder="user@example.com" autocomplete="email">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Rolle</label>
+          <select [(ngModel)]="formRole">
+            <option [ngValue]="UserRole.USER">User</option>
+            <option [ngValue]="UserRole.ADMIN">Admin</option>
+          </select>
+        </div>
+        <div class="field toggles">
+          <label>Flags</label>
+          <div class="toggle-row">
+            <label class="toggle-label">
+              <input type="checkbox" [(ngModel)]="formIsVerified">
+              <span>Verifiziert</span>
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" [(ngModel)]="formWantsNewsletter">
+              <span>Newsletter</span>
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" [(ngModel)]="formIsProfileComplete">
+              <span>Profil fertig</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Password fields -->
+      <div class="field-row">
+        <div class="field">
+          <label>{{ modalMode === 'create' ? 'Passwort' : 'Neues Passwort (optional)' }}</label>
+          <div class="input-group">
+            <input [type]="showPassword ? 'text' : 'password'" [(ngModel)]="formPassword" [placeholder]="modalMode === 'create' ? 'Min. 8 Zeichen' : 'Leer lassen = nicht ändern'" autocomplete="new-password">
+            <button class="toggle-pw" (click)="showPassword = !showPassword" type="button">
+              <span class="material-symbols-outlined">{{ showPassword ? 'visibility_off' : 'visibility' }}</span>
+            </button>
+          </div>
+          <span class="field-error" *ngIf="passwordTooShort">Mind. 8 Zeichen erforderlich</span>
+        </div>
+        <div class="field">
+          <label>Passwort bestätigen</label>
+          <div class="input-group">
+            <input [type]="showPasswordConfirm ? 'text' : 'password'" [(ngModel)]="formPasswordConfirm" placeholder="Passwort wiederholen" autocomplete="new-password" [disabled]="!formPassword">
+            <button class="toggle-pw" (click)="showPasswordConfirm = !showPasswordConfirm" type="button">
+              <span class="material-symbols-outlined">{{ showPasswordConfirm ? 'visibility_off' : 'visibility' }}</span>
+            </button>
+          </div>
+          <span class="field-error" *ngIf="passwordMismatch">Passwörter stimmen nicht überein</span>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <div class="modal__footer">
+    <button class="btn-cancel" (click)="closeModal()">Abbrechen</button>
+    <button class="btn-save" (click)="saveModal()" [disabled]="!isFormValid || processing">
+      <span class="material-symbols-outlined" *ngIf="!processing">{{ modalMode === 'password' ? 'lock_reset' : 'save' }}</span>
+      <span class="material-symbols-outlined spin" *ngIf="processing">progress_activity</span>
+      {{ processing ? 'Speichert...' : (modalMode === 'password' ? 'Passwort setzen' : 'Speichern') }}
+    </button>
+  </div>
 </div>

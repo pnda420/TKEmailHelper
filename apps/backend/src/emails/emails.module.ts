@@ -5,6 +5,8 @@ import { EmailsService } from './emails.service';
 import { EmailsController } from './emails.controller';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
 import { AiAgentModule } from '../ai-agent/ai-agent.module';
+import { EmailEventsService } from './email-events.service';
+import { ImapIdleService } from './imap-idle.service';
 
 @Module({
   imports: [
@@ -13,7 +15,7 @@ import { AiAgentModule } from '../ai-agent/ai-agent.module';
     forwardRef(() => AiAgentModule),
   ],
   controllers: [EmailsController],
-  providers: [EmailsService],
-  exports: [EmailsService],
+  providers: [EmailsService, EmailEventsService, ImapIdleService],
+  exports: [EmailsService, EmailEventsService, ImapIdleService],
 })
 export class EmailsModule {}

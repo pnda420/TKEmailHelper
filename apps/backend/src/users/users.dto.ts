@@ -68,6 +68,22 @@ export class UpdateUserDto {
   @IsBoolean()
   @IsOptional()
   isProfileComplete?: boolean;
+
+  // Password (admin can set this)
+  @IsString()
+  @IsOptional()
+  @MinLength(8, { message: 'Passwort muss mindestens 8 Zeichen lang sein' })
+  password?: string;
+
+  // Email
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  // Verified flag
+  @IsBoolean()
+  @IsOptional()
+  isVerified?: boolean;
 }
 
 export class LoginDto {
@@ -76,6 +92,12 @@ export class LoginDto {
 
   @IsString()
   password: string;
+}
+
+export class AdminResetPasswordDto {
+  @IsString()
+  @MinLength(8, { message: 'Passwort muss mindestens 8 Zeichen lang sein' })
+  newPassword: string;
 }
 
 export class NewsletterSubscribeDto {

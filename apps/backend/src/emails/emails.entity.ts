@@ -15,6 +15,8 @@ export enum EmailStatus {
 
 @Entity('emails')
 @Index('IDX_emails_status_receivedAt', ['status', 'receivedAt'])
+@Index('IDX_emails_fromAddress', ['fromAddress'])
+@Index('IDX_emails_threadId', ['threadId'])
 export class Email {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -28,6 +30,10 @@ export class Email {
 
   @Column('text', { nullable: true })
   references: string; // References header chain for threading
+
+  // Thread grouping — computed from inReplyTo/references/subject
+  @Column({ nullable: true })
+  threadId: string; // Shared across all emails in a thread
 
   @Column()
   subject: string;

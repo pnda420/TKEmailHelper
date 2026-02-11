@@ -2,9 +2,10 @@
   <div class="container header__inner">
 
     <!-- Logo als Button für besseres Touch-Handling -->
-    <button type="button" class="brand-btn" (click)="routeTo(user ? '/' : '/welcome', $event)" aria-label="Zur Startseite">
-      <img class="brand" src="assets/logos/lm.png" alt="LeonardsMedia"
-        decoding="async" loading="eager" fetchpriority="high" />
+    <button type="button" class="brand-btn" (click)="routeTo(user ? '/' : '/welcome', $event)"
+      aria-label="Zur Startseite">
+      <img class="brand" src="assets/logos/lm.png" alt="LeonardsMedia" decoding="async" loading="eager"
+        fetchpriority="high" />
       <!-- <span class="brand-name">MailFlow</span> -->
     </button>
 
@@ -17,7 +18,6 @@
             <span class="material-symbols-outlined ms-size-18">home</span>
             Home
           </a>
-
           <a routerLink="/emails" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
             <span class="material-symbols-outlined ms-size-18">inbox</span>
             Posteingang
@@ -37,8 +37,7 @@
       <div class="nav__auth">
         <!-- Connection Status Indicator -->
         <div class="connection-status-container" *ngIf="user">
-          <button class="connection-status-btn" (click)="toggleConnectionPopup($event)"
-            [title]="connectionLabel">
+          <button class="connection-status-btn" (click)="toggleConnectionPopup($event)" [title]="connectionLabel">
             <span class="connection-dot" [ngClass]="connectionDotClass"></span>
           </button>
 
@@ -53,22 +52,33 @@
             </div>
             <div class="connection-popup__body" *ngIf="connectionStatus">
               <div class="connection-row">
-                <span class="connection-row__dot" [class.ok]="connectionStatus.vpn" [class.fail]="!connectionStatus.vpn"></span>
+                <span class="connection-row__dot" [class.ok]="connectionStatus.vpn"
+                  [class.fail]="!connectionStatus.vpn"></span>
                 <span class="connection-row__label">VPN</span>
-                <span class="connection-row__value" *ngIf="connectionStatus.vpn">{{ connectionStatus.vpnLatency }}ms</span>
+                <span class="connection-row__value" *ngIf="connectionStatus.vpn">{{ connectionStatus.vpnLatency
+                  }}ms</span>
                 <span class="connection-row__value fail" *ngIf="!connectionStatus.vpn">Offline</span>
               </div>
               <div class="connection-row">
-                <span class="connection-row__dot" [class.ok]="connectionStatus.postgres" [class.fail]="!connectionStatus.postgres"></span>
+                <span class="connection-row__dot" [class.ok]="connectionStatus.postgres"
+                  [class.fail]="!connectionStatus.postgres"></span>
                 <span class="connection-row__label">PostgreSQL</span>
                 <span class="connection-row__value" *ngIf="connectionStatus.postgres">Online</span>
                 <span class="connection-row__value fail" *ngIf="!connectionStatus.postgres">Offline</span>
               </div>
               <div class="connection-row">
-                <span class="connection-row__dot" [class.ok]="connectionStatus.mssql" [class.fail]="!connectionStatus.mssql"></span>
+                <span class="connection-row__dot" [class.ok]="connectionStatus.mssql"
+                  [class.fail]="!connectionStatus.mssql"></span>
                 <span class="connection-row__label">WaWi (MSSQL)</span>
                 <span class="connection-row__value" *ngIf="connectionStatus.mssql">Online</span>
                 <span class="connection-row__value fail" *ngIf="!connectionStatus.mssql">Offline</span>
+              </div>
+              <div class="connection-row">
+                <span class="connection-row__dot" [class.ok]="connectionStatus.imap"
+                  [class.fail]="!connectionStatus.imap"></span>
+                <span class="connection-row__label">IMAP IDLE</span>
+                <span class="connection-row__value" *ngIf="connectionStatus.imap">Verbunden</span>
+                <span class="connection-row__value fail" *ngIf="!connectionStatus.imap">Getrennt</span>
               </div>
             </div>
             <div class="connection-popup__body" *ngIf="!connectionStatus">
@@ -78,8 +88,8 @@
               <span class="connection-popup__time" *ngIf="connectionStatus">
                 {{ connectionStatus.timestamp | date:'HH:mm:ss' }}
               </span>
-              <a routerLink="/admin/health" *ngIf="user?.role === UserRole.ADMIN"
-                class="connection-popup__link" (click)="connectionPopupOpen = false; closeMenu()">
+              <a routerLink="/admin/health" *ngIf="user?.role === UserRole.ADMIN" class="connection-popup__link"
+                (click)="connectionPopupOpen = false; closeMenu()">
                 Details →
               </a>
             </div>

@@ -91,18 +91,19 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   get connectionDotClass(): string {
     if (!this.connectionStatus) return 'unknown';
-    const { vpn, postgres, mssql } = this.connectionStatus;
-    if (vpn && postgres && mssql) return 'all-ok';
+    const { vpn, postgres, mssql, imap } = this.connectionStatus;
+    if (vpn && postgres && mssql && imap) return 'all-ok';
     if (postgres) return 'partial'; // At least app DB is fine
     return 'down';
   }
 
   get connectionLabel(): string {
     if (!this.connectionStatus) return 'Status unbekannt';
-    const { vpn, postgres, mssql } = this.connectionStatus;
-    if (vpn && postgres && mssql) return 'Alle Systeme online';
+    const { vpn, postgres, mssql, imap } = this.connectionStatus;
+    if (vpn && postgres && mssql && imap) return 'Alle Systeme online';
     if (postgres && !vpn) return 'VPN getrennt';
     if (postgres && !mssql) return 'WaWi getrennt';
+    if (postgres && !imap) return 'IMAP getrennt';
     return 'Verbindungsprobleme';
   }
 

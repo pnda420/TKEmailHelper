@@ -8,6 +8,7 @@ import {
   UseGuards,
   ParseIntPipe,
   DefaultValuePipe,
+  ParseBoolPipe,
   Res,
   Sse,
   NotFoundException,
@@ -15,22 +16,32 @@ import {
 import { Response } from 'express';
 import { Observable, interval, map, takeWhile, startWith, switchMap, of, concat, delay } from 'rxjs';
 import { EmailsService } from './emails.service';
+import { EmailEventsService } from './email-events.service';
+import { ImapIdleService } from './imap-idle.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('emails')
 @UseGuards(JwtAuthGuard) // All email routes require authentication
 export class EmailsController {
-  constructor(private readonly emailsService: EmailsService) {}
+  constructor(
+    private readonly emailsService: EmailsService,
+    private readonly emailEvents: EmailEventsService,
+    private readonly imapIdle: ImapIdleService,
+  ) {}
 
   /**
-   * GET /emails - Get inbox emails with pagination
+   * GET /emails - Get inbox emails with pagination, search & filter
    */
   @Get()
   async getAllEmails(
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query('search') search?: string,
+    @Query('tag') tag?: string,
+    @Query('read') read?: string,
   ) {
-    return this.emailsService.getAllEmails(limit, offset);
+    const filterRead = read === 'true' ? true : read === 'false' ? false : undefined;
+    return this.emailsService.getAllEmails(limit, offset, undefined, search, tag, filterRead);
   }
 
   /**
@@ -226,6 +237,84 @@ export class EmailsController {
   @Sse('ai/recalculate-stream')
   recalculateWithAiStream(): Observable<MessageEvent> {
     return this.processWithAiStream();
+  }
+
+  // ==================== REAL-TIME EVENTS ====================
+
+  /**
+   * GET /emails/events - Global SSE stream for ALL email events
+   * Frontend connects once on page load and keeps open.
+   * Events: new-emails, processing-started, processing-progress, processing-complete, idle-status
+   */
+  @Sse('events')
+  emailEventsStream(): Observable<MessageEvent> {
+    return new Observable((subscriber) => {
+      // Send initial status
+      const idleStatus = this.imapIdle.getStatus();
+      subscriber.next({ data: { type: 'idle-status', ...idleStatus } } as MessageEvent);
+
+      const unsubscribe = this.emailEvents.subscribe((event) => {
+        try {
+          subscriber.next({ data: { type: event.type, ...event.data, timestamp: event.timestamp } } as MessageEvent);
+        } catch (e) {
+          // Client disconnected
+        }
+      });
+
+      // Send keepalive every 30s to prevent proxy timeouts
+      const keepAlive = setInterval(() => {
+        try {
+          subscriber.next({ data: { type: 'keepalive', timestamp: new Date() } } as MessageEvent);
+        } catch (e) {
+          clearInterval(keepAlive);
+        }
+      }, 30000);
+
+      return () => {
+        unsubscribe();
+        clearInterval(keepAlive);
+      };
+    });
+  }
+
+  // ==================== THREADING & CUSTOMER HISTORY ====================
+
+  /**
+   * GET /emails/tags - Get all unique AI tags (for filter dropdown)
+   */
+  @Get('tags')
+  async getAvailableTags() {
+    const tags = await this.emailsService.getAvailableTags();
+    return { tags };
+  }
+
+  /**
+   * GET /emails/idle-status - Get IMAP IDLE watcher status
+   */
+  @Get('idle-status')
+  getIdleStatus() {
+    return this.imapIdle.getStatus();
+  }
+
+  /**
+   * GET /emails/thread/:id - Get all emails in the same thread
+   */
+  @Get('thread/:id')
+  async getEmailThread(@Param('id') id: string) {
+    const thread = await this.emailsService.getEmailThread(id);
+    return { thread };
+  }
+
+  /**
+   * GET /emails/customer-history/:address - Get email history for a sender
+   */
+  @Get('customer-history/:address')
+  async getCustomerHistory(
+    @Param('address') address: string,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  ) {
+    const history = await this.emailsService.getCustomerHistory(address, limit);
+    return { history };
   }
 
   /**

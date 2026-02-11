@@ -173,7 +173,7 @@
     </div>
 
     <!-- Mail (IMAP/SMTP) -->
-    <div class="health-card healthy">
+    <!-- <div class="health-card healthy">
       <div class="card-header">
         <div class="card-icon-wrap mail">
           <span class="material-symbols-outlined">mail</span>
@@ -198,6 +198,48 @@
         <div class="detail-row">
           <span class="detail-label">SMTP</span>
           <span class="detail-value mono">{{ health.services.mail.smtpHost }}</span>
+        </div>
+      </div>
+    </div> -->
+
+    <!-- IMAP IDLE -->
+    <div class="health-card"
+         [class.healthy]="health.services.imapIdle.connected"
+         [class.unhealthy]="!health.services.imapIdle.connected">
+      <div class="card-header">
+        <div class="card-icon-wrap imap">
+          <span class="material-symbols-outlined">sync</span>
+        </div>
+        <div class="card-title">
+          <h3>IMAP IDLE</h3>
+          <span class="card-subtitle">Echtzeit-Posteingang</span>
+        </div>
+        <div class="status-dot"
+             [class.online]="health.services.imapIdle.connected"
+             [class.offline]="!health.services.imapIdle.connected">
+          <span class="dot-pulse" *ngIf="health.services.imapIdle.connected"></span>
+        </div>
+      </div>
+      <div class="card-details">
+        <div class="detail-row">
+          <span class="detail-label">Status</span>
+          <span class="detail-value"
+                [class.text-green]="health.services.imapIdle.connected"
+                [class.text-red]="!health.services.imapIdle.connected">
+            {{ health.services.imapIdle.connected ? 'Verbunden (IDLE)' : 'Getrennt' }}
+          </span>
+        </div>
+        <div class="detail-row" *ngIf="health.services.imapIdle.folder">
+          <span class="detail-label">Ordner</span>
+          <span class="detail-value mono">{{ health.services.imapIdle.folder }}</span>
+        </div>
+        <div class="detail-row" *ngIf="health.services.imapIdle.reconnectAttempts">
+          <span class="detail-label">Reconnects</span>
+          <span class="detail-value text-yellow">{{ health.services.imapIdle.reconnectAttempts }}</span>
+        </div>
+        <div class="detail-row" *ngIf="!health.services.imapIdle.connected">
+          <span class="detail-label">Hinweis</span>
+          <span class="detail-value text-yellow" style="font-size: 0.7rem;">IMAP IDLE nicht aktiv — neue E-Mails werden nicht automatisch erkannt</span>
         </div>
       </div>
     </div>

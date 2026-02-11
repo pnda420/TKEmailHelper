@@ -42,6 +42,9 @@ export interface NewsletterSubscribeDto {
 
 export interface UpdateUserDto {
   name?: string;
+  email?: string;
+  password?: string;
+  isVerified?: boolean;
   wantsNewsletter?: boolean;
   role?: UserRole;
   // AI Context Signature fields (for AI to know who the user is)
@@ -376,6 +379,7 @@ export interface Email {
   messageId: string;
   inReplyTo: string | null;
   references: string | null;
+  threadId: string | null;
   subject: string;
   fromAddress: string;
   fromName: string | null;
@@ -644,6 +648,7 @@ export interface SystemHealth {
     postgres: SystemHealthService;
     mssql: SystemHealthService;
     mail: { account: string; imapHost: string; smtpHost: string };
+    imapIdle: { connected: boolean; folder: string; reconnectAttempts: number };
   };
   system: {
     uptime: number;
@@ -659,6 +664,7 @@ export interface SystemStatus {
   vpnLatency: number;
   postgres: boolean;
   mssql: boolean;
+  imap: boolean;
   timestamp: string;
 }
 
@@ -753,6 +759,18 @@ export class ApiService {
    */
   deleteUser(id: string): Observable<any> {
     return this.http.delete(`${this.apiUrl}/users/${id}`, {
+      headers: this.getHeaders()
+    });
+  }
+
+  adminResetPassword(id: string, newPassword: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiUrl}/users/${id}/reset-password`, { newPassword }, {
+      headers: this.getHeaders()
+    });
+  }
+
+  adminCreateUser(dto: CreateUserDto): Observable<User> {
+    return this.http.post<User>(`${this.apiUrl}/users/admin/create`, dto, {
       headers: this.getHeaders()
     });
   }
@@ -937,12 +955,15 @@ exportFaqs(): Observable<Faq[]> {
 // ==================== EMAIL ENDPOINTS ====================
 
 /**
- * Alle E-Mails abrufen (mit Pagination)
+ * Alle E-Mails abrufen (mit Pagination, Suche & Filter)
  */
-getEmails(limit = 50, offset = 0): Observable<EmailListResponse> {
-  const params = new HttpParams()
+getEmails(limit = 50, offset = 0, search?: string, tag?: string, read?: boolean): Observable<EmailListResponse> {
+  let params = new HttpParams()
     .set('limit', limit.toString())
     .set('offset', offset.toString());
+  if (search && search.trim()) params = params.set('search', search.trim());
+  if (tag && tag.trim()) params = params.set('tag', tag.trim());
+  if (read !== undefined) params = params.set('read', String(read));
   return this.http.get<EmailListResponse>(`${this.apiUrl}/emails`, {
     headers: this.getHeaders(),
     params
@@ -1109,6 +1130,49 @@ reprocessEmailWithAi(id: string): Observable<any> {
   return this.http.post<any>(
     `${this.apiUrl}/emails/${id}/ai/reprocess`,
     {},
+    { headers: this.getHeaders() }
+  );
+}
+
+// ==================== THREADING & REAL-TIME ENDPOINTS ====================
+
+/**
+ * Get all emails in the same thread (conversation view)
+ */
+getEmailThread(emailId: string): Observable<{ thread: Email[] }> {
+  return this.http.get<{ thread: Email[] }>(
+    `${this.apiUrl}/emails/thread/${emailId}`,
+    { headers: this.getHeaders() }
+  );
+}
+
+/**
+ * Get email history for a specific sender (customer history)
+ */
+getCustomerHistory(fromAddress: string, limit = 20): Observable<{ history: Email[] }> {
+  const params = new HttpParams().set('limit', limit.toString());
+  return this.http.get<{ history: Email[] }>(
+    `${this.apiUrl}/emails/customer-history/${encodeURIComponent(fromAddress)}`,
+    { headers: this.getHeaders(), params }
+  );
+}
+
+/**
+ * Get all unique AI tags used across inbox emails
+ */
+getAvailableTags(): Observable<{ tags: string[] }> {
+  return this.http.get<{ tags: string[] }>(
+    `${this.apiUrl}/emails/tags`,
+    { headers: this.getHeaders() }
+  );
+}
+
+/**
+ * Get IMAP IDLE watcher status
+ */
+getIdleStatus(): Observable<{ connected: boolean; folder: string; reconnectAttempts: number }> {
+  return this.http.get<{ connected: boolean; folder: string; reconnectAttempts: number }>(
+    `${this.apiUrl}/emails/idle-status`,
     { headers: this.getHeaders() }
   );
 }

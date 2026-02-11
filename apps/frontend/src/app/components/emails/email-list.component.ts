@@ -55,12 +55,28 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   refreshing = false;
   selectedEmail: Email | null = null;
   
+  // Search & Filter
+  searchQuery = '';
+  filterTag = '';
+  filterRead: boolean | undefined = undefined;
+  availableTags: string[] = [];
+  private searchDebounceTimer?: any;
+  
   // AI Processing status
   aiProcessing = false;
   aiStatus: { total: number; processed: number; processing: number; pending: number } | null = null;
   
   // Email detail view toggle
   showAiView = true; // Toggle between AI summary and full email
+  
+  // Conversation threading
+  threadEmails: Email[] = [];
+  threadOpen = false;
+  customerHistory: Email[] = [];
+  customerHistoryOpen = false;
+  
+  // IMAP IDLE status
+  idleConnected = false;
   
   // Attachment Preview
   attachmentPreviewOpen = false;
@@ -84,6 +100,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   private offset = 0;
   private sub?: Subscription;
   private eventSource?: EventSource;
+  private globalEventSource?: EventSource;
   private pollInterval?: any;
   
   // Admin status
@@ -104,7 +121,9 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.isAdmin = this.authService.isAdmin();
     // Load emails AND check processing status in parallel
     this.loadEmails();
+    this.loadAvailableTags();
     this.checkProcessingAndConnect();
+    this.connectGlobalEvents();
   }
 
   ngAfterViewChecked(): void {
@@ -192,14 +211,23 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
     this.closeEventSource();
+    this.closeGlobalEventSource();
     this.stopPolling();
     this.stopEtaTimer();
+    if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
   }
 
   private closeEventSource(): void {
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = undefined;
+    }
+  }
+
+  private closeGlobalEventSource(): void {
+    if (this.globalEventSource) {
+      this.globalEventSource.close();
+      this.globalEventSource = undefined;
     }
   }
 
@@ -556,7 +584,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   
   // Silent reload (no loading spinner)
   loadEmailsSilent(): void {
-    this.api.getEmails(this.limit, this.offset).subscribe({
+    this.api.getEmails(this.limit, this.offset, this.searchQuery, this.filterTag, this.filterRead).subscribe({
       next: (res) => {
         this.emails = res.emails;
         this.totalEmails = res.total;
@@ -571,7 +599,8 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   loadEmails(): void {
     this.loading = true;
-    this.sub = this.api.getEmails(this.limit, this.offset).subscribe({
+    this.offset = 0;
+    this.sub = this.api.getEmails(this.limit, this.offset, this.searchQuery, this.filterTag, this.filterRead).subscribe({
       next: (res) => {
         this.emails = res.emails;
         this.totalEmails = res.total;
@@ -768,7 +797,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   loadMore(): void {
     this.offset += this.limit;
-    this.api.getEmails(this.limit, this.offset).subscribe({
+    this.api.getEmails(this.limit, this.offset, this.searchQuery, this.filterTag, this.filterRead).subscribe({
       next: (res) => {
         this.emails = [...this.emails, ...res.emails];
       },
@@ -854,5 +883,196 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (size < 1024) return `${size} B`;
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  // ==================== SEARCH & FILTER ====================
+
+  onSearchInput(): void {
+    if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
+    this.searchDebounceTimer = setTimeout(() => {
+      this.loadEmails();
+    }, 350);
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.loadEmails();
+  }
+
+  onFilterTagChange(): void {
+    this.loadEmails();
+  }
+
+  onFilterReadChange(value: string): void {
+    this.filterRead = value === '' ? undefined : value === 'true';
+    this.loadEmails();
+  }
+
+  clearFilters(): void {
+    this.searchQuery = '';
+    this.filterTag = '';
+    this.filterRead = undefined;
+    this.loadEmails();
+  }
+
+  get hasActiveFilters(): boolean {
+    return !!(this.searchQuery || this.filterTag || this.filterRead !== undefined);
+  }
+
+  private loadAvailableTags(): void {
+    this.api.getAvailableTags().subscribe({
+      next: (res) => this.availableTags = res.tags,
+      error: () => this.availableTags = [],
+    });
+  }
+
+  // ==================== GLOBAL SSE (Real-time IMAP IDLE events) ====================
+
+  private connectGlobalEvents(): void {
+    this.closeGlobalEventSource();
+    
+    const token = this.authService.getToken();
+    const apiUrl = this.configService.apiUrl;
+    const url = `${apiUrl}/emails/events?token=${token}`;
+    
+    this.ngZone.runOutsideAngular(() => {
+      this.globalEventSource = new EventSource(url);
+      
+      this.globalEventSource.onmessage = (event) => {
+        this.ngZone.run(() => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            switch (data.type) {
+              case 'idle-status':
+                this.idleConnected = data.connected;
+                break;
+
+              case 'new-emails':
+                // IMAP IDLE detected new emails — auto-refresh the list
+                this.loadEmailsSilent();
+                this.loadAvailableTags();
+                if (data.stored > 0) {
+                  this.toasts.info(`${data.stored} neue E-Mail${data.stored > 1 ? 's' : ''} eingegangen`);
+                  // Browser push notification
+                  this.sendBrowserNotification(
+                    'Neue E-Mails',
+                    `${data.stored} neue E-Mail${data.stored > 1 ? 's' : ''} im Posteingang`
+                  );
+                }
+                break;
+
+              case 'processing-started':
+                // AI processing auto-started by IMAP IDLE
+                if (!this.aiProcessing) {
+                  this.aiProcessing = true;
+                  this.terminalOpen = true;
+                  this.processingStartTime = Date.now();
+                  this.sseReconnectAttempts = 0;
+                  this.pushLog('system', data.message || 'KI-Analyse automatisch gestartet');
+                  this.startEtaTimer();
+                  this.connectToProcessingStream();
+                }
+                break;
+
+              case 'processing-progress':
+                // Update email in list when individual processing completes
+                if (data.email) {
+                  this.updateEmailInList(data.email);
+                }
+                if (data.processed && data.total) {
+                  this.aiStatus = {
+                    total: data.total,
+                    processed: data.processed,
+                    processing: data.processed < data.total ? 1 : 0,
+                    pending: data.total - data.processed,
+                  };
+                }
+                break;
+
+              case 'processing-complete':
+                this.loadEmailsSilent();
+                this.loadAvailableTags();
+                break;
+
+              case 'keepalive':
+                // Just a keepalive, ignore
+                break;
+            }
+          } catch (e) {
+            console.error('Error parsing global SSE:', e);
+          }
+        });
+      };
+
+      this.globalEventSource.onerror = () => {
+        this.ngZone.run(() => {
+          this.idleConnected = false;
+          // Auto-reconnect in 5s
+          setTimeout(() => {
+            if (!this.globalEventSource || this.globalEventSource.readyState === EventSource.CLOSED) {
+              this.connectGlobalEvents();
+            }
+          }, 5000);
+        });
+      };
+    });
+  }
+
+  // ==================== BROWSER NOTIFICATIONS ====================
+
+  private sendBrowserNotification(title: string, body: string): void {
+    if (!('Notification' in window)) return;
+    
+    if (Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/assets/icons/icon-128x128.png' });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          new Notification(title, { body, icon: '/assets/icons/icon-128x128.png' });
+        }
+      });
+    }
+  }
+
+  requestNotificationPermission(): void {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }
+
+  // ==================== CONVERSATION THREADING ====================
+
+  loadThread(): void {
+    if (!this.selectedEmail) return;
+    this.api.getEmailThread(this.selectedEmail.id).subscribe({
+      next: (res) => {
+        this.threadEmails = res.thread;
+        this.threadOpen = true;
+        this.customerHistoryOpen = false;
+      },
+      error: (err) => console.error('Thread load error:', err),
+    });
+  }
+
+  loadCustomerHistory(): void {
+    if (!this.selectedEmail) return;
+    this.api.getCustomerHistory(this.selectedEmail.fromAddress).subscribe({
+      next: (res) => {
+        this.customerHistory = res.history;
+        this.customerHistoryOpen = true;
+        this.threadOpen = false;
+      },
+      error: (err) => console.error('Customer history error:', err),
+    });
+  }
+
+  closeThreadPanel(): void {
+    this.threadOpen = false;
+    this.customerHistoryOpen = false;
+  }
+
+  getThreadCount(): number {
+    return this.threadEmails.length;
   }
 }

@@ -13,7 +13,7 @@ import {
   } from '@nestjs/common';
   import { Throttle } from '@nestjs/throttler';
   import { UsersService } from './users.service';
-import { CreateUserDto, LoginDto, NewsletterSubscribeDto, UpdateUserDto } from './users.dto';
+import { CreateUserDto, LoginDto, NewsletterSubscribeDto, UpdateUserDto, AdminResetPasswordDto } from './users.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
@@ -137,6 +137,23 @@ import { User } from './users.entity';
       @Body() dto: UpdateUserDto
     ) {
       return this.usersService.update(id, dto);
+    }
+
+    @UseGuards(JwtAuthGuard, AdminGuard)
+    @Post(':id/reset-password')
+    @HttpCode(HttpStatus.OK)
+    async resetPassword(
+      @Param('id') id: string,
+      @Body() dto: AdminResetPasswordDto
+    ) {
+      return this.usersService.adminResetPassword(id, dto.newPassword);
+    }
+
+    @UseGuards(JwtAuthGuard, AdminGuard)
+    @Post('admin/create')
+    @HttpCode(HttpStatus.CREATED)
+    async adminCreateUser(@Body() dto: CreateUserDto) {
+      return this.usersService.create(dto);
     }
 
     @UseGuards(JwtAuthGuard, AdminGuard)
