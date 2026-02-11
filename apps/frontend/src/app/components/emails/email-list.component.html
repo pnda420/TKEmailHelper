@@ -261,7 +261,7 @@
                 </div>
                 <div class="thread-panel__list">
                     <div class="thread-item" *ngFor="let te of threadEmails"
-                         [class.current]="te.id === selectedEmail?.id"
+                         [class.current]="te.id === selectedEmail.id"
                          [class.sent]="te.status === 'sent'"
                          (click)="selectEmail(te)">
                         <div class="thread-item__header">
@@ -279,14 +279,14 @@
             <div class="thread-panel" *ngIf="customerHistoryOpen && customerHistory.length > 0">
                 <div class="thread-panel__header">
                     <span class="material-symbols-outlined">history</span>
-                    <span>Kundenhistorie — {{ selectedEmail?.fromName || selectedEmail?.fromAddress }} ({{ customerHistory.length }})</span>
+                    <span>Kundenhistorie — {{ selectedEmail.fromName || selectedEmail.fromAddress }} ({{ customerHistory.length }})</span>
                     <button class="thread-panel__close" (click)="closeThreadPanel()">
                         <span class="material-symbols-outlined">close</span>
                     </button>
                 </div>
                 <div class="thread-panel__list">
                     <div class="thread-item" *ngFor="let ce of customerHistory"
-                         [class.current]="ce.id === selectedEmail?.id"
+                         [class.current]="ce.id === selectedEmail.id"
                          [class.sent]="ce.status === 'sent'"
                          (click)="selectEmail(ce)">
                         <div class="thread-item__header">
