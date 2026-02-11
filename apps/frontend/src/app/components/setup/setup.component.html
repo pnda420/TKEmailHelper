@@ -1,0 +1,233 @@
+<section class="setup-page">
+  <div class="setup-container" *ngIf="user">
+
+    <!-- Progress Bar -->
+    <div class="progress-bar">
+      <div class="progress-track">
+        <div class="progress-fill" [style.width.%]="(currentStep / totalSteps) * 100"></div>
+      </div>
+      <div class="progress-steps">
+        <div class="step-dot" *ngFor="let s of [1,2,3]" [class.active]="currentStep >= s" [class.current]="currentStep === s">
+          <span class="step-num">{{ s }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step Header -->
+    <div class="step-header" @fadeUp>
+      <h1>{{ stepTitle }}</h1>
+      <p>{{ stepDescription }}</p>
+    </div>
+
+    <!-- ═══════════ STEP 1: KI-Kontext ═══════════ -->
+    <div class="step-content" *ngIf="currentStep === 1" @slideIn>
+      <div class="setup-card">
+        <div class="card-icon-header">
+          <span class="material-symbols-outlined ms-fill card-icon">psychology</span>
+          <h2>KI-Kontext</h2>
+        </div>
+
+        <form class="setup-form">
+          <div class="field">
+            <label for="sigName">
+              <span class="material-symbols-outlined ms-size-16">person</span>
+              Name <span class="required">*</span>
+            </label>
+            <input type="text" id="sigName" [(ngModel)]="editSignature.name" name="sigName"
+              placeholder="z.B. Tom Leonards" maxlength="100" />
+          </div>
+          <div class="field">
+            <label for="sigPosition">
+              <span class="material-symbols-outlined ms-size-16">work</span>
+              Position / Titel
+            </label>
+            <input type="text" id="sigPosition" [(ngModel)]="editSignature.position" name="sigPosition"
+              placeholder="z.B. Geschäftsführer" maxlength="100" />
+          </div>
+          <div class="field">
+            <label for="sigCompany">
+              <span class="material-symbols-outlined ms-size-16">business</span>
+              Firma <span class="required">*</span>
+            </label>
+            <input type="text" id="sigCompany" [(ngModel)]="editSignature.company" name="sigCompany"
+              placeholder="z.B. Türklingel Shop" maxlength="100" />
+          </div>
+          <div class="field">
+            <label for="sigPhone">
+              <span class="material-symbols-outlined ms-size-16">phone</span>
+              Telefon
+            </label>
+            <input type="text" id="sigPhone" [(ngModel)]="editSignature.phone" name="sigPhone"
+              placeholder="z.B. +49 178 238232" maxlength="50" />
+          </div>
+          <div class="field">
+            <label for="sigWebsite">
+              <span class="material-symbols-outlined ms-size-16">language</span>
+              Website
+            </label>
+            <input type="text" id="sigWebsite" [(ngModel)]="editSignature.website" name="sigWebsite"
+              placeholder="z.B. www.tuerklingel-shop.de" maxlength="100" />
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ═══════════ STEP 2: E-Mail-Signatur ═══════════ -->
+    <div class="step-content" *ngIf="currentStep === 2" @slideIn>
+      <div class="setup-card">
+        <div class="card-icon-header">
+          <span class="material-symbols-outlined ms-fill card-icon">draw</span>
+          <h2>E-Mail-Signatur</h2>
+        </div>
+
+        <!-- Quick Generate -->
+        <div class="signature-actions">
+          <button type="button" class="btn btn--ghost btn--sm" (click)="generateDefaultSignature()">
+            <span class="material-symbols-outlined ms-size-18">auto_awesome</span>
+            Aus KI-Daten generieren
+          </button>
+          <div class="view-toggle">
+            <button type="button" class="toggle-btn" [class.active]="editorView === 'wysiwyg'" (click)="editorView = 'wysiwyg'">
+              <span class="material-symbols-outlined ms-size-18">edit_note</span>
+            </button>
+            <button type="button" class="toggle-btn" [class.active]="editorView === 'code'" (click)="editorView = 'code'">
+              <span class="material-symbols-outlined ms-size-18">code</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Formatting Toolbar -->
+        <div class="formatting-toolbar" *ngIf="editorView === 'wysiwyg'">
+          <button type="button" class="toolbar-btn" (click)="execCommand('bold')" title="Fett">
+            <span class="material-symbols-outlined">format_bold</span>
+          </button>
+          <button type="button" class="toolbar-btn" (click)="execCommand('italic')" title="Kursiv">
+            <span class="material-symbols-outlined">format_italic</span>
+          </button>
+          <button type="button" class="toolbar-btn" (click)="execCommand('underline')" title="Unterstrichen">
+            <span class="material-symbols-outlined">format_underlined</span>
+          </button>
+          <div class="toolbar-divider"></div>
+          <button type="button" class="toolbar-btn" (click)="execCommand('justifyLeft')">
+            <span class="material-symbols-outlined">format_align_left</span>
+          </button>
+          <button type="button" class="toolbar-btn" (click)="execCommand('justifyCenter')">
+            <span class="material-symbols-outlined">format_align_center</span>
+          </button>
+          <div class="toolbar-divider"></div>
+          <button type="button" class="toolbar-btn" (click)="execCommand('insertHorizontalRule')">
+            <span class="material-symbols-outlined">horizontal_rule</span>
+          </button>
+        </div>
+
+        <!-- WYSIWYG Editor -->
+        <div class="editor-area" *ngIf="editorView === 'wysiwyg'">
+          <div
+            #wysiwygEditor
+            class="wysiwyg-editable"
+            contenteditable="true"
+            (input)="onWysiwygInput()"
+            [innerHTML]="getSafeHtml(editEmailSignature)"
+            spellcheck="true"
+          ></div>
+        </div>
+
+        <!-- Code Editor -->
+        <div class="editor-area" *ngIf="editorView === 'code'">
+          <textarea
+            #htmlTextarea
+            [(ngModel)]="editEmailSignature"
+            name="emailSignature"
+            placeholder="HTML-Code hier eingeben..."
+            class="code-textarea"
+            (input)="onCodeInput()"
+          ></textarea>
+        </div>
+
+        <!-- Preview -->
+        <div class="sig-preview" *ngIf="editEmailSignature.trim()">
+          <p class="preview-label">Vorschau:</p>
+          <div class="preview-box" [innerHTML]="getSafeHtml(editEmailSignature)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ STEP 3: Done ═══════════ -->
+    <div class="step-content" *ngIf="currentStep === 3" @slideIn>
+      <div class="setup-card done-card">
+        <div class="done-icon">
+          <span class="material-symbols-outlined ms-fill">check_circle</span>
+        </div>
+        <h2>Alles eingerichtet!</h2>
+        <p>Dein Profil ist bereit. Du kannst jetzt mit MailFlow loslegen.</p>
+
+        <div class="setup-summary">
+          <div class="summary-item" *ngIf="editSignature.name">
+            <span class="material-symbols-outlined ms-size-18">person</span>
+            <span>{{ editSignature.name }}</span>
+          </div>
+          <div class="summary-item" *ngIf="editSignature.position">
+            <span class="material-symbols-outlined ms-size-18">work</span>
+            <span>{{ editSignature.position }}</span>
+          </div>
+          <div class="summary-item" *ngIf="editSignature.company">
+            <span class="material-symbols-outlined ms-size-18">business</span>
+            <span>{{ editSignature.company }}</span>
+          </div>
+          <div class="summary-item" *ngIf="editSignature.phone">
+            <span class="material-symbols-outlined ms-size-18">phone</span>
+            <span>{{ editSignature.phone }}</span>
+          </div>
+          <div class="summary-item" *ngIf="editSignature.website">
+            <span class="material-symbols-outlined ms-size-18">language</span>
+            <span>{{ editSignature.website }}</span>
+          </div>
+          <div class="summary-item" *ngIf="editEmailSignature.trim()">
+            <span class="material-symbols-outlined ms-size-18">draw</span>
+            <span>E-Mail-Signatur konfiguriert</span>
+          </div>
+          <div class="summary-item muted" *ngIf="!editEmailSignature.trim()">
+            <span class="material-symbols-outlined ms-size-18">draw</span>
+            <span>E-Mail-Signatur übersprungen (kannst du später im Profil einrichten)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Buttons -->
+    <div class="step-nav">
+      <button class="btn btn--ghost" (click)="prevStep()" *ngIf="currentStep > 1 && currentStep < 3" [disabled]="saving">
+        <span class="material-symbols-outlined ms-size-20">arrow_back</span>
+        Zurück
+      </button>
+      <div class="nav-spacer" *ngIf="currentStep === 1 || currentStep === 3"></div>
+
+      <!-- Step 2: Skip button -->
+      <button class="btn btn--ghost" (click)="skipStep()" *ngIf="currentStep === 2" [disabled]="saving">
+        Überspringen
+      </button>
+
+      <!-- Next / Save button -->
+      <button class="btn btn--primary" (click)="nextStep()" *ngIf="currentStep < 3"
+        [disabled]="saving || !canProceed">
+        <span class="spinner-small" *ngIf="saving"></span>
+        <span *ngIf="!saving">
+          {{ currentStep === 1 ? 'Weiter' : 'Speichern & Weiter' }}
+        </span>
+        <span *ngIf="saving">Wird gespeichert...</span>
+        <span class="material-symbols-outlined ms-size-20" *ngIf="!saving">arrow_forward</span>
+      </button>
+
+      <!-- Complete button -->
+      <button class="btn btn--primary btn--large" (click)="completeSetup()" *ngIf="currentStep === 3" [disabled]="saving">
+        <span class="spinner-small" *ngIf="saving"></span>
+        <span *ngIf="!saving">
+          <span class="material-symbols-outlined ms-size-20">rocket_launch</span>
+          Los geht's!
+        </span>
+        <span *ngIf="saving">Wird abgeschlossen...</span>
+      </button>
+    </div>
+
+  </div>
+</section>

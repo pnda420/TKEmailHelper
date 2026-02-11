@@ -23,6 +23,7 @@ export interface LoginResponse {
         createdAt: Date;
         wantsNewsletter?: boolean;
         isVerified?: boolean;
+        isProfileComplete?: boolean;
         signatureName?: string | null;
         signaturePosition?: string | null;
         signatureCompany?: string | null;
@@ -53,8 +54,8 @@ export class AuthService {
             throw new ConflictException('Email already exists');
         }
 
-        // 3) Passwort hashen
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // 3) Passwort hashen (🛡️ 12 Runden für mehr Sicherheit)
+        const hashedPassword = await bcrypt.hash(password, 12);
 
         // 4) User speichern
         const user = this.userRepo.create({
@@ -101,7 +102,7 @@ export class AuthService {
     async validateUser(userId: string): Promise<User | null> {
         return this.userRepo.findOne({
             where: { id: userId },
-            select: ['id', 'email', 'name', 'role', 'wantsNewsletter', 'isVerified', 'createdAt', 'signatureName', 'signaturePosition', 'signatureCompany', 'signaturePhone', 'signatureWebsite', 'emailSignature']
+            select: ['id', 'email', 'name', 'role', 'wantsNewsletter', 'isVerified', 'isProfileComplete', 'createdAt', 'signatureName', 'signaturePosition', 'signatureCompany', 'signaturePhone', 'signatureWebsite', 'emailSignature']
         });
     }
 
@@ -126,6 +127,7 @@ export class AuthService {
                 createdAt: user.createdAt,
                 wantsNewsletter: user.wantsNewsletter,
                 isVerified: user.isVerified,
+                isProfileComplete: user.isProfileComplete,
                 signatureName: user.signatureName,
                 signaturePosition: user.signaturePosition,
                 signatureCompany: user.signatureCompany,

@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { Subscription, forkJoin } from 'rxjs';
 import { trigger, transition, style, animate, stagger, query } from '@angular/animations';
 import { ApiService, EmailStats, AiUsageStats } from '../../api/api.service';
+import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../shared/toasts/toast.service';
 
 @Component({
@@ -49,9 +50,14 @@ export class HomeComponent implements OnInit, OnDestroy {
   private subs: Subscription[] = [];
   private clockInterval: any;
 
+  get isAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
   constructor(
     public router: Router,
     private api: ApiService,
+    private authService: AuthService,
     private toasts: ToastService
   ) {}
 
@@ -89,6 +95,19 @@ export class HomeComponent implements OnInit, OnDestroy {
     if (h < 12) return 'Guten Morgen';
     if (h < 18) return 'Guten Tag';
     return 'Guten Abend';
+  }
+
+  formatTokens(tokens: number): string {
+    if (tokens >= 1_000_000_000) {
+      return (tokens / 1_000_000_000).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' Mrd';
+    }
+    if (tokens >= 1_000_000) {
+      return (tokens / 1_000_000).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' Mio';
+    }
+    if (tokens >= 1_000) {
+      return (tokens / 1_000).toLocaleString('de-DE', { maximumFractionDigits: 0 }) + 'k';
+    }
+    return tokens.toString();
   }
 
   formatCost(usd: number): string {

@@ -6,8 +6,9 @@ services:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: appdb
-    ports:
-      - "15432:5432"  # ← Außen 15432 statt 5432
+    # 🛡️ DB-Port NICHT nach außen exposen! Nur intern im Docker-Netzwerk.
+    expose:
+      - "5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -16,6 +17,13 @@ services:
       timeout: 3s
       retries: 10
     restart: unless-stopped
+    # 🛡️ Sicherheitsoptionen
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
 
   backend:
     build:
@@ -31,6 +39,13 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
+    # � Host-Netzwerk für WaWi MSSQL Zugriff auf LAN (192.168.2.x)
+    # Alternative: extra_hosts + DNS
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # �🛡️ Sicherheitsoptionen
+    security_opt:
+      - no-new-privileges:true
 
   frontend:
     build:
@@ -38,12 +53,15 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: lm_frontend
     ports:
-      - "1111:80"  # ← Außen 1111 statt 80 (DAS WILLST DU!)
+      - "1111:80"
     volumes:
       - ./apps/frontend/public/config.production.json:/usr/share/nginx/html/config.json:ro
     depends_on:
       - backend
     restart: unless-stopped
+    # 🛡️ Sicherheitsoptionen
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   pgdata:

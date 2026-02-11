@@ -16,6 +16,7 @@ export interface User {
   role: UserRole;
   wantsNewsletter?: boolean;
   isVerified?: boolean;
+  isProfileComplete?: boolean;
   createdAt: Date;
   updatedAt?: Date;
   // AI context fields (for GPT to know who you are)
@@ -107,11 +108,12 @@ export class AuthService {
     );
   }
 
-  register(email: string, name: string, password: string): Observable<LoginResponse> {
+  register(email: string, name: string, password: string, masterPassword: string): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.API_URL}/auth/register`, {
       email,
       name,
-      password
+      password,
+      masterPassword
     }).pipe(
       tap(response => this.handleAuthResponse(response))
     );
@@ -154,5 +156,21 @@ export class AuthService {
     localStorage.setItem('access_token', response.access_token);
     localStorage.setItem('current_user', JSON.stringify(response.user));
     this.currentUserSubject.next(response.user);
+  }
+
+  updateCurrentUser(user: User) {
+    localStorage.setItem('current_user', JSON.stringify(user));
+    this.currentUserSubject.next(user);
+  }
+
+  verifyMasterPassword(masterPassword: string): Observable<{ valid: boolean; message?: string }> {
+    return this.http.post<{ valid: boolean; message?: string }>(`${this.API_URL}/auth/verify-master-password`, {
+      masterPassword
+    });
+  }
+
+  needsSetup(): boolean {
+    const user = this.getCurrentUser();
+    return !!user && !user.isProfileComplete;
   }
 }

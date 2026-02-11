@@ -69,14 +69,18 @@ export class LoginComponent implements OnInit {
 
     this.authService.login(this.email, this.password).subscribe({
       next: (response) => {
-        // console.log('✅ Login erfolgreich');
         this.toasts.success('Erfolgreich eingeloggt!');
         this.loading = false;
         this.loginSuccess = true;
 
         // Navigate nach Exit-Animation
         setTimeout(() => {
-          this.navigateToReturnUrl();
+          // Check if user needs to complete setup first
+          if (response.user && !response.user.isProfileComplete) {
+            this.router.navigate(['/setup']);
+          } else {
+            this.navigateToReturnUrl();
+          }
         }, 700);
       },
       error: (err) => {

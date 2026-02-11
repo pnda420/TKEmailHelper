@@ -61,6 +61,10 @@ export class User {
   @Column('text', { nullable: true })
   emailSignature: string | null;
 
+  // Profile setup complete flag - new users must complete setup wizard first
+  @Column({ default: false })
+  isProfileComplete: boolean;
+
   @CreateDateColumn({ type: 'timestamptz', default: () => 'now()' })
   createdAt: Date;
 

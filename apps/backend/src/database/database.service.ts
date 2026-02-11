@@ -7,9 +7,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DatabaseService.name);
   private pool: sql.ConnectionPool | null = null;
   private reconnectTimer: NodeJS.Timeout | null = null;
+  private reconnectAttempts = 0;
+  private readonly MAX_RECONNECT_ATTEMPTS = 50;
   private readonly config: sql.config;
+  private isConnecting = false;
 
   constructor(private readonly configService: ConfigService) {
+    const isProd = process.env.NODE_ENV === 'production';
+
     this.config = {
       server: this.configService.get<string>('MSSQL_HOST', '192.168.2.10'),
       port: parseInt(this.configService.get<string>('MSSQL_PORT', '49948'), 10),
@@ -20,11 +25,16 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         encrypt: false,
         trustServerCertificate: true,
         enableArithAbort: true,
+        connectTimeout: 15000,  // 15s Timeout beim Verbinden
+        requestTimeout: 15000,  // 15s Timeout pro Query
       },
       pool: {
-        max: 10,
+        // ⚡ Weniger Connections = weniger Last auf WaWi MSSQL
+        // JTL-Wawi hat begrenzte Connections — Prod + Dev + JTL-User teilen sich die
+        max: isProd ? 5 : 3,
         min: 0,
         idleTimeoutMillis: 30000,
+        acquireTimeoutMillis: 15000, // Max 15s auf freie Connection warten
       },
     };
   }
@@ -40,10 +50,27 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     await this.disconnect();
   }
 
+  /**
+   * Prüft ob die WaWi-Verbindung aktiv ist
+   */
+  isConnected(): boolean {
+    return this.pool !== null && this.pool.connected;
+  }
+
   private async connect(): Promise<void> {
+    if (this.isConnecting) {
+      this.logger.warn('⏳ Verbindungsaufbau läuft bereits...');
+      return;
+    }
+
+    this.isConnecting = true;
     try {
       this.pool = await new sql.ConnectionPool(this.config).connect();
-      this.logger.log(`✅ MSSQL Connection Pool aufgebaut (${this.config.database} @ ${this.config.server}:${this.config.port})`);
+      this.reconnectAttempts = 0; // Reset bei Erfolg
+      this.logger.log(
+        `✅ MSSQL Connection Pool aufgebaut (${this.config.database} @ ${this.config.server}:${this.config.port}) ` +
+        `[Pool: max=${this.config.pool?.max}, min=${this.config.pool?.min}]`
+      );
 
       this.pool.on('error', (err) => {
         this.logger.error('❌ MSSQL Pool Fehler:', err.message);
@@ -52,17 +79,42 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error(`❌ MSSQL Verbindung fehlgeschlagen: ${error.message}`);
       this.scheduleReconnect();
+    } finally {
+      this.isConnecting = false;
     }
+  }
+
+  /**
+   * Exponential Backoff: 5s → 10s → 20s → 40s → max 60s
+   */
+  private getReconnectDelay(): number {
+    const baseDelay = 5000;
+    const delay = Math.min(baseDelay * Math.pow(2, this.reconnectAttempts), 60000);
+    return delay;
   }
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
-    this.logger.warn('🔄 Reconnect in 5 Sekunden...');
+
+    if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
+      this.logger.error(
+        `🛑 MSSQL: ${this.MAX_RECONNECT_ATTEMPTS} Reconnect-Versuche fehlgeschlagen. ` +
+        `WaWi-DB nicht erreichbar. Nächster Versuch erst bei nächster Query.`
+      );
+      return;
+    }
+
+    this.reconnectAttempts++;
+    const delay = this.getReconnectDelay();
+    this.logger.warn(
+      `🔄 MSSQL Reconnect #${this.reconnectAttempts} in ${delay / 1000}s...`
+    );
+
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
       await this.disconnect();
       await this.connect();
-    }, 5000);
+    }, delay);
   }
 
   private async disconnect(): Promise<void> {
@@ -74,24 +126,43 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       }
     } catch (error) {
       this.logger.error(`Fehler beim Schließen des Pools: ${error.message}`);
+      this.pool = null; // Trotzdem nullen damit reconnect geht
     }
+  }
+
+  /**
+   * Stellt sicher, dass ein aktiver Pool vorhanden ist.
+   * Versucht bei Bedarf einen Reconnect.
+   */
+  private async ensureConnection(): Promise<sql.ConnectionPool> {
+    if (this.pool && this.pool.connected) {
+      return this.pool;
+    }
+
+    this.logger.warn('⚠️ Kein aktiver Pool — versuche Reconnect...');
+    this.reconnectAttempts = 0; // Reset für On-Demand Reconnect
+    await this.disconnect();
+    await this.connect();
+
+    if (!this.pool || !this.pool.connected) {
+      throw new Error(
+        'WaWi-Datenbankverbindung nicht verfügbar. ' +
+        'Bitte prüfen: 1) VPN aktiv? 2) MSSQL Server erreichbar? 3) Connection-Limit nicht überschritten?'
+      );
+    }
+
+    return this.pool;
   }
 
   /**
    * Führt eine beliebige SQL-Query aus (READ-ONLY!)
    */
   async query(sqlQuery: string): Promise<{ recordset: any[]; rowCount: number; duration: number }> {
-    if (!this.pool || !this.pool.connected) {
-      // Versuch erneut zu verbinden
-      await this.connect();
-      if (!this.pool || !this.pool.connected) {
-        throw new Error('Keine Datenbankverbindung verfügbar');
-      }
-    }
+    const pool = await this.ensureConnection();
 
     const start = Date.now();
     try {
-      const result = await this.pool.request().query(sqlQuery);
+      const result = await pool.request().query(sqlQuery);
       const duration = Date.now() - start;
 
       this.logger.debug(`Query ausgeführt (${duration}ms, ${result.recordset?.length ?? 0} Zeilen)`);
@@ -104,6 +175,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       const duration = Date.now() - start;
       this.logger.error(`Query fehlgeschlagen (${duration}ms): ${error.message}`);
+
+      // Bei Connection-Fehlern Reconnect triggern
+      if (error.code === 'ECONNRESET' || error.code === 'ECONNREFUSED' || error.code === 'ESOCKET') {
+        this.scheduleReconnect();
+      }
       throw error;
     }
   }
@@ -115,16 +191,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     sqlQuery: string,
     params: Record<string, { type: any; value: any }>,
   ): Promise<{ recordset: any[]; rowCount: number; duration: number }> {
-    if (!this.pool || !this.pool.connected) {
-      await this.connect();
-      if (!this.pool || !this.pool.connected) {
-        throw new Error('Keine Datenbankverbindung verfügbar');
-      }
-    }
+    const pool = await this.ensureConnection();
 
     const start = Date.now();
     try {
-      const request = this.pool.request();
+      const request = pool.request();
       (request as any).timeout = 10000; // 10s timeout
 
       for (const [name, param] of Object.entries(params)) {
@@ -144,6 +215,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       const duration = Date.now() - start;
       this.logger.error(`Parameterized query failed (${duration}ms): ${error.message}`);
+
+      // Bei Connection-Fehlern Reconnect triggern
+      if (error.code === 'ECONNRESET' || error.code === 'ECONNREFUSED' || error.code === 'ESOCKET') {
+        this.scheduleReconnect();
+      }
       throw error;
     }
   }

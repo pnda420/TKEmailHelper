@@ -18,21 +18,32 @@ import { EmailReplyComponent } from './components/email-reply/email-reply.compon
 import { EmailHistoryComponent } from './components/email-history/email-history.component';
 import { AdminSqlComponent } from './components/admin/admin-sql/admin-sql.component';
 import { HelpComponent } from './components/help/help.component';
+import { WelcomeComponent } from './components/welcome/welcome.component';
+import { SetupComponent } from './components/setup/setup.component';
 
 const pageMainName = 'MailFlow';
 export const routes: Routes = [
-    { path: '', component: HomeComponent, title: pageMainName, data: { description: 'Email Helper Dashboard - Verwalte deine E-Mails effizient mit KI-Unterstützung.' } },
-    { path: 'about', component: AboutComponent, title: pageMainName + ' | Über uns', data: { description: 'Über TK Email Helper.' } },
+    // 🌐 Welcome Page (landing for unauthenticated users)
+    { path: 'welcome', component: WelcomeComponent, title: pageMainName + ' | Willkommen', data: { description: 'Willkommen bei MailFlow – Dein intelligenter E-Mail-Assistent.' } },
+
+    // 🛡️ Öffentliche Seiten (ohne Login zugänglich)
+    { path: 'login', component: LoginComponent, title: pageMainName + ' | Login', data: { description: 'Login.' } },
+    { path: 'register', component: RegisterComponent, title: pageMainName + ' | Register', data: { description: 'Registrieren.' } },
     { path: 'imprint', component: ImprintComponent, title: pageMainName + ' | Impressum', data: { description: 'Impressum.' } },
     { path: 'policy', component: PolicyComponent, title: pageMainName + ' | Datenschutz', data: { description: 'Datenschutzerklärung.' } },
-    { path: 'login', component: LoginComponent, title: pageMainName + ' | Login', data: { description: 'Login.' } },
-    { path: 'profile', component: ProfileComponent, title: pageMainName + ' | Profil', data: { description: 'Dein Profil.' } },
-    { path: 'register', component: RegisterComponent, title: pageMainName + ' | Register', data: { description: 'Registrieren.' } },
+
+    // 🧙 Setup Wizard (after registration, before full access)
+    { path: 'setup', component: SetupComponent, canActivate: [authGuard], title: pageMainName + ' | Einrichtung', data: { description: 'Profil einrichten.' } },
+
+    // 🛡️ Geschützte Seiten (Login erforderlich)
+    { path: '', component: HomeComponent, canActivate: [authGuard], title: pageMainName, data: { description: 'Email Helper Dashboard - Verwalte deine E-Mails effizient mit KI-Unterstützung.' } },
+    { path: 'about', component: AboutComponent, canActivate: [authGuard], title: pageMainName + ' | Über uns', data: { description: 'Über TK Email Helper.' } },
+    { path: 'profile', component: ProfileComponent, canActivate: [authGuard], title: pageMainName + ' | Profil', data: { description: 'Dein Profil.' } },
     { path: 'emails', component: EmailListComponent, canActivate: [authGuard], title: pageMainName + ' | Posteingang', data: { description: 'E-Mail Posteingang.' } },
     { path: 'emails/:id/reply', component: EmailReplyComponent, canActivate: [authGuard], title: pageMainName + ' | Antworten', data: { description: 'E-Mail beantworten.' } },
     { path: 'history', component: EmailHistoryComponent, canActivate: [authGuard], title: pageMainName + ' | Verlauf', data: { description: 'E-Mail Verlauf – Gesendet & Papierkorb.' } },
     { path: 'templates', component: EmailTemplatesComponent, canActivate: [authGuard], title: pageMainName + ' | Vorlagen', data: { description: 'E-Mail Vorlagen verwalten.' } },
-    { path: 'help', component: HelpComponent, title: pageMainName + ' | Hilfe', data: { description: 'Hilfe & Anleitung für MailFlow.' } },
+    { path: 'help', component: HelpComponent, canActivate: [authGuard], title: pageMainName + ' | Hilfe', data: { description: 'Hilfe & Anleitung für MailFlow.' } },
     { path: 'admin', redirectTo: 'admin/logs', pathMatch: 'full' },
     { path: 'admin/logs', component: AdminLogsComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Admin Logs', data: { description: 'Error Logs & Monitoring.' } },
     { path: 'admin/users', component: AdminUsersComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Admin Users', data: { description: 'Admin Users verwalten.' } },

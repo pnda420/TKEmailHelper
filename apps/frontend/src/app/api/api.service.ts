@@ -52,6 +52,8 @@ export interface UpdateUserDto {
   signatureWebsite?: string | null;
   // Real HTML Email Signature (like Outlook)
   emailSignature?: string | null;
+  // Profile setup completion flag
+  isProfileComplete?: boolean;
 }
 
 export interface UserStats {

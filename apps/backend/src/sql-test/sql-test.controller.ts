@@ -1,7 +1,13 @@
-import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, BadRequestException, UseGuards } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
+import { AdminGuard } from '../auth/guards/admin.guard';
 
+/**
+ * 🛡️ SQL Test Controller - NUR für Admins!
+ * Global JwtAuthGuard ist aktiv + zusätzlich AdminGuard.
+ */
 @Controller('api/sql')
+@UseGuards(AdminGuard)
 export class SqlTestController {
   constructor(private readonly databaseService: DatabaseService) {}
 

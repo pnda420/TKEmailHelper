@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { ThrottlerBehindProxyGuard } from './guards/throttler-behind-proxy.guard';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { EmailsModule } from './emails/emails.module';
@@ -58,7 +59,8 @@ import { AppLog } from './logs/app-log.entity';
       password: process.env.DB_PASS ?? 'secret',
       database: process.env.DB_NAME ?? 'appdb',
       entities: [User, Email, EmailTemplate, AppLog, AiUsage, AiConfig],
-      synchronize: true,
+      // 🛡️ synchronize NUR in Development! In Production → Migrationen nutzen.
+      synchronize: process.env.NODE_ENV !== 'production',
       logging: process.env.NODE_ENV === 'development',
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       retryAttempts: 20,     // Mehr Retries (default: 10)
@@ -82,7 +84,12 @@ import { AppLog } from './logs/app-log.entity';
       provide: APP_GUARD,
       useClass: ThrottlerBehindProxyGuard,
     },
-    // 📋 Global Exception Logging
+    // �️ Global JWT Auth Guard - ALLE Routen geschützt (außer @Public())
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    // �📋 Global Exception Logging
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,

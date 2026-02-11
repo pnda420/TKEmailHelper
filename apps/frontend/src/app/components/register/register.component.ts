@@ -3,17 +3,23 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { PageTitleComponent } from '../../shared/page-title/page-title.component';
 import { ToastService } from '../../shared/toasts/toast.service';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, PageTitleComponent],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './register.component.html',
   styleUrl: './register.component.scss'
 })
 export class RegisterComponent {
+  // Master Password Gate
+  masterPassword = '';
+  masterPasswordVerified = false;
+  masterPasswordError = '';
+  masterPasswordLoading = false;
+
+  // Registration form
   firstName = '';
   lastName = '';
   email = '';
@@ -35,6 +41,36 @@ export class RegisterComponent {
     return `${this.firstName} ${this.lastName}`.trim();
   }
 
+  verifyMasterPassword() {
+    if (!this.masterPassword) {
+      this.masterPasswordError = 'Bitte Master-Passwort eingeben';
+      return;
+    }
+
+    this.masterPasswordLoading = true;
+    this.masterPasswordError = '';
+
+    this.authService.verifyMasterPassword(this.masterPassword).subscribe({
+      next: (res) => {
+        this.masterPasswordLoading = false;
+        if (res.valid) {
+          this.masterPasswordVerified = true;
+          this.toasts.success('Master-Passwort korrekt! Du kannst dich jetzt registrieren.');
+        } else {
+          this.masterPasswordError = res.message || 'Ungültiges Master-Passwort';
+        }
+      },
+      error: (err) => {
+        this.masterPasswordLoading = false;
+        if (err.status === 429) {
+          this.masterPasswordError = 'Zu viele Versuche. Bitte warte kurz.';
+        } else {
+          this.masterPasswordError = 'Ungültiges Master-Passwort';
+        }
+      }
+    });
+  }
+
   register() {
     if (!this.firstName || !this.lastName || !this.email || !this.password) {
       this.error = 'Bitte fülle alle Felder aus';
@@ -51,18 +87,16 @@ export class RegisterComponent {
     this.loading = true;
     this.error = '';
 
-
-    this.authService.register(this.email, this.fullName, this.password).subscribe({
+    this.authService.register(this.email, this.fullName, this.password, this.masterPassword).subscribe({
       next: (response) => {
         console.log('✅ Registrierung erfolgreich:', response);
-        this.toasts.success('Erfolgreich registriert und eingeloggt.');
+        this.toasts.success('Erfolgreich registriert! Bitte richte dein Profil ein.');
         this.loading = false;
         this.registerSuccess = true;
 
-        // Navigate nach Exit-Animation
+        // Navigate to setup wizard
         setTimeout(() => {
-          const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
-          this.router.navigate([returnUrl]);
+          this.router.navigate(['/setup']);
         }, 700);
       },
       error: (err) => {

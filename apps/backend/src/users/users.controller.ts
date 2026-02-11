@@ -17,6 +17,7 @@ import { CreateUserDto, LoginDto, NewsletterSubscribeDto, UpdateUserDto } from '
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { Public } from 'src/auth/decorators/public.decorator';
 import { User } from './users.entity';
   
   @Controller('users')
@@ -25,6 +26,7 @@ import { User } from './users.entity';
     constructor(private readonly usersService: UsersService) {}
   
     // 🛡️ STRENG: 3 Registrierungen pro Stunde
+    @Public()
     @Throttle({ default: { limit: 3, ttl: 3600000 } })
     @Post('register')
     @HttpCode(HttpStatus.CREATED)
@@ -33,6 +35,7 @@ import { User } from './users.entity';
     }
   
     // 🛡️ STRENG: 5 Login-Versuche pro Minute
+    @Public()
     @Throttle({ default: { limit: 5, ttl: 60000 } })
     @Post('login')
     @HttpCode(HttpStatus.OK)
@@ -45,6 +48,7 @@ import { User } from './users.entity';
     }
   
     // 🛡️ STRENG: 3 Newsletter-Anmeldungen pro Stunde
+    @Public()
     @Throttle({ default: { limit: 3, ttl: 3600000 } })
     @Post('newsletter/subscribe')
     @HttpCode(HttpStatus.OK)
@@ -52,6 +56,7 @@ import { User } from './users.entity';
       return this.usersService.subscribeNewsletter(dto);
     }
   
+    @Public()
     @Post('newsletter/unsubscribe')
     @HttpCode(HttpStatus.OK)
     async unsubscribeNewsletter(@Body() body: { email: string }) {

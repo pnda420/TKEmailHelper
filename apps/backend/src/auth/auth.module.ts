@@ -24,7 +24,7 @@ import { User } from 'src/users/users.entity';
                 }
                 return {
                     secret,
-                    signOptions: { expiresIn: '7d' },
+                    signOptions: { expiresIn: '24h' },  // 🛡️ 24 Stunden statt 7 Tage
                 };
             },
         }),

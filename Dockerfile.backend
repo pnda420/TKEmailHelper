@@ -1,8 +1,26 @@
-FROM node:20-alpine
+FROM node:20-alpine AS build
 WORKDIR /app
 COPY apps/backend/package*.json ./
-RUN npm install
+RUN npm ci --only=production && npm cache clean --force
 COPY apps/backend .
 RUN npm run build
+
+# 🛡️ Production Stage - Minimales Image
+FROM node:20-alpine
+WORKDIR /app
+
+# 🛡️ Non-root User erstellen
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -S appuser -u 1001 -G appgroup
+
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./
+
+# 🛡️ Dateiberechtigungen einschränken
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
 EXPOSE 3000
 CMD ["node", "dist/main.js"]

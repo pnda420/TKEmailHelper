@@ -63,6 +63,11 @@ export class UpdateUserDto {
   @IsOptional()
   @MaxLength(10000)
   emailSignature?: string;
+
+  // Profile setup complete flag
+  @IsBoolean()
+  @IsOptional()
+  isProfileComplete?: boolean;
 }
 
 export class LoginDto {

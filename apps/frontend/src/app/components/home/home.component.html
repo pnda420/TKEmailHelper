@@ -41,17 +41,17 @@
       <span class="stat-card__val">{{ templateCount }}</span>
       <span class="stat-card__lbl">Vorlagen</span>
     </button>
-    <button class="stat-card" (click)="router.navigate(['/admin'])">
+    <button class="stat-card" (click)="isAdmin && router.navigate(['/admin'])" [class.clickable]="isAdmin">
       <span class="stat-card__icon ai"><span class="material-symbols-outlined">auto_awesome</span></span>
       <span class="stat-card__val">{{ aiStats?.totalRequests ?? 0 }}</span>
       <span class="stat-card__lbl">KI-Anfragen</span>
     </button>
-    <button class="stat-card" (click)="router.navigate(['/admin'])">
+    <button class="stat-card" (click)="isAdmin && router.navigate(['/admin'])" [class.clickable]="isAdmin">
       <span class="stat-card__icon tokens"><span class="material-symbols-outlined">token</span></span>
-      <span class="stat-card__val">{{ aiStats ? (aiStats.totalTokens / 1000).toFixed(0) + 'k' : '0k' }}</span>
+      <span class="stat-card__val">{{ formatTokens(aiStats?.totalTokens ?? 0) }}</span>
       <span class="stat-card__lbl">Tokens</span>
     </button>
-    <button class="stat-card" (click)="router.navigate(['/admin'])">
+    <button class="stat-card" (click)="isAdmin && router.navigate(['/admin'])" [class.clickable]="isAdmin">
       <span class="stat-card__icon cost"><span class="material-symbols-outlined">payments</span></span>
       <span class="stat-card__val">{{ formatCost(aiStats?.totalCostUsd ?? 0) }}</span>
       <span class="stat-card__lbl">KI-Kosten</span>

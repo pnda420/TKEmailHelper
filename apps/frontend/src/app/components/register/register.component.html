@@ -1,8 +1,51 @@
-<!-- <app-page-title title="Registrieren"></app-page-title> -->
-
-<section class="auth">
+﻿<section class="auth">
   <div class="container">
-    <div class="auth-card page-animate" [class.login-success]="registerSuccess" [class.login-error]="registerError">
+
+    <!-- STEP 1: Master Password Gate -->
+    <div class="auth-card page-animate" *ngIf="!masterPasswordVerified" [class.login-error]="!!masterPasswordError">
+
+      <div class="auth-header">
+        <div class="auth-icon">
+          <span class="material-symbols-outlined ms-fill">vpn_key</span>
+        </div>
+        <h1>Zugang anfordern</h1>
+      </div>
+
+      <form (ngSubmit)="verifyMasterPassword()" class="auth-form">
+        <div class="form-field">
+          <label for="masterPw">Master-Passwort</label>
+          <div class="input-wrapper">
+            <span class="input-icon material-symbols-outlined">key</span>
+            <input id="masterPw" type="password" [(ngModel)]="masterPassword" name="masterPassword"
+              placeholder="Master-Passwort eingeben" [disabled]="masterPasswordLoading" required
+              autocomplete="off" />
+          </div>
+        </div>
+
+        <div *ngIf="masterPasswordError" class="alert alert--error">
+          <span class="material-symbols-outlined ms-fill">error</span>
+          <span>{{ masterPasswordError }}</span>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--large" [disabled]="masterPasswordLoading">
+          <span *ngIf="!masterPasswordLoading" class="flex" style="justify-content: center; align-items: center; gap: 10px;">
+            <span class="material-symbols-outlined ms-size-20">verified</span>
+            Verifizieren
+          </span>
+          <span *ngIf="masterPasswordLoading" class="loading-content flex" style="justify-content: center; align-items: center; gap: 10px;">
+            <span class="spinner"></span>
+            Wird geprÃ¼ft...
+          </span>
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        <p>Bereits registriert? <a routerLink="/login">Jetzt anmelden</a></p>
+      </div>
+    </div>
+
+    <!-- STEP 2: Registration Form (after master password verified) -->
+    <div class="auth-card page-animate" *ngIf="masterPasswordVerified" [class.login-success]="registerSuccess" [class.login-error]="registerError">
 
       <!-- Header -->
       <div class="auth-header">
@@ -15,7 +58,7 @@
       <!-- Form -->
       <form (ngSubmit)="register()" class="auth-form">
 
-        <!-- Name (Vorname + Nachname für besseres Autofill) -->
+        <!-- Name (Vorname + Nachname fÃ¼r besseres Autofill) -->
         <div class="form-row">
           <div class="form-field">
             <label for="firstName">Vorname</label>
@@ -70,7 +113,7 @@
 
         <!-- Submit -->
         <button type="submit" class="btn btn--primary btn--large" [disabled]="loading">
-          <span *ngIf="!loading"  class="flex" style="justify-content: center; align-items: center; gap: 10px;">
+          <span *ngIf="!loading" class="flex" style="justify-content: center; align-items: center; gap: 10px;">
             <span class="material-symbols-outlined ms-size-20">person_add</span>
             Registrieren
           </span>

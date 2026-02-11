@@ -1,9 +1,13 @@
 import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
 import { AiConfigService } from './ai-config.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AdminGuard } from '../auth/guards/admin.guard';
 
+/**
+ * 🛡️ AI Config Controller - NUR für Admins!
+ * Global JwtAuthGuard ist aktiv + zusätzlich AdminGuard.
+ */
 @Controller('ai-config')
-@UseGuards(JwtAuthGuard)
+@UseGuards(AdminGuard)
 export class AiConfigController {
   constructor(private readonly service: AiConfigService) {}
 

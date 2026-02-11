@@ -1,0 +1,74 @@
+<div class="welcome" @fadeIn>
+
+  <!-- Animated background orbs -->
+  <div class="bg-orbs">
+    <div class="orb orb--1"></div>
+    <div class="orb orb--2"></div>
+    <div class="orb orb--3"></div>
+  </div>
+
+  <!-- Hero Section -->
+  <section class="hero" @fadeUp>
+    <img class="hero__logo" src="assets/logos/lm_s.png" alt="MailFlow" />
+    <h1 class="hero__title">MailFlow</h1>
+    <p class="hero__subtitle">Dein intelligenter E-Mail-Assistent mit KI-Power</p>
+    <p class="hero__desc">
+      Verwalte E-Mails effizienter, generiere professionelle Antworten mit KI
+      und behalte den Überblick über dein gesamtes Postfach.
+    </p>
+  </section>
+
+  <!-- Features Grid -->
+  <section class="features" @staggerFeatures>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <span class="material-symbols-outlined ms-fill">auto_awesome</span>
+      </div>
+      <h3>KI-Antworten</h3>
+      <p>Generiere professionelle E-Mail-Antworten mit einem Klick – personalisiert auf deinen Stil.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">
+        <span class="material-symbols-outlined ms-fill">inbox</span>
+      </div>
+      <h3>Smart Posteingang</h3>
+      <p>Alle E-Mails zentral verwalten mit automatischer KI-Analyse, Tags und Zusammenfassungen.</p>
+    </div>
+
+    <!-- <div class="feature-card">
+      <div class="feature-icon">
+        <span class="material-symbols-outlined ms-fill">description</span>
+      </div>
+      <h3>Vorlagen</h3>
+      <p>Erstelle und verwalte E-Mail-Vorlagen für wiederkehrende Anfragen.</p>
+    </div> -->
+
+    <div class="feature-card">
+      <div class="feature-icon">
+        <span class="material-symbols-outlined ms-fill">shield</span>
+      </div>
+      <h3>Sicher & Privat</h3>
+      <p>Alle Daten bleiben auf deinem Server. Keine externen Dienste außer der KI-API.</p>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta" @fadeUp>
+    <div class="cta__box">
+      <h2>Jetzt loslegen</h2>
+      <p>Du benötigst ein Master-Passwort von deinem Administrator, um dich zu registrieren.</p>
+      <div class="cta__buttons">
+        <a routerLink="/register" class="btn btn--primary btn--large">
+          <span class="material-symbols-outlined ms-size-20">person_add</span>
+          Registrieren
+        </a>
+        <a routerLink="/login" class="btn btn--ghost btn--large">
+          <span class="material-symbols-outlined ms-size-20">login</span>
+          Anmelden
+        </a>
+      </div>
+    </div>
+  </section>
+
+</div>

@@ -6,13 +6,14 @@ import { AdminGuard } from '../auth/guards/admin.guard';
 import { AiUsageService, UsageQueryDto } from './ai-usage.service';
 
 @Controller('api/ai-usage')
-@UseGuards(JwtAuthGuard, AdminGuard)
+@UseGuards(JwtAuthGuard)
 export class AiUsageController {
   constructor(private readonly usageService: AiUsageService) {}
 
   /**
-   * GET /api/ai-usage — Paginated list of all AI API calls
+   * GET /api/ai-usage — Paginated list of all AI API calls (Admin only)
    */
+  @UseGuards(AdminGuard)
   @Get()
   async findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -28,7 +29,7 @@ export class AiUsageController {
   }
 
   /**
-   * GET /api/ai-usage/stats — Aggregated cost & usage statistics
+   * GET /api/ai-usage/stats — Aggregated cost & usage statistics (all users)
    */
   @Get('stats')
   async getStats(@Query('days', new DefaultValuePipe(30), ParseIntPipe) days: number) {
@@ -36,8 +37,9 @@ export class AiUsageController {
   }
 
   /**
-   * GET /api/ai-usage/balance — OpenAI billing balance
+   * GET /api/ai-usage/balance — OpenAI billing balance (Admin only)
    */
+  @UseGuards(AdminGuard)
   @Get('balance')
   async getBalance() {
     return this.usageService.getOpenAiBalance();
