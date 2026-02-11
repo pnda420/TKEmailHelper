@@ -1,9 +1,12 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY apps/backend/package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install && npm cache clean --force
 COPY apps/backend .
 RUN npm run build
+
+# Prune devDependencies für Production
+RUN npm prune --omit=dev
 
 # 🛡️ Production Stage - Minimales Image
 FROM node:20-alpine
