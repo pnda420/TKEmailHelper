@@ -249,6 +249,22 @@ export class AdminLogsComponent implements OnInit, OnDestroy {
     });
   }
 
+  timeAgo(dateStr: string): string {
+    const now = Date.now();
+    const then = new Date(dateStr).getTime();
+    const diff = Math.max(0, now - then);
+    const sec = Math.floor(diff / 1000);
+    if (sec < 60) return `vor ${sec}s`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `vor ${min} Min.`;
+    const hrs = Math.floor(min / 60);
+    if (hrs < 24) return `vor ${hrs} Std.`;
+    const days = Math.floor(hrs / 24);
+    if (days < 30) return `vor ${days}d`;
+    const months = Math.floor(days / 30);
+    return `vor ${months} Mon.`;
+  }
+
   formatDuration(ms: number | null): string {
     if (!ms) return '-';
     if (ms < 1000) return `${ms}ms`;

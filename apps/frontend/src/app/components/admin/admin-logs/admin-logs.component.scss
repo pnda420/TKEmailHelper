@@ -457,7 +457,19 @@
   }
 }
 
-.col-time { white-space: nowrap; font-size: 0.68rem; color: $color-text-secondary; }
+.col-time {
+  white-space: nowrap;
+  font-size: 0.68rem;
+  color: $color-text-secondary;
+
+  span { display: block; }
+
+  .time-ago {
+    font-size: 0.62rem;
+    color: rgba($color-text-secondary, 0.65);
+    margin-top: 1px;
+  }
+}
 .col-source { font-size: 0.68rem; color: $color-text-secondary; }
 .col-duration { text-align: right; font-size: 0.68rem; color: $color-text-secondary; }
 

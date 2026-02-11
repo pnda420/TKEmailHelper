@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LogsService } from '../logs/logs.service';
 import * as sql from 'mssql';
 import * as net from 'net';
 
@@ -16,7 +17,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   private lastHealthPing: string | null = null;
   private consecutiveFailures = 0;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly logsService: LogsService,
+  ) {
     const isProd = process.env.NODE_ENV === 'production';
 
     this.config = {
@@ -108,6 +112,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`Query fehlgeschlagen (${duration}ms): ${error.message}`);
 
       if (this.isConnectionError(error)) {
+        this.logToDb('error', `MSSQL Query fehlgeschlagen (${duration}ms): ${error.message}`, error);
         this.handleConnectionError('query');
       }
       throw error;
@@ -149,6 +154,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`Parameterized query failed (${duration}ms): ${error.message}`);
 
       if (this.isConnectionError(error)) {
+        this.logToDb('error', `MSSQL Parameterized Query fehlgeschlagen (${duration}ms): ${error.message}`, error);
         this.handleConnectionError('parameterized query');
       }
       throw error;
@@ -186,10 +192,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       // TCP-Vorcheck: Ist der Host überhaupt erreichbar?
       const reachable = await this.tcpPreCheck(3000);
       if (!reachable) {
-        this.logger.warn(
-          `🌐 TCP-Vorcheck fehlgeschlagen (${this.config.server}:${this.config.port}) — ` +
-          `VPN aktiv? Versuch ${attempt}/${maxAttempts}`
-        );
+        const msg = `TCP-Vorcheck fehlgeschlagen (${this.config.server}:${this.config.port}) — VPN aktiv? Versuch ${attempt}/${maxAttempts}`;
+        this.logger.warn(`🌐 ${msg}`);
+        this.logToDb('warn', msg);
         if (attempt < maxAttempts) {
           await this.sleep(delayMs);
         }
@@ -213,10 +218,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    this.logger.error(
-      `🛑 MSSQL-Verbindung konnte nach ${maxAttempts} Startup-Versuchen nicht hergestellt werden. ` +
-      `Background-Reconnect läuft weiter.`
-    );
+    const failMsg = `MSSQL-Verbindung konnte nach ${maxAttempts} Startup-Versuchen nicht hergestellt werden. Background-Reconnect läuft weiter.`;
+    this.logger.error(`🛑 ${failMsg}`);
+    this.logToDb('error', failMsg);
     // Hintergrund-Reconnect starten
     this.scheduleReconnect();
   }
@@ -240,10 +244,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       // Pool-Error-Handler: sofort reconnecten bei Verbindungsverlust
       this.pool.on('error', (err) => {
         this.logger.error(`❌ MSSQL Pool Fehler: ${err.message}`);
+        this.logToDb('error', `MSSQL Pool Fehler: ${err.message}`, err);
         this.handleConnectionError('pool-error-event');
       });
     } catch (error) {
       this.logger.error(`❌ MSSQL Verbindung fehlgeschlagen: ${error.message}`);
+      this.logToDb('error', `MSSQL Verbindung fehlgeschlagen: ${error.message}`, error);
       this.pool = null;
       throw error; // Weiterwerfen für connectWithRetry
     } finally {
@@ -338,6 +344,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         // Nach 2 fehlgeschlagenen Pings → Reconnect
         if (this.consecutiveFailures >= 2) {
           this.logger.warn('🔄 2 Health-Pings fehlgeschlagen — starte Reconnect...');
+          this.logToDb('error', `MSSQL Health-Ping 2x fehlgeschlagen — Reconnect gestartet: ${error.message}`, error);
           this.handleConnectionError('health-ping');
         }
       }
@@ -408,10 +415,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     if (this.reconnectTimer) return; // Bereits geplant
 
     if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
-      this.logger.error(
-        `🛑 MSSQL: ${this.MAX_RECONNECT_ATTEMPTS} Reconnect-Versuche aufgebraucht. ` +
-        `Nächster Versuch erst bei nächster Query (On-Demand).`
-      );
+      const maxMsg = `MSSQL: ${this.MAX_RECONNECT_ATTEMPTS} Reconnect-Versuche aufgebraucht. Nächster Versuch erst bei nächster Query (On-Demand).`;
+      this.logger.error(`🛑 ${maxMsg}`);
+      this.logToDb('error', maxMsg);
       return;
     }
 
@@ -458,6 +464,18 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`Fehler beim Schließen des Pools: ${error.message}`);
       this.pool = null; // Trotzdem nullen damit reconnect geht
     }
+  }
+
+  /**
+   * Persistiert Connection-Fehler in die app_logs DB-Tabelle,
+   * damit sie im Admin-Panel sichtbar sind.
+   */
+  private logToDb(level: 'error' | 'warn' | 'info', message: string, error?: any): void {
+    // Fire-and-forget: Darf nicht die Connection-Logik blockieren
+    this.logsService[level](message, {
+      source: 'DatabaseService',
+      ...(error?.stack ? { stack: error.stack } : {}),
+    }).catch(() => { /* LogsService nutzt PostgreSQL, nicht MSSQL — sollte funktionieren */ });
   }
 
   private sleep(ms: number): Promise<void> {

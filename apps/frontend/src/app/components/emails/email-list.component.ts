@@ -607,6 +607,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Block selection while AI processing is running
     if (this.aiProcessing) return;
     
+    // Sofort anzeigen (Liste-Daten), dann vollständige E-Mail nachladen
     this.selectedEmail = email;
     
     // Mark as read if not already
@@ -620,6 +621,21 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.selectedEmail = updated;
         },
         error: (err) => console.error('Fehler beim Markieren:', err)
+      });
+    } else {
+      // Vollständige E-Mail laden (mit htmlBody, textBody, etc.)
+      this.api.getEmailById(email.id).subscribe({
+        next: (full) => {
+          const idx = this.emails.findIndex(e => e.id === email.id);
+          if (idx !== -1) {
+            this.emails[idx] = full;
+          }
+          // Nur updaten wenn noch dieselbe Mail selektiert ist
+          if (this.selectedEmail?.id === email.id) {
+            this.selectedEmail = full;
+          }
+        },
+        error: (err) => console.error('Fehler beim Laden der vollständigen E-Mail:', err)
       });
     }
   }

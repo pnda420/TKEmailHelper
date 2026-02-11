@@ -131,7 +131,10 @@
                 {{ log.level }}
               </span>
             </td>
-            <td class="col-time">{{ formatDate(log.createdAt) }}</td>
+            <td class="col-time">
+              <span>{{ formatDate(log.createdAt) }}</span>
+              <span class="time-ago">{{ timeAgo(log.createdAt) }}</span>
+            </td>
             <td>
               <span class="status-badge" [ngClass]="getStatusClass(log.statusCode)" *ngIf="log.statusCode">{{ log.statusCode }}</span>
               <span *ngIf="!log.statusCode">-</span>
@@ -201,7 +204,7 @@
                   </div>
                   <div class="detail-field">
                     <label>Zeit</label>
-                    <span>{{ formatDate(selectedLog!.createdAt) }}</span>
+                    <span>{{ formatDate(selectedLog!.createdAt) }} <small class="time-ago-inline">({{ timeAgo(selectedLog!.createdAt) }})</small></span>
                   </div>
                 </div>
                 <div class="detail-block" *ngIf="selectedLog!.message">
