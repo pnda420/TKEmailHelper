@@ -25,6 +25,8 @@ import { User } from './users/users.entity';
 import { Email } from './emails/emails.entity';
 import { EmailTemplate } from './email-templates/email-templates.entity';
 import { AppLog } from './logs/app-log.entity';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -78,7 +80,9 @@ import { AppLog } from './logs/app-log.entity';
     AiUsageModule,
     AiConfigModule,
   ],
+  controllers: [AppController],
   providers: [
+    AppService,
     // 🛡️ Global Rate Limit Guard mit Proxy-Support und Headers
     {
       provide: APP_GUARD,

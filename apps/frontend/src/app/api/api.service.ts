@@ -620,6 +620,36 @@ export interface AiBalance {
   error?: string;
 }
 
+export interface SystemHealthService {
+  connected: boolean;
+  latency?: number;
+  host?: string;
+  port?: number;
+  database?: string;
+  error?: string;
+  account?: string;
+  imapHost?: string;
+  smtpHost?: string;
+}
+
+export interface SystemHealth {
+  status: 'ok' | 'degraded' | 'down';
+  timestamp: string;
+  totalLatency: number;
+  services: {
+    postgres: SystemHealthService;
+    mssql: SystemHealthService;
+    mail: { account: string; imapHost: string; smtpHost: string };
+  };
+  system: {
+    uptime: number;
+    uptimeFormatted: string;
+    nodeVersion: string;
+    env: string;
+    memoryMb: { rss: number; heapUsed: number; heapTotal: number };
+  };
+}
+
 
 // ==================== SERVICE ====================
 
@@ -1258,6 +1288,17 @@ getAiUsageStats(days = 30): Observable<AiUsageStats> {
  */
 getAiBalance(): Observable<AiBalance> {
   return this.http.get<AiBalance>(`${this.apiUrl}/api/ai-usage/balance`, {
+    headers: this.getHeaders(),
+  });
+}
+
+// ==================== SYSTEM HEALTH ====================
+
+/**
+ * System Health Status (Admin only)
+ */
+getSystemHealth(): Observable<SystemHealth> {
+  return this.http.get<SystemHealth>(`${this.apiUrl}/api/system/health`, {
     headers: this.getHeaders(),
   });
 }

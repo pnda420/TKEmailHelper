@@ -17,6 +17,7 @@ import { EmailTemplatesComponent } from './components/email-templates/email-temp
 import { EmailReplyComponent } from './components/email-reply/email-reply.component';
 import { EmailHistoryComponent } from './components/email-history/email-history.component';
 import { AdminSqlComponent } from './components/admin/admin-sql/admin-sql.component';
+import { AdminHealthComponent } from './components/admin/admin-health/admin-health.component';
 import { HelpComponent } from './components/help/help.component';
 import { WelcomeComponent } from './components/welcome/welcome.component';
 import { SetupComponent } from './components/setup/setup.component';
@@ -44,7 +45,8 @@ export const routes: Routes = [
     { path: 'history', component: EmailHistoryComponent, canActivate: [authGuard], title: pageMainName + ' | Verlauf', data: { description: 'E-Mail Verlauf – Gesendet & Papierkorb.' } },
     { path: 'templates', component: EmailTemplatesComponent, canActivate: [authGuard], title: pageMainName + ' | Vorlagen', data: { description: 'E-Mail Vorlagen verwalten.' } },
     { path: 'help', component: HelpComponent, canActivate: [authGuard], title: pageMainName + ' | Hilfe', data: { description: 'Hilfe & Anleitung für MailFlow.' } },
-    { path: 'admin', redirectTo: 'admin/logs', pathMatch: 'full' },
+    { path: 'admin', redirectTo: 'admin/health', pathMatch: 'full' },
+    { path: 'admin/health', component: AdminHealthComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | System Status', data: { description: 'System Health & Status.' } },
     { path: 'admin/logs', component: AdminLogsComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Admin Logs', data: { description: 'Error Logs & Monitoring.' } },
     { path: 'admin/users', component: AdminUsersComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Admin Users', data: { description: 'Admin Users verwalten.' } },
     { path: 'admin/ai-usage', component: AdminAiUsageComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | AI Usage', data: { description: 'AI Usage & Kosten Monitoring.' } },

@@ -1,0 +1,519 @@
+@import '../admin-shared.scss';
+
+// ============================================
+// ADMIN HEALTH – System Status Dashboard
+// ============================================
+
+// ── Page Container (matches admin-logs pattern) ──
+.admin-health {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: $admin-space-sm $admin-space-lg;
+  background: $gradient-bg;
+  overflow: hidden;
+  gap: $admin-space-sm;
+  animation: pageEnter $transition-slow ease-out;
+}
+
+// ── Page Header (glass card) ──
+.page-header {
+  display: flex;
+  align-items: center;
+  margin-top: 20px;
+  gap: $admin-space-md;
+  padding: $admin-space-sm $admin-space-lg;
+  background: $glass-bg;
+  backdrop-filter: blur(20px);
+  border: 1px solid $glass-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-glass;
+  flex-shrink: 0;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: $admin-space-sm;
+
+    h1 {
+      display: flex;
+      align-items: center;
+      gap: $admin-space-xs;
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: $text-primary;
+      white-space: nowrap;
+
+      .material-symbols-outlined {
+        font-size: 1.25rem;
+        color: $accent-blue;
+      }
+    }
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: $admin-space-sm;
+    margin-left: auto;
+  }
+}
+
+// ── Status Badge ──
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+
+  .material-symbols-outlined {
+    font-size: 0.9rem;
+  }
+
+  &.ok {
+    background: $accent-green-soft;
+    color: $accent-green;
+  }
+
+  &.degraded {
+    background: $accent-yellow-soft;
+    color: $accent-yellow;
+  }
+
+  &.down {
+    background: $accent-red-soft;
+    color: $accent-red;
+  }
+}
+
+// ── Last check time ──
+.last-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: $text-muted;
+  white-space: nowrap;
+
+  .material-symbols-outlined {
+    font-size: 0.9rem;
+  }
+}
+
+// ── Refresh button ──
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid $border-light;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $text-secondary;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  .material-symbols-outlined {
+    font-size: 1.1rem;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba($accent-blue, 0.06);
+    border-color: rgba($accent-blue, 0.3);
+    color: $accent-blue;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+// ── Scrollable content area ──
+.health-content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: $admin-space-sm;
+  padding-bottom: $admin-space-sm;
+
+  // Subtle scrollbar
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.18);
+    }
+  }
+}
+
+// ── Loading skeleton ──
+.loading-state {
+  flex: 1;
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: $admin-space-md;
+}
+
+.skeleton-card {
+  height: 200px;
+  border-radius: $radius-lg;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.03) 25%, rgba(0, 0, 0, 0.06) 50%, rgba(0, 0, 0, 0.03) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+// ── Error state ──
+.error-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: $admin-space-2xl;
+  color: $text-muted;
+
+  .material-symbols-outlined {
+    font-size: 3rem;
+    color: $accent-red;
+    margin-bottom: $admin-space-md;
+    opacity: 0.7;
+  }
+
+  p {
+    margin: 0 0 $admin-space-md;
+  }
+
+  .btn-retry {
+    padding: 8px 20px;
+    border: 1px solid $accent-blue;
+    border-radius: $radius-md;
+    background: transparent;
+    color: $accent-blue;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    transition: all $transition-fast;
+
+    &:hover {
+      background: rgba($accent-blue, 0.08);
+    }
+  }
+}
+
+// ── Health Grid ──
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: $admin-space-md;
+}
+
+// ── Health Card ──
+.health-card {
+  background: $glass-bg;
+  backdrop-filter: blur(20px);
+  border: 1px solid $glass-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-glass;
+  overflow: hidden;
+  animation: staggerFade $transition-normal ease-out both;
+  transition: all $transition-normal;
+
+  @for $i from 1 through 4 {
+    &:nth-child(#{$i}) {
+      animation-delay: #{$i * 0.06}s;
+    }
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-lg;
+    border-color: rgba($accent-blue, 0.15);
+  }
+
+  &.healthy {
+    border-left: 3px solid $accent-green;
+  }
+
+  &.unhealthy {
+    border-left: 3px solid $accent-red;
+
+    &:hover {
+      border-color: rgba($accent-red, 0.2);
+      border-left-color: $accent-red;
+    }
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: $admin-space-md;
+    padding: $admin-space-md $admin-space-lg;
+    border-bottom: 1px solid $border-light;
+  }
+
+  .card-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: $radius-md;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+
+    .material-symbols-outlined {
+      font-size: 1.2rem;
+      color: white;
+    }
+
+    &.postgres { background: linear-gradient(135deg, #336791, #5B9BD5); }
+    &.mssql { background: linear-gradient(135deg, #CC2927, #F06529); }
+    &.mail { background: linear-gradient(135deg, #4A90D9, #67B26F); }
+    &.system { background: linear-gradient(135deg, #8B5CF6, #EC4899); }
+  }
+
+  .card-title {
+    flex: 1;
+    min-width: 0;
+
+    h3 {
+      margin: 0;
+      font-size: 0.9375rem;
+      font-weight: 700;
+      color: $text-primary;
+      line-height: 1.3;
+    }
+
+    .card-subtitle {
+      font-size: 0.6875rem;
+      color: $text-muted;
+      letter-spacing: 0.02em;
+    }
+  }
+}
+
+// ── Status Dot ──
+.status-dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &.online {
+    background: $accent-green;
+
+    .dot-pulse {
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 2px solid $accent-green;
+      animation: pulse-ring 2s ease-out infinite;
+    }
+  }
+
+  &.offline {
+    background: $accent-red;
+
+    // Subtle glow for offline
+    box-shadow: 0 0 6px rgba($accent-red, 0.4);
+  }
+
+  &.config {
+    width: auto;
+    height: auto;
+    background: none;
+    color: $text-muted;
+
+    .material-symbols-outlined {
+      font-size: 14px;
+    }
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+// ── Card Details ──
+.card-details {
+  padding: $admin-space-sm $admin-space-lg $admin-space-md;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 0.8rem;
+
+  & + .detail-row {
+    border-top: 1px solid rgba($border-light, 0.4);
+  }
+
+  .detail-label {
+    color: $text-muted;
+    font-weight: 500;
+    font-size: 0.75rem;
+  }
+
+  .detail-value {
+    color: $text-primary;
+    font-weight: 600;
+    text-align: right;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    &.mono {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.7rem;
+      color: $text-secondary;
+    }
+
+    &.text-green { color: $accent-green; }
+    &.text-red { color: $accent-red; }
+    &.text-yellow { color: $accent-yellow; }
+  }
+}
+
+.error-row .detail-value {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ── Env Badge ──
+.env-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+
+  &.production {
+    background: $accent-green-soft;
+    color: $accent-green;
+  }
+
+  &.development {
+    background: $accent-blue-soft;
+    color: $accent-blue;
+  }
+}
+
+// ── Memory Bar ──
+.memory-bar {
+  display: inline-block;
+  width: 48px;
+  height: 5px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+
+  .memory-fill {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+
+    &.green { background: $accent-green; }
+    &.yellow { background: $accent-yellow; }
+    &.red { background: $accent-red; }
+  }
+}
+
+// ── Response Time Footer ──
+.response-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: $admin-space-xs $admin-space-md;
+  background: $glass-bg;
+  backdrop-filter: blur(16px);
+  border: 1px solid $glass-border;
+  border-radius: $radius-lg;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: $text-muted;
+  animation: fadeIn 0.5s ease-out 0.3s both;
+
+  .material-symbols-outlined {
+    font-size: 0.9rem;
+    color: $accent-blue;
+  }
+
+  strong {
+    color: $text-primary;
+  }
+
+  .auto-refresh-hint {
+    margin-left: $admin-space-sm;
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 999px;
+    font-size: 0.625rem;
+    color: $text-muted;
+  }
+}
+
+// ── Responsive ──
+@media (max-width: 768px) {
+  .admin-health {
+    padding: $admin-space-xs $admin-space-sm;
+  }
+
+  .page-header {
+    flex-wrap: wrap;
+    gap: $admin-space-xs;
+
+    .header-left {
+      flex-wrap: wrap;
+      gap: $admin-space-xs;
+    }
+
+    .header-actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+  }
+
+  .health-grid {
+    grid-template-columns: 1fr;
+  }
+}

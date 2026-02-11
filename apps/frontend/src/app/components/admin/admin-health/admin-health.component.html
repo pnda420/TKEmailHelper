@@ -1,0 +1,214 @@
+<app-admin-layout>
+<section class="admin-health">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1>
+        <span class="material-symbols-outlined">monitor_heart</span>
+        System Status
+      </h1>
+      <span class="status-badge" [class]="overallStatus">
+        <span class="material-symbols-outlined">{{ overallStatusIcon }}</span>
+        {{ overallStatusLabel }}
+      </span>
+    </div>
+    <div class="header-actions">
+      <span class="last-check" *ngIf="lastChecked">
+        <span class="material-symbols-outlined">schedule</span>
+        {{ formatLastChecked() }}
+      </span>
+      <button class="btn-icon" (click)="loadHealth()" [disabled]="loading" title="Aktualisieren">
+        <span class="material-symbols-outlined" [class.spinning]="loading">refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" *ngIf="loading && !health">
+    <div class="skeleton-grid">
+      <div class="skeleton-card" *ngFor="let i of [1,2,3,4]"></div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-state" *ngIf="error && !health">
+    <span class="material-symbols-outlined">cloud_off</span>
+    <p>{{ error }}</p>
+    <button class="btn-retry" (click)="loadHealth()">Erneut versuchen</button>
+  </div>
+
+  <!-- Scrollable Content -->
+  <div class="health-content" *ngIf="health">
+
+    <!-- Health Cards -->
+    <div class="health-grid">
+
+    <!-- PostgreSQL -->
+    <div class="health-card" [class.healthy]="health.services.postgres.connected" [class.unhealthy]="!health.services.postgres.connected">
+      <div class="card-header">
+        <div class="card-icon-wrap postgres">
+          <span class="material-symbols-outlined">database</span>
+        </div>
+        <div class="card-title">
+          <h3>PostgreSQL</h3>
+          <span class="card-subtitle">App-Datenbank</span>
+        </div>
+        <div class="status-dot" [class.online]="health.services.postgres.connected" [class.offline]="!health.services.postgres.connected">
+          <span class="dot-pulse" *ngIf="health.services.postgres.connected"></span>
+        </div>
+      </div>
+      <div class="card-details">
+        <div class="detail-row">
+          <span class="detail-label">Status</span>
+          <span class="detail-value" [class.text-green]="health.services.postgres.connected" [class.text-red]="!health.services.postgres.connected">
+            {{ health.services.postgres.connected ? 'Verbunden' : 'Getrennt' }}
+          </span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Host</span>
+          <span class="detail-value mono">{{ health.services.postgres.host }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Datenbank</span>
+          <span class="detail-value mono">{{ health.services.postgres.database }}</span>
+        </div>
+        <div class="detail-row" *ngIf="health.services.postgres.connected">
+          <span class="detail-label">Latenz</span>
+          <span class="detail-value">{{ health.services.postgres.latency }}ms</span>
+        </div>
+        <div class="detail-row error-row" *ngIf="health.services.postgres.error">
+          <span class="detail-label">Fehler</span>
+          <span class="detail-value text-red">{{ health.services.postgres.error }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MSSQL (WaWi) -->
+    <div class="health-card" [class.healthy]="health.services.mssql.connected" [class.unhealthy]="!health.services.mssql.connected">
+      <div class="card-header">
+        <div class="card-icon-wrap mssql">
+          <span class="material-symbols-outlined">lan</span>
+        </div>
+        <div class="card-title">
+          <h3>MSSQL / WaWi</h3>
+          <span class="card-subtitle">JTL-Wawi (Read-Only)</span>
+        </div>
+        <div class="status-dot" [class.online]="health.services.mssql.connected" [class.offline]="!health.services.mssql.connected">
+          <span class="dot-pulse" *ngIf="health.services.mssql.connected"></span>
+        </div>
+      </div>
+      <div class="card-details">
+        <div class="detail-row">
+          <span class="detail-label">Status</span>
+          <span class="detail-value" [class.text-green]="health.services.mssql.connected" [class.text-red]="!health.services.mssql.connected">
+            {{ health.services.mssql.connected ? 'Verbunden' : 'Getrennt' }}
+          </span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Host</span>
+          <span class="detail-value mono">{{ health.services.mssql.host }}:{{ health.services.mssql.port }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Datenbank</span>
+          <span class="detail-value mono">{{ health.services.mssql.database }}</span>
+        </div>
+        <div class="detail-row" *ngIf="health.services.mssql.connected">
+          <span class="detail-label">Latenz</span>
+          <span class="detail-value">{{ health.services.mssql.latency }}ms</span>
+        </div>
+        <div class="detail-row error-row" *ngIf="health.services.mssql.error">
+          <span class="detail-label">Fehler</span>
+          <span class="detail-value text-red">{{ health.services.mssql.error }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mail (IMAP/SMTP) -->
+    <div class="health-card healthy">
+      <div class="card-header">
+        <div class="card-icon-wrap mail">
+          <span class="material-symbols-outlined">mail</span>
+        </div>
+        <div class="card-title">
+          <h3>E-Mail</h3>
+          <span class="card-subtitle">IMAP / SMTP</span>
+        </div>
+        <div class="status-dot config">
+          <span class="material-symbols-outlined" style="font-size: 14px;">settings</span>
+        </div>
+      </div>
+      <div class="card-details">
+        <div class="detail-row">
+          <span class="detail-label">Account</span>
+          <span class="detail-value mono">{{ health.services.mail.account }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">IMAP</span>
+          <span class="detail-value mono">{{ health.services.mail.imapHost }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">SMTP</span>
+          <span class="detail-value mono">{{ health.services.mail.smtpHost }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Info -->
+    <div class="health-card system-card healthy">
+      <div class="card-header">
+        <div class="card-icon-wrap system">
+          <span class="material-symbols-outlined">memory</span>
+        </div>
+        <div class="card-title">
+          <h3>Backend</h3>
+          <span class="card-subtitle">Node.js Runtime</span>
+        </div>
+        <div class="status-dot online">
+          <span class="dot-pulse"></span>
+        </div>
+      </div>
+      <div class="card-details">
+        <div class="detail-row">
+          <span class="detail-label">Uptime</span>
+          <span class="detail-value">{{ health.system.uptimeFormatted }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Node.js</span>
+          <span class="detail-value mono">{{ health.system.nodeVersion }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Environment</span>
+          <span class="detail-value">
+            <span class="env-badge" [class]="health.system.env">{{ health.system.env }}</span>
+          </span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">RAM (RSS)</span>
+          <span class="detail-value">{{ health.system.memoryMb.rss }} MB</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Heap</span>
+          <span class="detail-value">
+            {{ health.system.memoryMb.heapUsed }} / {{ health.system.memoryMb.heapTotal }} MB
+            <span class="memory-bar">
+              <span class="memory-fill" [class]="getMemoryColor()" [style.width.%]="getMemoryPercent()"></span>
+            </span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Response Time -->
+  <div class="response-row" *ngIf="health">
+    <span class="material-symbols-outlined">speed</span>
+    Health-Check in <strong>{{ health.totalLatency }}ms</strong> abgeschlossen
+    <span class="auto-refresh-hint">Auto-Refresh alle 30s</span>
+  </div>
+
+  </div><!-- /health-content -->
+
+</section>
+</app-admin-layout>

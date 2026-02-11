@@ -58,6 +58,7 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
   };
 
   routes: NavRoute[] = [
+    { path: 'admin/health', label: 'System Status', icon: 'monitor_heart' },
     { path: 'admin/logs', label: 'Error Logs', icon: 'bug_report' },
     { path: 'admin/ai-usage', label: 'AI Usage', icon: 'smart_toy' },
     { path: 'admin/ai-config', label: 'Regeln', icon: 'gavel' },
@@ -67,11 +68,10 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
 
   // Mobile bottom nav
   mobileNavRoutes: NavRoute[] = [
+    { path: 'admin/health', label: 'Status', icon: 'monitor_heart' },
     { path: 'admin/logs', label: 'Logs', icon: 'bug_report' },
     { path: 'admin/ai-usage', label: 'AI', icon: 'smart_toy' },
-    { path: 'admin/ai-config', label: 'Regeln', icon: 'gavel' },
     { path: 'admin/users', label: 'User', icon: 'group' },
-    { path: 'admin/sql', label: 'SQL', icon: 'database' },
   ];
 
   constructor(private router: Router, private contexts: ChildrenOutletContexts) {}
