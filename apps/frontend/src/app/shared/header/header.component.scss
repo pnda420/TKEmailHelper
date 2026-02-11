@@ -634,6 +634,240 @@
   }
 }
 
+/* ===== CONNECTION STATUS ===== */
+
+.connection-status-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.connection-status-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: $radius-full;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  z-index: 1;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  }
+}
+
+.connection-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transition: background 0.3s, box-shadow 0.3s;
+
+  &.all-ok {
+    background: #22c55e;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+    animation: connectionPulse 3s ease-in-out infinite;
+  }
+
+  &.partial {
+    background: #f59e0b;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+  }
+
+  &.down {
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+    animation: connectionAlert 1.5s ease-in-out infinite;
+  }
+
+  &.unknown {
+    background: #9ca3af;
+  }
+}
+
+@keyframes connectionPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.3); }
+  50% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+}
+
+@keyframes connectionAlert {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.connection-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 260px;
+  background: white;
+  border-radius: 12px;
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  z-index: 100;
+  animation: fadeInDown 0.15s ease-out;
+  overflow: hidden;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #1f2937;
+
+    .material-symbols-outlined {
+      font-size: 16px;
+      color: #6366f1;
+    }
+  }
+
+  &__refresh {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+
+    .material-symbols-outlined {
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    &:hover {
+      background: rgba(99, 102, 241, 0.06);
+      border-color: rgba(99, 102, 241, 0.2);
+
+      .material-symbols-outlined {
+        color: #6366f1;
+      }
+    }
+  }
+
+  &__body {
+    padding: 8px 14px;
+  }
+
+  &__loading {
+    padding: 12px 0;
+    text-align: center;
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    font-size: 0.6875rem;
+  }
+
+  &__time {
+    color: #9ca3af;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.625rem;
+  }
+
+  &__link {
+    color: #6366f1;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.6875rem;
+    transition: color 0.15s;
+
+    &:hover {
+      color: #4f46e5;
+    }
+  }
+}
+
+.connection-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 0.8rem;
+
+  & + .connection-row {
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
+  }
+
+  &__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &.ok { background: #22c55e; }
+    &.fail { background: #ef4444; }
+  }
+
+  &__label {
+    flex: 1;
+    font-weight: 500;
+    color: #374151;
+  }
+
+  &__value {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #6b7280;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+
+    &.fail {
+      color: #ef4444;
+    }
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Mobile: Popup fullwidth
+@media (max-width: 899px) {
+  .connection-popup {
+    right: -60px;
+    width: 240px;
+  }
+}
+
 /* ===== BACKDROP ===== */
 
 .backdrop {

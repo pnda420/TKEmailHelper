@@ -14,6 +14,7 @@ export enum EmailStatus {
 }
 
 @Entity('emails')
+@Index('IDX_emails_status_receivedAt', ['status', 'receivedAt'])
 export class Email {
   @PrimaryGeneratedColumn('uuid')
   id: string;

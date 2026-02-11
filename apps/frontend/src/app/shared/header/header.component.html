@@ -35,6 +35,57 @@
       </div>
 
       <div class="nav__auth">
+        <!-- Connection Status Indicator -->
+        <div class="connection-status-container" *ngIf="user">
+          <button class="connection-status-btn" (click)="toggleConnectionPopup($event)"
+            [title]="connectionLabel">
+            <span class="connection-dot" [ngClass]="connectionDotClass"></span>
+          </button>
+
+          <!-- Connection Popup -->
+          <div class="connection-popup" *ngIf="connectionPopupOpen">
+            <div class="connection-popup__header">
+              <span class="material-symbols-outlined">lan</span>
+              <span>Verbindungen</span>
+              <button class="connection-popup__refresh" (click)="refreshConnectionStatus($event)" title="Aktualisieren">
+                <span class="material-symbols-outlined">refresh</span>
+              </button>
+            </div>
+            <div class="connection-popup__body" *ngIf="connectionStatus">
+              <div class="connection-row">
+                <span class="connection-row__dot" [class.ok]="connectionStatus.vpn" [class.fail]="!connectionStatus.vpn"></span>
+                <span class="connection-row__label">VPN</span>
+                <span class="connection-row__value" *ngIf="connectionStatus.vpn">{{ connectionStatus.vpnLatency }}ms</span>
+                <span class="connection-row__value fail" *ngIf="!connectionStatus.vpn">Offline</span>
+              </div>
+              <div class="connection-row">
+                <span class="connection-row__dot" [class.ok]="connectionStatus.postgres" [class.fail]="!connectionStatus.postgres"></span>
+                <span class="connection-row__label">PostgreSQL</span>
+                <span class="connection-row__value" *ngIf="connectionStatus.postgres">Online</span>
+                <span class="connection-row__value fail" *ngIf="!connectionStatus.postgres">Offline</span>
+              </div>
+              <div class="connection-row">
+                <span class="connection-row__dot" [class.ok]="connectionStatus.mssql" [class.fail]="!connectionStatus.mssql"></span>
+                <span class="connection-row__label">WaWi (MSSQL)</span>
+                <span class="connection-row__value" *ngIf="connectionStatus.mssql">Online</span>
+                <span class="connection-row__value fail" *ngIf="!connectionStatus.mssql">Offline</span>
+              </div>
+            </div>
+            <div class="connection-popup__body" *ngIf="!connectionStatus">
+              <div class="connection-popup__loading">Lade...</div>
+            </div>
+            <div class="connection-popup__footer">
+              <span class="connection-popup__time" *ngIf="connectionStatus">
+                {{ connectionStatus.timestamp | date:'HH:mm:ss' }}
+              </span>
+              <a routerLink="/admin/health" *ngIf="user?.role === UserRole.ADMIN"
+                class="connection-popup__link" (click)="connectionPopupOpen = false; closeMenu()">
+                Details →
+              </a>
+            </div>
+          </div>
+        </div>
+
         <ng-container *ngIf="!user">
           <a routerLink="/login" routerLinkActive="active" class="nav-link--primary"
             (click)="servicesDropdownOpen = false; closeMenu()">

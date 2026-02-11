@@ -232,6 +232,15 @@ export class EmailsService {
       order: { receivedAt: 'DESC' },
       take: limit,
       skip: offset,
+      // ⚡ List-View braucht nicht die ganzen schweren Text-Felder
+      // htmlBody/textBody/agentAnalysis/suggestedReply werden erst bei getEmailById geladen
+      select: [
+        'id', 'messageId', 'subject', 'status', 'fromAddress', 'fromName',
+        'toAddresses', 'preview', 'receivedAt', 'isRead', 'hasAttachments',
+        'attachments', 'aiSummary', 'aiTags', 'aiProcessedAt', 'aiProcessing',
+        'cleanedBody', 'agentKeyFacts', 'customerPhone', 'suggestedReplySubject',
+        'repliedAt', 'createdAt', 'updatedAt',
+      ],
     });
 
     return { emails, total };

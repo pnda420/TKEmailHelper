@@ -6,6 +6,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AdminGuard } from './auth/guards/admin.guard';
 import { DatabaseService } from './database/database.service';
 import { DataSource } from 'typeorm';
+import * as net from 'net';
 
 @Controller()
 export class AppController {
@@ -16,10 +17,71 @@ export class AppController {
     private readonly dataSource: DataSource,
   ) { }
 
+  /**
+   * TCP-Probe: Prüft ob ein Host:Port über das Netzwerk (VPN) erreichbar ist.
+   * Kurzer Timeout (3s) um schnell Feedback zu geben.
+   */
+  private checkTcpReachable(host: string, port: number, timeoutMs = 3000): Promise<{ reachable: boolean; latency: number; error?: string }> {
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const socket = new net.Socket();
+
+      const cleanup = () => {
+        socket.removeAllListeners();
+        socket.destroy();
+      };
+
+      socket.setTimeout(timeoutMs);
+
+      socket.on('connect', () => {
+        const latency = Date.now() - start;
+        cleanup();
+        resolve({ reachable: true, latency });
+      });
+
+      socket.on('timeout', () => {
+        cleanup();
+        resolve({ reachable: false, latency: Date.now() - start, error: `Timeout nach ${timeoutMs}ms` });
+      });
+
+      socket.on('error', (err) => {
+        cleanup();
+        resolve({ reachable: false, latency: Date.now() - start, error: err.message });
+      });
+
+      socket.connect(port, host);
+    });
+  }
+
   @Public()
   @Get('health')
   health() {
     return { status: 'ok' };
+  }
+
+  /**
+   * Lightweight Connection-Status für Header-Anzeige (alle eingeloggten User)
+   * Schnell: ~50ms statt ~500ms vom vollen Health-Check
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('api/system/status')
+  async systemStatus() {
+    const vpnHost = this.configService.get<string>('MSSQL_HOST', '192.168.2.10');
+    const vpnPort = parseInt(this.configService.get<string>('MSSQL_PORT', '49948'), 10);
+
+    // Parallel: VPN TCP-Probe + Postgres ping
+    const [vpnProbe, pgOk] = await Promise.all([
+      this.checkTcpReachable(vpnHost, vpnPort, 2000),
+      this.dataSource.query('SELECT 1').then(() => true).catch(() => false),
+    ]);
+
+    return {
+      vpn: vpnProbe.reachable,
+      vpnLatency: vpnProbe.latency,
+      postgres: pgOk,
+      mssql: this.databaseService.isConnected(),
+      timestamp: new Date().toISOString(),
+    };
   }
 
   /**
@@ -29,6 +91,19 @@ export class AppController {
   @Get('api/system/health')
   async systemHealth() {
     const startTime = Date.now();
+
+    // 0. VPN / Netzwerk Check (TCP-Probe zum WaWi-Server)
+    const vpnHost = this.configService.get<string>('MSSQL_HOST', '192.168.2.10');
+    const vpnPort = parseInt(this.configService.get<string>('MSSQL_PORT', '49948'), 10);
+    let vpn = { connected: false, latency: 0, error: '', host: vpnHost, port: vpnPort };
+    try {
+      const probe = await this.checkTcpReachable(vpnHost, vpnPort, 3000);
+      vpn.connected = probe.reachable;
+      vpn.latency = probe.latency;
+      vpn.error = probe.error || '';
+    } catch (e) {
+      vpn.error = e.message;
+    }
 
     // 1. PostgreSQL Check
     let postgres = { connected: false, latency: 0, error: '' };
@@ -54,7 +129,9 @@ export class AppController {
         mssql.connected = true;
         mssql.latency = Date.now() - msStart;
       } else {
-        mssql.error = 'Pool nicht verbunden';
+        mssql.error = vpn.connected
+          ? 'Pool nicht verbunden (VPN steht, MSSQL-Service prüfen)'
+          : 'Pool nicht verbunden (VPN nicht erreichbar!)';
       }
     } catch (e) {
       mssql.error = e.message;
@@ -69,11 +146,21 @@ export class AppController {
     const uptime = process.uptime();
     const memUsage = process.memoryUsage();
 
+    // 5. DB Connection Details from DatabaseService
+    const dbStats = this.databaseService.getConnectionStats();
+
     return {
-      status: postgres.connected ? 'ok' : 'degraded',
+      status: postgres.connected ? (vpn.connected ? 'ok' : 'degraded') : 'degraded',
       timestamp: new Date().toISOString(),
       totalLatency: Date.now() - startTime,
       services: {
+        vpn: {
+          connected: vpn.connected,
+          latency: vpn.latency,
+          host: vpn.host,
+          port: vpn.port,
+          error: vpn.error || undefined,
+        },
         postgres: {
           connected: postgres.connected,
           latency: postgres.latency,
@@ -88,6 +175,9 @@ export class AppController {
           port: mssql.port,
           database: this.configService.get<string>('MSSQL_DATABASE', 'unknown'),
           error: mssql.error || undefined,
+          reconnectAttempts: dbStats.reconnectAttempts,
+          poolSize: dbStats.poolSize,
+          lastHealthPing: dbStats.lastHealthPing,
         },
         mail: {
           account: mailAccount ? mailAccount.replace(/(.{3}).*(@.*)/, '$1***$2') : 'not configured',

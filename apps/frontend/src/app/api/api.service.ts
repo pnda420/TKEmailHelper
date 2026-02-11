@@ -630,6 +630,9 @@ export interface SystemHealthService {
   account?: string;
   imapHost?: string;
   smtpHost?: string;
+  reconnectAttempts?: number;
+  poolSize?: number;
+  lastHealthPing?: string | null;
 }
 
 export interface SystemHealth {
@@ -637,6 +640,7 @@ export interface SystemHealth {
   timestamp: string;
   totalLatency: number;
   services: {
+    vpn: SystemHealthService;
     postgres: SystemHealthService;
     mssql: SystemHealthService;
     mail: { account: string; imapHost: string; smtpHost: string };
@@ -648,6 +652,14 @@ export interface SystemHealth {
     env: string;
     memoryMb: { rss: number; heapUsed: number; heapTotal: number };
   };
+}
+
+export interface SystemStatus {
+  vpn: boolean;
+  vpnLatency: number;
+  postgres: boolean;
+  mssql: boolean;
+  timestamp: string;
 }
 
 
@@ -1299,6 +1311,15 @@ getAiBalance(): Observable<AiBalance> {
  */
 getSystemHealth(): Observable<SystemHealth> {
   return this.http.get<SystemHealth>(`${this.apiUrl}/api/system/health`, {
+    headers: this.getHeaders(),
+  });
+}
+
+/**
+ * Lightweight connection status (all logged-in users)
+ */
+getSystemStatus(): Observable<SystemStatus> {
+  return this.http.get<SystemStatus>(`${this.apiUrl}/api/system/status`, {
     headers: this.getHeaders(),
   });
 }

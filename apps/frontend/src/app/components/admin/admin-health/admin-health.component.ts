@@ -49,6 +49,9 @@ export class AdminHealthComponent implements OnInit, OnDestroy {
 
   get overallStatus(): 'ok' | 'degraded' | 'down' {
     if (!this.health) return 'down';
+    // VPN down = mindestens degraded
+    if (!this.health.services.vpn?.connected && !this.health.services.postgres?.connected) return 'down';
+    if (!this.health.services.vpn?.connected) return 'degraded';
     return this.health.status;
   }
 
@@ -65,6 +68,16 @@ export class AdminHealthComponent implements OnInit, OnDestroy {
       case 'ok': return 'check_circle';
       case 'degraded': return 'warning';
       case 'down': return 'error';
+    }
+  }
+
+  formatLastHealthPing(): string {
+    const ping = this.health?.services?.mssql?.lastHealthPing;
+    if (!ping) return '—';
+    try {
+      return new Date(ping).toLocaleTimeString('de-DE');
+    } catch {
+      return '—';
     }
   }
 

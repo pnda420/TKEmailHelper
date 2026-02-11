@@ -102,6 +102,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
+    // Load emails AND check processing status in parallel
     this.loadEmails();
     this.checkProcessingAndConnect();
   }

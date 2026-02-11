@@ -266,10 +266,36 @@ $g900: #111827;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding-top: 0.5rem;
+  padding-top: 0;
   background: #fff;
   border-radius: 12px;
   overflow: hidden;
+
+  .loading-spinner-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 1rem;
+    border-bottom: 1px solid $g100;
+  }
+
+  .loading-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2.5px solid $g200;
+    border-top-color: $accent;
+    border-radius: 50%;
+    animation: spinLoader 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  .loading-text {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $g500;
+    letter-spacing: -0.01em;
+  }
 
   .skeleton-row {
     display: flex;
@@ -302,6 +328,10 @@ $g900: #111827;
     &.w90 { width: 90%; }
     &.w40 { width: 40%; }
   }
+}
+
+@keyframes spinLoader {
+  to { transform: rotate(360deg); }
 }
 
 @keyframes pulse {

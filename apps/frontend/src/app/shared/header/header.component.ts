@@ -4,7 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService, User, UserRole } from '../../services/auth.service';
 import { ToastService } from '../toasts/toast.service';
 import { ConfirmationService } from '../confirmation/confirmation.service';
-import { ApiService, ServiceCategory } from '../../api/api.service';
+import { ApiService, ServiceCategory, SystemStatus } from '../../api/api.service';
 import { Subscription } from 'rxjs';
 
 interface NavCategory {
@@ -31,6 +31,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private categoriesSub?: Subscription;
   private routerSub?: Subscription;
 
+  // Connection Status
+  connectionStatus: SystemStatus | null = null;
+  connectionPopupOpen = false;
+  private connectionInterval?: any;
+
   constructor(
     @Inject(DOCUMENT) private doc: Document,
     public router: Router,
@@ -43,12 +48,24 @@ export class HeaderComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.authService.currentUser$.subscribe(user => {
       this.user = user;
+      if (user) {
+        this.loadConnectionStatus();
+        // Poll every 30s while logged in
+        this.connectionInterval = setInterval(() => this.loadConnectionStatus(), 30_000);
+      } else {
+        this.connectionStatus = null;
+        if (this.connectionInterval) {
+          clearInterval(this.connectionInterval);
+          this.connectionInterval = undefined;
+        }
+      }
     });
     
     
     // Reset dropdown on EVERY route change
     this.routerSub = this.router.events.subscribe(() => {
       this.servicesDropdownOpen = false;
+      this.connectionPopupOpen = false;
       this.open = false;
       this.doc.body.style.overflow = '';
       this.doc.body.style.touchAction = '';
@@ -58,6 +75,47 @@ export class HeaderComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.categoriesSub?.unsubscribe();
     this.routerSub?.unsubscribe();
+    if (this.connectionInterval) {
+      clearInterval(this.connectionInterval);
+    }
+  }
+
+  // ── Connection Status ──
+
+  private loadConnectionStatus(): void {
+    this.api.getSystemStatus().subscribe({
+      next: (status) => this.connectionStatus = status,
+      error: () => this.connectionStatus = null,
+    });
+  }
+
+  get connectionDotClass(): string {
+    if (!this.connectionStatus) return 'unknown';
+    const { vpn, postgres, mssql } = this.connectionStatus;
+    if (vpn && postgres && mssql) return 'all-ok';
+    if (postgres) return 'partial'; // At least app DB is fine
+    return 'down';
+  }
+
+  get connectionLabel(): string {
+    if (!this.connectionStatus) return 'Status unbekannt';
+    const { vpn, postgres, mssql } = this.connectionStatus;
+    if (vpn && postgres && mssql) return 'Alle Systeme online';
+    if (postgres && !vpn) return 'VPN getrennt';
+    if (postgres && !mssql) return 'WaWi getrennt';
+    return 'Verbindungsprobleme';
+  }
+
+  toggleConnectionPopup(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.connectionPopupOpen = !this.connectionPopupOpen;
+    this.servicesDropdownOpen = false;
+  }
+
+  refreshConnectionStatus(event: Event): void {
+    event.stopPropagation();
+    this.loadConnectionStatus();
   }
 
   // Close dropdown when clicking outside
@@ -68,6 +126,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
     // Wenn Klick NICHT im Dropdown-Container UND NICHT im nav-toggle ist
     if (!target.closest('.nav-dropdown-container') && !target.closest('.nav-toggle')) {
       this.servicesDropdownOpen = false;
+    }
+    // Connection Popup schließen
+    if (!target.closest('.connection-status-container')) {
+      this.connectionPopupOpen = false;
     }
   }
 

@@ -242,7 +242,7 @@
   animation: staggerFade $transition-normal ease-out both;
   transition: all $transition-normal;
 
-  @for $i from 1 through 4 {
+  @for $i from 1 through 5 {
     &:nth-child(#{$i}) {
       animation-delay: #{$i * 0.06}s;
     }
@@ -290,6 +290,7 @@
       color: white;
     }
 
+    &.vpn { background: linear-gradient(135deg, #059669, #34D399); }
     &.postgres { background: linear-gradient(135deg, #336791, #5B9BD5); }
     &.mssql { background: linear-gradient(135deg, #CC2927, #F06529); }
     &.mail { background: linear-gradient(135deg, #4A90D9, #67B26F); }
