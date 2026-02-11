@@ -61,8 +61,9 @@ import { AppService } from './app.service';
       password: process.env.DB_PASS ?? 'secret',
       database: process.env.DB_NAME ?? 'appdb',
       entities: [User, Email, EmailTemplate, AppLog, AiUsage, AiConfig],
-      // 🛡️ synchronize NUR in Development! In Production → Migrationen nutzen.
-      synchronize: process.env.NODE_ENV !== 'production',
+      // synchronize: Kein Migrations-System vorhanden, daher immer aktiv.
+      // Bei neuem Entity/Column wird die DB automatisch angepasst.
+      synchronize: true,
       logging: process.env.NODE_ENV === 'development',
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       retryAttempts: 20,     // Mehr Retries (default: 10)
