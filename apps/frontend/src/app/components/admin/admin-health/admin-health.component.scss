@@ -707,3 +707,265 @@
     height: 160px;
   }
 }
+
+// ============================================
+// DATABASE MANAGEMENT SECTION
+// ============================================
+
+.db-management-section {
+  flex-shrink: 0;
+  padding: $admin-space-lg;
+  background: $glass-bg;
+  backdrop-filter: blur(20px);
+  border: 1px solid $glass-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-glass;
+  animation: fadeIn 0.3s ease-out;
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $admin-space-md;
+
+    h2 {
+      display: flex;
+      align-items: center;
+      gap: $admin-space-xs;
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: $text-primary;
+
+      .material-symbols-outlined {
+        font-size: 1.15rem;
+        color: $accent-purple;
+      }
+    }
+
+    .section-hint {
+      font-size: 0.7rem;
+      color: $text-muted;
+    }
+  }
+}
+
+.db-message {
+  display: flex;
+  align-items: center;
+  gap: $admin-space-xs;
+  padding: $admin-space-sm $admin-space-md;
+  border-radius: $radius-md;
+  font-size: 0.78rem;
+  font-weight: 500;
+  margin-bottom: $admin-space-md;
+  animation: fadeIn 0.2s ease-out;
+
+  .material-symbols-outlined {
+    font-size: 1rem;
+  }
+
+  &.success {
+    background: $accent-green-soft;
+    color: $accent-green;
+    border: 1px solid rgba($accent-green, 0.2);
+  }
+
+  &.error {
+    background: $accent-red-soft;
+    color: $accent-red;
+    border: 1px solid rgba($accent-red, 0.2);
+  }
+}
+
+.db-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: $admin-space-sm;
+}
+
+.db-action-btn {
+  display: flex;
+  align-items: center;
+  gap: $admin-space-sm;
+  padding: $admin-space-md $admin-space-lg;
+  border: 1px solid $border-default;
+  border-radius: $radius-md;
+  background: white;
+  cursor: pointer;
+  transition: all $transition-fast;
+  text-align: left;
+
+  .material-symbols-outlined {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+
+  .btn-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .btn-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  .btn-desc {
+    font-size: 0.65rem;
+    color: $text-muted;
+  }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.danger {
+    border-color: rgba($accent-red, 0.3);
+
+    .material-symbols-outlined {
+      color: $accent-red;
+    }
+
+    &:hover:not(:disabled) {
+      background: $accent-red-soft;
+      border-color: $accent-red;
+    }
+  }
+
+  &.warning {
+    border-color: rgba($accent-orange, 0.3);
+
+    .material-symbols-outlined {
+      color: $accent-orange;
+    }
+
+    &:hover:not(:disabled) {
+      background: rgba($accent-orange, 0.08);
+      border-color: $accent-orange;
+    }
+  }
+
+  &.info {
+    border-color: rgba($accent-purple, 0.3);
+
+    .material-symbols-outlined {
+      color: $accent-purple;
+    }
+
+    &:hover:not(:disabled) {
+      background: rgba($accent-purple, 0.08);
+      border-color: $accent-purple;
+    }
+  }
+}
+
+// Confirmation overlay
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.confirm-dialog {
+  background: white;
+  border-radius: $radius-lg;
+  padding: $admin-space-xl;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.2s ease-out;
+
+  .confirm-icon {
+    font-size: 2.5rem;
+    color: $accent-yellow;
+    margin-bottom: $admin-space-sm;
+  }
+
+  h3 {
+    margin: 0 0 $admin-space-xs;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: $text-primary;
+  }
+
+  p {
+    margin: 0 0 $admin-space-lg;
+    font-size: 0.82rem;
+    color: $text-secondary;
+    line-height: 1.5;
+  }
+
+  .confirm-actions {
+    display: flex;
+    gap: $admin-space-sm;
+    justify-content: center;
+  }
+
+  .btn-cancel {
+    padding: $admin-space-sm $admin-space-lg;
+    border: 1px solid $border-default;
+    border-radius: $radius-md;
+    background: white;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: $text-secondary;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover {
+      background: #f8fafc;
+      border-color: $text-muted;
+    }
+  }
+
+  .btn-confirm-delete {
+    display: flex;
+    align-items: center;
+    gap: $admin-space-xs;
+    padding: $admin-space-sm $admin-space-lg;
+    border: none;
+    border-radius: $radius-md;
+    background: $accent-red;
+    color: white;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    .material-symbols-outlined {
+      font-size: 1rem;
+    }
+
+    &:hover {
+      background: darken($accent-red, 8%);
+      transform: translateY(-1px);
+    }
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

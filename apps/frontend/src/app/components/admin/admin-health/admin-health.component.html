@@ -399,6 +399,85 @@
     </div>
   </div>
 
+  <!-- Database Management -->
+  <div class="db-management-section" *ngIf="health">
+    <div class="section-header">
+      <h2>
+        <span class="material-symbols-outlined">database</span>
+        Datenbank-Verwaltung
+      </h2>
+      <span class="section-hint">E-Mail Datenbank bereinigen</span>
+    </div>
+
+    <!-- Confirmation Dialog -->
+    <div class="confirm-overlay" *ngIf="confirmAction" (click)="cancelClear()">
+      <div class="confirm-dialog" (click)="$event.stopPropagation()">
+        <span class="material-symbols-outlined confirm-icon">warning</span>
+        <h3>Wirklich löschen?</h3>
+        <p *ngIf="confirmAction === 'all'">Alle E-Mails werden unwiderruflich aus der Datenbank gelöscht.</p>
+        <p *ngIf="confirmAction === 'inbox'">Alle Inbox-E-Mails werden gelöscht.</p>
+        <p *ngIf="confirmAction === 'sent'">Alle gesendeten E-Mails werden gelöscht.</p>
+        <p *ngIf="confirmAction === 'trash'">Alle Papierkorb-E-Mails werden gelöscht.</p>
+        <p *ngIf="confirmAction === 'ai'">AI-Analyse-Daten aller E-Mails werden zurückgesetzt. Die E-Mails selbst bleiben erhalten.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" (click)="cancelClear()">Abbrechen</button>
+          <button class="btn-confirm-delete" (click)="confirmClear()">
+            <span class="material-symbols-outlined">delete_forever</span>
+            Ja, löschen
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success/Error Message -->
+    <div class="db-message" *ngIf="dbMessage" [class.success]="dbMessageType === 'success'" [class.error]="dbMessageType === 'error'">
+      <span class="material-symbols-outlined">{{ dbMessageType === 'success' ? 'check_circle' : 'error' }}</span>
+      {{ dbMessage }}
+    </div>
+
+    <div class="db-actions-grid">
+      <button class="db-action-btn danger" (click)="requestClear('all')" [disabled]="dbClearing !== ''">
+        <span class="material-symbols-outlined" [class.spinning]="dbClearing === 'all'">{{ dbClearing === 'all' ? 'progress_activity' : 'delete_sweep' }}</span>
+        <div class="btn-text">
+          <span class="btn-label">Alle E-Mails löschen</span>
+          <span class="btn-desc">Inbox + Sent + Trash</span>
+        </div>
+      </button>
+
+      <button class="db-action-btn warning" (click)="requestClear('inbox')" [disabled]="dbClearing !== ''">
+        <span class="material-symbols-outlined" [class.spinning]="dbClearing === 'inbox'">{{ dbClearing === 'inbox' ? 'progress_activity' : 'inbox' }}</span>
+        <div class="btn-text">
+          <span class="btn-label">Inbox leeren</span>
+          <span class="btn-desc">Nur Inbox-Mails</span>
+        </div>
+      </button>
+
+      <button class="db-action-btn warning" (click)="requestClear('sent')" [disabled]="dbClearing !== ''">
+        <span class="material-symbols-outlined" [class.spinning]="dbClearing === 'sent'">{{ dbClearing === 'sent' ? 'progress_activity' : 'send' }}</span>
+        <div class="btn-text">
+          <span class="btn-label">Sent leeren</span>
+          <span class="btn-desc">Nur gesendete Mails</span>
+        </div>
+      </button>
+
+      <button class="db-action-btn warning" (click)="requestClear('trash')" [disabled]="dbClearing !== ''">
+        <span class="material-symbols-outlined" [class.spinning]="dbClearing === 'trash'">{{ dbClearing === 'trash' ? 'progress_activity' : 'delete' }}</span>
+        <div class="btn-text">
+          <span class="btn-label">Papierkorb leeren</span>
+          <span class="btn-desc">Nur Papierkorb-Mails</span>
+        </div>
+      </button>
+
+      <button class="db-action-btn info" (click)="requestClear('ai')" [disabled]="dbClearing !== ''">
+        <span class="material-symbols-outlined" [class.spinning]="dbClearing === 'ai'">{{ dbClearing === 'ai' ? 'progress_activity' : 'psychology' }}</span>
+        <div class="btn-text">
+          <span class="btn-label">AI-Daten zurücksetzen</span>
+          <span class="btn-desc">E-Mails bleiben, AI neu anlysieren</span>
+        </div>
+      </button>
+    </div>
+  </div>
+
   <!-- Response Time -->
   <div class="response-row" *ngIf="health">
     <span class="material-symbols-outlined">speed</span>

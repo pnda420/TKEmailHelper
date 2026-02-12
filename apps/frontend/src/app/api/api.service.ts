@@ -1367,4 +1367,51 @@ getSystemStatus(): Observable<SystemStatus> {
     headers: this.getHeaders(),
   });
 }
+
+// ==================== EMAIL DATABASE MANAGEMENT (Admin) ====================
+
+/**
+ * Alle E-Mails aus der Datenbank löschen
+ */
+clearAllEmails(): Observable<{ message: string; deleted: number }> {
+  return this.http.delete<{ message: string; deleted: number }>(`${this.apiUrl}/emails/db/all`, {
+    headers: this.getHeaders(),
+  });
+}
+
+/**
+ * Inbox E-Mails löschen
+ */
+clearInboxEmails(): Observable<{ message: string; deleted: number }> {
+  return this.http.delete<{ message: string; deleted: number }>(`${this.apiUrl}/emails/db/inbox`, {
+    headers: this.getHeaders(),
+  });
+}
+
+/**
+ * Gesendete E-Mails löschen
+ */
+clearSentEmails(): Observable<{ message: string; deleted: number }> {
+  return this.http.delete<{ message: string; deleted: number }>(`${this.apiUrl}/emails/db/sent`, {
+    headers: this.getHeaders(),
+  });
+}
+
+/**
+ * Papierkorb E-Mails löschen
+ */
+clearTrashEmails(): Observable<{ message: string; deleted: number }> {
+  return this.http.delete<{ message: string; deleted: number }>(`${this.apiUrl}/emails/db/trash`, {
+    headers: this.getHeaders(),
+  });
+}
+
+/**
+ * AI-Daten zurücksetzen (E-Mails bleiben erhalten)
+ */
+clearAiData(): Observable<{ message: string; updated: number }> {
+  return this.http.delete<{ message: string; updated: number }>(`${this.apiUrl}/emails/db/ai-data`, {
+    headers: this.getHeaders(),
+  });
+}
 }

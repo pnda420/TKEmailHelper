@@ -6,12 +6,16 @@ import { EmailEventsService } from './email-events.service';
 
 /**
  * IMAP IDLE Watcher — Persistent connection to the IMAP server.
- * Watches the AI-INBOX folder for new emails using IMAP IDLE.
- * When new mail arrives (user drags email in Outlook) → auto-fetch → auto-process with AI.
+ * Watches the INBOX for FLAGGED emails using IMAP IDLE + polling.
+ * When a user flags an email in Outlook (⚑) → auto-fetch → auto-process with AI.
+ * 
+ * Uses a hybrid approach:
+ * - IMAP IDLE 'update' event detects flag changes in real-time (when supported by server)
+ * - Polling every 30s as fallback (Exchange/Outlook IMAP doesn't always push flag changes via IDLE)
  * 
  * Lifecycle:
- * 1. On module init → connect + open SOURCE_FOLDER + start IDLE
- * 2. On new mail event → fetch & store → emit SSE 'new-emails' → start AI processing
+ * 1. On module init → connect + open SOURCE_FOLDER + start IDLE + start polling
+ * 2. On flag change / poll → fetch flagged emails → emit SSE 'new-emails' → start AI processing
  * 3. On connection loss → exponential backoff reconnect
  * 4. On module destroy → clean disconnect
  */
@@ -27,6 +31,8 @@ export class ImapIdleService implements OnModuleInit, OnModuleDestroy {
   private readonly maxReconnectAttempts = 50;
   private readonly baseReconnectDelay = 3000; // 3s
   private keepAliveTimer: NodeJS.Timeout | null = null;
+  private pollTimer: NodeJS.Timeout | null = null;
+  private readonly pollIntervalMs = 30000; // Poll every 30s as fallback
 
   // IMAP config
   private readonly imapUser: string;
@@ -68,6 +74,10 @@ export class ImapIdleService implements OnModuleInit, OnModuleDestroy {
     if (this.keepAliveTimer) {
       clearInterval(this.keepAliveTimer);
       this.keepAliveTimer = null;
+    }
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
     }
   }
 
@@ -115,6 +125,17 @@ export class ImapIdleService implements OnModuleInit, OnModuleDestroy {
       this.debouncedFetchAndProcess();
     });
 
+    // Listen for flag changes (e.g. user flags/unflags email in Outlook)
+    this.imap.on('update', (seqno: number, info: any) => {
+      if (info?.flags) {
+        const flags = info.flags as string[];
+        if (flags.includes('\\Flagged')) {
+          this.logger.log(`IMAP IDLE: Email #${seqno} flagged in ${this.sourceFolder} — triggering fetch`);
+          this.debouncedFetchAndProcess();
+        }
+      }
+    });
+
     this.imap.on('expunge', (seqno: number) => {
       this.logger.debug(`IMAP IDLE: Message #${seqno} expunged from ${this.sourceFolder}`);
     });
@@ -159,15 +180,35 @@ export class ImapIdleService implements OnModuleInit, OnModuleDestroy {
         this.scheduleReconnect();
         return;
       }
-      this.logger.log(`IMAP IDLE: Watching ${this.sourceFolder} (${box.messages.total} messages)`);
+      this.logger.log(`IMAP IDLE: Watching ${this.sourceFolder} for flagged emails (${box.messages.total} messages)`);
 
-      // Do an initial fetch on connect to pick up any emails added while we were offline
+      // Do an initial fetch on connect to pick up any flagged emails while we were offline
       this.fetchAndProcess();
+
+      // Start polling as fallback (Exchange doesn't always push flag changes via IDLE)
+      this.startPolling();
     });
   }
 
   /**
-   * Debounced fetch: if multiple 'mail' events fire in quick succession
+   * Start polling interval as fallback for servers that don't push flag changes via IDLE.
+   * Debounce prevents double-fetching when IDLE event + poll fire simultaneously.
+   */
+  private startPolling(): void {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+    }
+    this.pollTimer = setInterval(() => {
+      if (this.isConnected && !this.isDestroying) {
+        this.logger.debug('IMAP IDLE: Polling for flagged emails...');
+        this.debouncedFetchAndProcess();
+      }
+    }, this.pollIntervalMs);
+    this.logger.log(`IMAP IDLE: Polling started (every ${this.pollIntervalMs / 1000}s)`);
+  }
+
+  /**
+   * Debounced fetch: if multiple 'mail'/'update' events fire in quick succession
    * (e.g. user drags 10 emails at once), only fetch once after the burst
    */
   private debouncedFetchAndProcess(): void {
@@ -181,12 +222,12 @@ export class ImapIdleService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Fetch new emails from IMAP → store in DB → emit SSE event → auto-start AI processing
+   * Fetch flagged emails from IMAP → store in DB → emit SSE event → auto-start AI processing
    */
   private async fetchAndProcess(): Promise<void> {
     try {
-      this.logger.log('IMAP IDLE: Fetching new emails...');
-      const result = await this.emailsService.fetchAndStoreEmails();
+      this.logger.log('IMAP IDLE: Fetching flagged emails...');
+      const result = await this.emailsService.fetchFlaggedEmails();
 
       if (result.stored > 0) {
         this.logger.log(`IMAP IDLE: ${result.stored} new emails stored`);
@@ -220,6 +261,10 @@ export class ImapIdleService implements OnModuleInit, OnModuleDestroy {
   }
 
   private disconnect(): void {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
     if (this.imap) {
       try {
         this.imap.removeAllListeners();

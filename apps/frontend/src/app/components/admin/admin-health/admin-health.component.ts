@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Observable } from 'rxjs';
 import { ApiService, SystemHealth, HealthHistoryEntry } from '../../../api/api.service';
 import { AdminLayoutComponent } from '../admin-layout/admin-layout.component';
 
@@ -16,6 +17,12 @@ export class AdminHealthComponent implements OnInit, OnDestroy, AfterViewInit {
   error = '';
   lastChecked: Date | null = null;
   private refreshInterval: any;
+
+  // DB Management
+  dbClearing = '';  // which action is in progress
+  dbMessage = '';
+  dbMessageType: 'success' | 'error' = 'success';
+  confirmAction = ''; // which action needs confirmation
 
   @ViewChild('latencyCanvas') latencyCanvasRef!: ElementRef<HTMLCanvasElement>;
   @ViewChild('memoryCanvas') memoryCanvasRef!: ElementRef<HTMLCanvasElement>;
@@ -142,6 +149,51 @@ export class AdminHealthComponent implements OnInit, OnDestroy, AfterViewInit {
   switchChart(chart: 'latency' | 'memory' | 'cpu' | 'uptime'): void {
     this.activeChart = chart;
     setTimeout(() => this.drawCharts(), 50);
+  }
+
+  // ==================== DB MANAGEMENT ====================
+
+  requestClear(action: string): void {
+    this.confirmAction = action;
+    this.dbMessage = '';
+  }
+
+  cancelClear(): void {
+    this.confirmAction = '';
+  }
+
+  confirmClear(): void {
+    const action = this.confirmAction;
+    this.confirmAction = '';
+    this.executeClear(action);
+  }
+
+  private executeClear(action: string): void {
+    this.dbClearing = action;
+    this.dbMessage = '';
+
+    let obs: Observable<{ message: string; deleted?: number; updated?: number }>;
+    switch (action) {
+      case 'all': obs = this.api.clearAllEmails(); break;
+      case 'inbox': obs = this.api.clearInboxEmails(); break;
+      case 'sent': obs = this.api.clearSentEmails(); break;
+      case 'trash': obs = this.api.clearTrashEmails(); break;
+      case 'ai': obs = this.api.clearAiData(); break;
+      default: return;
+    }
+
+    obs.subscribe({
+      next: (res: { message: string }) => {
+        this.dbMessage = res.message;
+        this.dbMessageType = 'success';
+        this.dbClearing = '';
+      },
+      error: (err: any) => {
+        this.dbMessage = err.error?.message || 'Fehler beim Löschen';
+        this.dbMessageType = 'error';
+        this.dbClearing = '';
+      },
+    });
   }
 
   // ==================== CHART DRAWING ====================

@@ -418,14 +418,187 @@ export class EmailsService {
   }
 
   /**
-   * Mark email as sent (replied) and move to DONE folder on IMAP
+   * Remove the \Flagged flag from an email in INBOX on IMAP server.
+   * This "un-flags" the email in Outlook after we've processed it.
+   */
+  private async removeImapFlag(messageId: string, folder: string, flag: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const imap = this.createImapConnection();
+
+      imap.once('ready', () => {
+        imap.openBox(folder, false, (err) => {
+          if (err) {
+            this.logger.error(`Error opening ${folder} for flag removal:`, err.message);
+            imap.end();
+            return resolve(false);
+          }
+
+          imap.search([['HEADER', 'MESSAGE-ID', messageId]], (searchErr, uids) => {
+            if (searchErr) {
+              this.logger.error('Error searching for email to unflag:', searchErr.message);
+              imap.end();
+              return resolve(false);
+            }
+
+            if (!uids || uids.length === 0) {
+              this.logger.warn(`Email ${messageId} not found in ${folder} for unflag`);
+              imap.end();
+              return resolve(false);
+            }
+
+            const uid = uids[0];
+            imap.delFlags(uid, [flag], (flagErr) => {
+              if (flagErr) {
+                this.logger.error(`Error removing ${flag} from email:`, flagErr.message);
+                imap.end();
+                return resolve(false);
+              }
+
+              this.logger.log(`Successfully removed ${flag} from email in ${folder}`);
+              imap.end();
+              resolve(true);
+            });
+          });
+        });
+      });
+
+      imap.once('error', (imapErr: Error) => {
+        this.logger.error('IMAP error during flag removal:', imapErr.message);
+        resolve(false);
+      });
+
+      imap.connect();
+    });
+  }
+
+  /**
+   * Add a flag to an email in IMAP (e.g. re-flag after restore from trash)
+   */
+  private async addImapFlag(messageId: string, folder: string, flag: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const imap = this.createImapConnection();
+
+      imap.once('ready', () => {
+        imap.openBox(folder, false, (err) => {
+          if (err) {
+            this.logger.error(`Error opening ${folder} for flag add:`, err.message);
+            imap.end();
+            return resolve(false);
+          }
+
+          imap.search([['HEADER', 'MESSAGE-ID', messageId]], (searchErr, uids) => {
+            if (searchErr) {
+              this.logger.error('Error searching for email to flag:', searchErr.message);
+              imap.end();
+              return resolve(false);
+            }
+
+            if (!uids || uids.length === 0) {
+              this.logger.warn(`Email ${messageId} not found in ${folder} for flagging`);
+              imap.end();
+              return resolve(false);
+            }
+
+            const uid = uids[0];
+            imap.addFlags(uid, [flag], (flagErr) => {
+              if (flagErr) {
+                this.logger.error(`Error adding ${flag} to email:`, flagErr.message);
+                imap.end();
+                return resolve(false);
+              }
+
+              this.logger.log(`Successfully added ${flag} to email in ${folder}`);
+              imap.end();
+              resolve(true);
+            });
+          });
+        });
+      });
+
+      imap.once('error', (imapErr: Error) => {
+        this.logger.error('IMAP error during flag add:', imapErr.message);
+        resolve(false);
+      });
+
+      imap.connect();
+    });
+  }
+
+  /**
+   * Delete an email from IMAP by marking it \Deleted and expunging.
+   * This permanently removes the email from the folder.
+   */
+  private async deleteImapEmail(messageId: string, folder: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const imap = this.createImapConnection();
+
+      imap.once('ready', () => {
+        imap.openBox(folder, false, (err) => {
+          if (err) {
+            this.logger.error(`Error opening ${folder} for delete:`, err.message);
+            imap.end();
+            return resolve(false);
+          }
+
+          imap.search([['HEADER', 'MESSAGE-ID', messageId]], (searchErr, uids) => {
+            if (searchErr) {
+              this.logger.error('Error searching for email to delete:', searchErr.message);
+              imap.end();
+              return resolve(false);
+            }
+
+            if (!uids || uids.length === 0) {
+              this.logger.warn(`Email ${messageId} not found in ${folder} for deletion`);
+              imap.end();
+              return resolve(false);
+            }
+
+            const uid = uids[0];
+            imap.addFlags(uid, ['\\Deleted'], (flagErr) => {
+              if (flagErr) {
+                this.logger.error(`Error marking email as deleted:`, flagErr.message);
+                imap.end();
+                return resolve(false);
+              }
+
+              imap.expunge([uid], (expungeErr) => {
+                if (expungeErr) {
+                  this.logger.error(`Error expunging email:`, expungeErr.message);
+                  imap.end();
+                  return resolve(false);
+                }
+
+                this.logger.log(`Successfully deleted email from ${folder}`);
+                imap.end();
+                resolve(true);
+              });
+            });
+          });
+        });
+      });
+
+      imap.once('error', (imapErr: Error) => {
+        this.logger.error('IMAP error during delete:', imapErr.message);
+        resolve(false);
+      });
+
+      imap.connect();
+    });
+  }
+
+  /**
+   * Mark email as sent (replied).
+   * 1. Remove \Flagged from INBOX (so IDLE doesn't re-pull)
+   * 2. Delete original from INBOX (mail goes away)
+   * 3. Reply appears in Sent folder (handled by email-templates.service)
    */
   async markAsSent(id: string, replySubject: string, replyBody: string): Promise<Email | null> {
     const email = await this.getEmailById(id);
     
     if (email?.messageId) {
-      // Move email from SOURCE → DONE on IMAP server
-      await this.moveImapEmail(email.messageId, this.SOURCE_FOLDER, this.DONE_FOLDER);
+      // Remove flag first, then delete original from INBOX
+      await this.removeImapFlag(email.messageId, this.SOURCE_FOLDER, '\\Flagged');
+      await this.deleteImapEmail(email.messageId, this.SOURCE_FOLDER);
     }
 
     await this.emailRepository.update(id, { 
@@ -439,14 +612,15 @@ export class EmailsService {
   }
 
   /**
-   * Move email to trash — moves to TRASH folder on IMAP
+   * Move email to trash — only remove flag in IMAP + update DB status
+   * Email stays in INBOX on mail server, only removed from app's inbox view
    */
   async moveToTrash(id: string): Promise<Email | null> {
     const email = await this.getEmailById(id);
     
     if (email?.messageId) {
-      // Move email from SOURCE → TRASH on IMAP server
-      await this.moveImapEmail(email.messageId, this.SOURCE_FOLDER, this.TRASH_FOLDER);
+      // Remove flag so IDLE doesn't re-pull this email
+      await this.removeImapFlag(email.messageId, this.SOURCE_FOLDER, '\\Flagged');
     }
 
     await this.emailRepository.update(id, { 
@@ -457,14 +631,15 @@ export class EmailsService {
   }
 
   /**
-   * Restore email from trash back to inbox — moves from TRASH → SOURCE on IMAP
+   * Restore email from trash back to inbox.
+   * Re-flags it in IMAP so it gets picked up again.
    */
   async restoreFromTrash(id: string): Promise<Email | null> {
     const email = await this.getEmailById(id);
 
     if (email?.messageId) {
-      // Move email from TRASH → SOURCE on IMAP server
-      await this.moveImapEmail(email.messageId, this.TRASH_FOLDER, this.SOURCE_FOLDER);
+      // Re-add the flag so it shows up in the app again
+      await this.addImapFlag(email.messageId, this.SOURCE_FOLDER, '\\\\Flagged');
     }
 
     await this.emailRepository.update(id, { 
@@ -486,11 +661,150 @@ export class EmailsService {
     return { inbox, sent, trash, unread };
   }
 
+  // ==================== DATABASE MANAGEMENT ====================
+
   /**
-   * Refresh emails - fetch new ones from IMAP
+   * Clear ALL emails from the database
+   */
+  async clearAllEmails(): Promise<{ deleted: number }> {
+    const count = await this.emailRepository.count();
+    await this.emailRepository.clear();
+    this.logger.warn(`Cleared ALL ${count} emails from database`);
+    return { deleted: count };
+  }
+
+  /**
+   * Clear emails by status (inbox, sent, or trash)
+   */
+  async clearEmailsByStatus(status: EmailStatus): Promise<{ deleted: number }> {
+    const result = await this.emailRepository.delete({ status });
+    const deleted = result.affected || 0;
+    this.logger.warn(`Cleared ${deleted} emails with status '${status}' from database`);
+    return { deleted };
+  }
+
+  /**
+   * Clear only AI processing data (re-analyze all emails)
+   */
+  async clearAiData(): Promise<{ updated: number }> {
+    const result = await this.emailRepository
+      .createQueryBuilder()
+      .update(Email)
+      .set({
+        aiSummary: null,
+        aiTags: null,
+        recommendedTemplateId: null,
+        recommendedTemplateReason: null,
+        aiProcessedAt: null,
+        aiProcessing: false,
+        cleanedBody: null,
+        agentAnalysis: null,
+        agentKeyFacts: null,
+        suggestedReply: null,
+        suggestedReplySubject: null,
+        customerPhone: null,
+      })
+      .where('aiProcessedAt IS NOT NULL')
+      .execute();
+    const updated = result.affected || 0;
+    this.logger.warn(`Cleared AI data from ${updated} emails`);
+    return { updated };
+  }
+
+  /**
+   * Refresh emails - fetch flagged ones from INBOX
    */
   async refreshEmails(): Promise<{ fetched: number; stored: number }> {
-    return this.fetchAndStoreEmails();
+    return this.fetchFlaggedEmails();
+  }
+
+  /**
+   * Fetch only FLAGGED emails from INBOX (user flags emails in Outlook with ⚑).
+   * Uses IMAP SEARCH FLAGGED to find them, then parses & stores.
+   */
+  async fetchFlaggedEmails(): Promise<{ fetched: number; stored: number }> {
+    return new Promise((resolve, reject) => {
+      let fetchedCount = 0;
+      let storedCount = 0;
+      const imap = this.createImapConnection();
+
+      imap.once('ready', () => {
+        imap.openBox(this.SOURCE_FOLDER, true, (err, box) => {
+          if (err) {
+            this.logger.error(`Error opening ${this.SOURCE_FOLDER} for flagged fetch:`, err.message);
+            imap.end();
+            return reject(err);
+          }
+
+          this.logger.log(`${this.SOURCE_FOLDER} opened for flagged search. Total messages: ${box.messages.total}`);
+
+          // Search for all flagged emails
+          imap.search(['FLAGGED'], (searchErr, uids) => {
+            if (searchErr) {
+              this.logger.error('Error searching for flagged emails:', searchErr.message);
+              imap.end();
+              return reject(searchErr);
+            }
+
+            if (!uids || uids.length === 0) {
+              this.logger.debug('No flagged emails found in INBOX');
+              imap.end();
+              return resolve({ fetched: 0, stored: 0 });
+            }
+
+            this.logger.log(`Found ${uids.length} flagged email(s) in ${this.SOURCE_FOLDER}`);
+
+            const fetch = imap.fetch(uids, {
+              bodies: '',
+              struct: true,
+            });
+
+            const emailPromises: Promise<void>[] = [];
+
+            fetch.on('message', (msg) => {
+              fetchedCount++;
+
+              msg.on('body', (stream: Readable) => {
+                const emailPromise = this.parseAndStoreEmail(stream);
+                emailPromises.push(
+                  emailPromise
+                    .then((stored) => {
+                      if (stored) storedCount++;
+                    })
+                    .catch((e) => {
+                      this.logger.error('Error processing flagged email:', e.message);
+                    }),
+                );
+              });
+            });
+
+            fetch.once('error', (fetchErr: Error) => {
+              this.logger.error('Flagged fetch error:', fetchErr.message);
+            });
+
+            fetch.once('end', () => {
+              Promise.all(emailPromises).then(() => {
+                imap.end();
+                this.logger.log(
+                  `Flagged fetch complete. Fetched: ${fetchedCount}, Stored: ${storedCount}`,
+                );
+                resolve({ fetched: fetchedCount, stored: storedCount });
+              });
+            });
+          });
+        });
+      });
+
+      imap.once('error', (imapErr: Error) => {
+        reject(imapErr);
+      });
+
+      imap.once('end', () => {
+        this.logger.log('IMAP connection ended (flagged fetch)');
+      });
+
+      imap.connect();
+    });
   }
 
   /**

@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Param,
   Query,
   Body,
@@ -19,6 +20,7 @@ import { EmailsService } from './emails.service';
 import { EmailEventsService } from './email-events.service';
 import { ImapIdleService } from './imap-idle.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { EmailStatus } from './emails.entity';
 
 @Controller('emails')
 @UseGuards(JwtAuthGuard) // All email routes require authentication
@@ -400,5 +402,52 @@ export class EmailsController {
   @Post(':id/ai/reprocess')
   async reprocessEmailWithAi(@Param('id') id: string) {
     return this.emailsService.startSingleEmailReprocessing(id);
+  }
+
+  // ==================== DATABASE MANAGEMENT (Admin) ====================
+
+  /**
+   * DELETE /emails/db/all - Clear ALL emails from database
+   */
+  @Delete('db/all')
+  async clearAllEmails() {
+    const result = await this.emailsService.clearAllEmails();
+    return { message: `${result.deleted} E-Mails gelöscht`, ...result };
+  }
+
+  /**
+   * DELETE /emails/db/inbox - Clear only inbox emails
+   */
+  @Delete('db/inbox')
+  async clearInboxEmails() {
+    const result = await this.emailsService.clearEmailsByStatus(EmailStatus.INBOX);
+    return { message: `${result.deleted} Inbox-E-Mails gelöscht`, ...result };
+  }
+
+  /**
+   * DELETE /emails/db/sent - Clear only sent emails
+   */
+  @Delete('db/sent')
+  async clearSentEmails() {
+    const result = await this.emailsService.clearEmailsByStatus(EmailStatus.SENT);
+    return { message: `${result.deleted} gesendete E-Mails gelöscht`, ...result };
+  }
+
+  /**
+   * DELETE /emails/db/trash - Clear only trashed emails
+   */
+  @Delete('db/trash')
+  async clearTrashEmails() {
+    const result = await this.emailsService.clearEmailsByStatus(EmailStatus.TRASH);
+    return { message: `${result.deleted} Papierkorb-E-Mails gelöscht`, ...result };
+  }
+
+  /**
+   * DELETE /emails/db/ai-data - Clear AI processing data (keeps emails)
+   */
+  @Delete('db/ai-data')
+  async clearAiData() {
+    const result = await this.emailsService.clearAiData();
+    return { message: `AI-Daten von ${result.updated} E-Mails zurückgesetzt`, ...result };
   }
 }
