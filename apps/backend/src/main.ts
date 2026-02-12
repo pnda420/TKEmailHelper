@@ -1,15 +1,21 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { LiveConsoleService } from './logs/live-console.service';
 import helmet from 'helmet';
 
 async function bootstrap() {
+  // Create app with default logger first (so NestFactory bootstrap logs are visible)
   const app = await NestFactory.create(AppModule, {
-    // 🛡️ Keine detaillierten Fehler in Production loggen
     logger: process.env.NODE_ENV === 'production'
       ? ['error', 'warn']
       : ['log', 'debug', 'error', 'warn', 'verbose'],
   });
+
+  // Switch to LiveConsoleService as the app-wide logger
+  // This intercepts ALL NestJS Logger output and broadcasts it via SSE
+  const liveConsole = app.get(LiveConsoleService);
+  app.useLogger(liveConsole);
 
   // 🛡️ Trust Proxy (für korrekte IP-Erkennung hinter Nginx)
   const expressApp = app.getHttpAdapter().getInstance();

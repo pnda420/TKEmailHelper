@@ -18,6 +18,7 @@ import { EmailReplyComponent } from './components/email-reply/email-reply.compon
 import { EmailHistoryComponent } from './components/email-history/email-history.component';
 import { AdminSqlComponent } from './components/admin/admin-sql/admin-sql.component';
 import { AdminHealthComponent } from './components/admin/admin-health/admin-health.component';
+import { AdminConsoleComponent } from './components/admin/admin-console/admin-console.component';
 import { HelpComponent } from './components/help/help.component';
 import { WelcomeComponent } from './components/welcome/welcome.component';
 import { SetupComponent } from './components/setup/setup.component';
@@ -52,4 +53,5 @@ export const routes: Routes = [
     { path: 'admin/ai-usage', component: AdminAiUsageComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | AI Usage', data: { description: 'AI Usage & Kosten Monitoring.' } },
     { path: 'admin/ai-config', component: AdminAiConfigComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Antwort-Regeln', data: { description: 'Antwort-Regeln verwalten.' } },
     { path: 'admin/sql', component: AdminSqlComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | SQL', data: { description: 'SQL Query Tool.' } },
+    { path: 'admin/console', component: AdminConsoleComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Live Console', data: { description: 'Live Backend Console.' } },
 ];

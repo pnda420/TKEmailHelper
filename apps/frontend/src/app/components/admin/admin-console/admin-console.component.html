@@ -1,0 +1,98 @@
+<app-admin-layout>
+<section class="admin-console">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1>
+        <span class="material-symbols-outlined">terminal</span>
+        Live Console
+      </h1>
+      <span class="connection-badge" [class.online]="connected" [class.offline]="!connected">
+        <span class="dot"></span>
+        {{ connected ? 'Verbunden' : 'Getrennt' }}
+      </span>
+    </div>
+    <div class="header-actions">
+      <!-- Counters -->
+      <span class="counter error" *ngIf="errorCount > 0" title="Errors">
+        <span class="material-symbols-outlined">error</span>
+        {{ errorCount }}
+      </span>
+      <span class="counter warn" *ngIf="warnCount > 0" title="Warnings">
+        <span class="material-symbols-outlined">warning</span>
+        {{ warnCount }}
+      </span>
+      <span class="log-count">{{ filteredLogs.length }} Einträge</span>
+
+      <!-- Controls -->
+      <button class="btn-icon" (click)="togglePause()" [title]="paused ? 'Fortsetzen' : 'Pausieren'">
+        <span class="material-symbols-outlined">{{ paused ? 'play_arrow' : 'pause' }}</span>
+      </button>
+      <button class="btn-icon" (click)="toggleAutoScroll()" [class.active]="autoScroll" title="Auto-Scroll">
+        <span class="material-symbols-outlined">vertical_align_bottom</span>
+      </button>
+      <button class="btn-icon" (click)="clearLogs()" title="Console leeren">
+        <span class="material-symbols-outlined">delete_sweep</span>
+      </button>
+      <button class="btn-icon" (click)="connected ? disconnect() : connect()" [title]="connected ? 'Trennen' : 'Verbinden'">
+        <span class="material-symbols-outlined">{{ connected ? 'link_off' : 'link' }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <span class="material-symbols-outlined">search</span>
+      <input type="text" 
+             placeholder="Suchen..." 
+             [(ngModel)]="searchText" 
+             (ngModelChange)="onFilterChange()">
+      <button class="clear-search" *ngIf="searchText" (click)="searchText = ''; onFilterChange()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="level-filters">
+      <button class="level-btn" [class.active]="filterLevel === 'all'" (click)="filterLevel = 'all'; onFilterChange()">Alle</button>
+      <button class="level-btn level-error" [class.active]="filterLevel === 'error'" (click)="filterLevel = 'error'; onFilterChange()">Error</button>
+      <button class="level-btn level-warn" [class.active]="filterLevel === 'warn'" (click)="filterLevel = 'warn'; onFilterChange()">Warn</button>
+      <button class="level-btn level-log" [class.active]="filterLevel === 'log'" (click)="filterLevel = 'log'; onFilterChange()">Log</button>
+      <button class="level-btn level-sql" [class.active]="filterLevel === 'sql'" (click)="filterLevel = 'sql'; onFilterChange()">SQL</button>
+      <button class="level-btn level-debug" [class.active]="filterLevel === 'debug'" (click)="filterLevel = 'debug'; onFilterChange()">Debug</button>
+    </div>
+  </div>
+
+  <!-- Pause Banner -->
+  <div class="pause-banner" *ngIf="paused">
+    <span class="material-symbols-outlined">pause_circle</span>
+    Pausiert — {{ pauseBuffer.length }} neue Einträge warten
+    <button (click)="togglePause()">Fortsetzen</button>
+  </div>
+
+  <!-- Log Output -->
+  <div class="log-output" #logContainer>
+    <div class="log-empty" *ngIf="filteredLogs.length === 0 && connected">
+      <span class="material-symbols-outlined">hourglass_empty</span>
+      <p>Warte auf Log-Einträge...</p>
+    </div>
+
+    <div class="log-empty" *ngIf="!connected">
+      <span class="material-symbols-outlined">cloud_off</span>
+      <p>Nicht verbunden</p>
+      <button class="btn-connect" (click)="connect()">Verbinden</button>
+    </div>
+
+    <div class="log-line" 
+         *ngFor="let log of filteredLogs; trackBy: trackLog"
+         [class]="getLevelClass(log.level)"
+         [class.is-sql]="log.context === 'SQL'">
+      <span class="log-time">{{ formatTime(log.timestamp) }}</span>
+      <span class="log-level" [class]="getLevelClass(log.level)">{{ log.context === 'SQL' ? 'SQL' : getLevelLabel(log.level) }}</span>
+      <span class="log-context" *ngIf="log.context && log.context !== 'SQL'">[{{ log.context }}]</span>
+      <span class="log-msg" [class.is-sql]="log.context === 'SQL'">{{ log.message }}</span>
+    </div>
+  </div>
+
+</section>
+</app-admin-layout>

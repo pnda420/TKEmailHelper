@@ -64,6 +64,7 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
     { path: 'admin/ai-config', label: 'Regeln', icon: 'gavel' },
     { path: 'admin/users', label: 'Benutzer', icon: 'group' },
     { path: 'admin/sql', label: 'SQL', icon: 'database' },
+    { path: 'admin/console', label: 'Console', icon: 'terminal' },
   ];
 
   // Mobile bottom nav
@@ -72,6 +73,7 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
     { path: 'admin/logs', label: 'Logs', icon: 'bug_report' },
     { path: 'admin/ai-usage', label: 'AI', icon: 'smart_toy' },
     { path: 'admin/users', label: 'User', icon: 'group' },
+    { path: 'admin/console', label: 'Console', icon: 'terminal' },
   ];
 
   constructor(private router: Router, private contexts: ChildrenOutletContexts) {}

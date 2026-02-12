@@ -25,6 +25,7 @@ import { User } from './users/users.entity';
 import { Email } from './emails/emails.entity';
 import { EmailTemplate } from './email-templates/email-templates.entity';
 import { AppLog } from './logs/app-log.entity';
+import { TypeOrmLiveLogger } from './logs/typeorm-live.logger';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 @Module({
@@ -64,7 +65,8 @@ import { AppService } from './app.service';
       // synchronize: Kein Migrations-System vorhanden, daher immer aktiv.
       // Bei neuem Entity/Column wird die DB automatisch angepasst.
       synchronize: true,
-      logging: process.env.NODE_ENV === 'development',
+      logging: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+      logger: new TypeOrmLiveLogger(),
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
       retryAttempts: 20,     // Mehr Retries (default: 10)
       retryDelay: 3000,      // 3s zwischen Retries
