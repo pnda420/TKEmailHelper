@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -147,6 +147,10 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   showDiffView = false;      // Toggle diff highlighting
   revisionCount = 0;         // Track how many revisions were made
 
+  // Responsive layout
+  splitDirection: 'horizontal' | 'vertical' = 'horizontal';
+  isSmallScreen = false;
+
   // AI animation state
   scrambleDisplayText = '';
   private scrambleInterval: any;
@@ -174,7 +178,19 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     private sanitizer: DomSanitizer
   ) {}
 
+  @HostListener('window:resize')
+  onResize(): void {
+    this.checkScreenSize();
+  }
+
+  private checkScreenSize(): void {
+    const width = window.innerWidth;
+    this.isSmallScreen = width < 1100;
+    this.splitDirection = width < 1100 ? 'vertical' : 'horizontal';
+  }
+
   ngOnInit(): void {
+    this.checkScreenSize();
     this.emailId = this.route.snapshot.params['id'];
     this.loadEmail();
     this.loadTemplates();
