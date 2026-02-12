@@ -13,13 +13,15 @@ import {
   Res,
   Sse,
   NotFoundException,
+  Req,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import { Observable, interval, map, takeWhile, startWith, switchMap, of, concat, delay } from 'rxjs';
 import { EmailsService } from './emails.service';
 import { EmailEventsService } from './email-events.service';
 import { ImapIdleService } from './imap-idle.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { EmailStatus } from './emails.entity';
 
 @Controller('emails')
@@ -95,6 +97,16 @@ export class EmailsController {
       message: 'E-Mails erfolgreich abgerufen',
       ...result,
     };
+  }
+
+  /**
+   * POST /emails/unlock-all - Unlock all emails for current user (on disconnect/logout)
+   * NOTE: Must be before :id routes!
+   */
+  @Post('unlock-all')
+  async unlockAllEmails(@CurrentUser() user: any) {
+    await this.emailsService.unlockAllForUser(user.id);
+    return { unlocked: true };
   }
 
   /**
@@ -402,6 +414,25 @@ export class EmailsController {
   @Post(':id/ai/reprocess')
   async reprocessEmailWithAi(@Param('id') id: string) {
     return this.emailsService.startSingleEmailReprocessing(id);
+  }
+
+  // ==================== EMAIL LOCKING ====================
+
+  /**
+   * POST /emails/:id/lock - Lock email for current user
+   */
+  @Post(':id/lock')
+  async lockEmail(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.emailsService.lockEmail(id, user.id, user.name || user.email);
+  }
+
+  /**
+   * POST /emails/:id/unlock - Unlock email
+   */
+  @Post(':id/unlock')
+  async unlockEmail(@Param('id') id: string, @CurrentUser() user: any) {
+    await this.emailsService.unlockEmail(id, user.id);
+    return { unlocked: true };
   }
 
   // ==================== DATABASE MANAGEMENT (Admin) ====================

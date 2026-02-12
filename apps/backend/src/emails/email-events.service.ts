@@ -15,7 +15,10 @@ export type EmailEventType =
   | 'processing-progress'
   | 'processing-complete'
   | 'idle-status'
-  | 'email-updated';
+  | 'email-updated'
+  | 'email-locked'
+  | 'email-unlocked'
+  | 'email-status-changed';
 
 export interface EmailEvent {
   type: EmailEventType;

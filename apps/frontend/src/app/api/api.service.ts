@@ -392,6 +392,10 @@ export interface Email {
   suggestedReply: string | null;
   suggestedReplySubject: string | null;
   customerPhone: string | null;
+  // User locking
+  lockedBy: string | null;
+  lockedByName: string | null;
+  lockedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -1112,6 +1116,60 @@ reprocessEmailWithAi(id: string): Observable<any> {
     {},
     { headers: this.getHeaders() }
   );
+}
+
+// ==================== EMAIL LOCKING ====================
+
+/**
+ * Lock an email (prevents other users from opening/replying)
+ */
+lockEmail(emailId: string): Observable<{ locked: boolean; lockedBy?: string; lockedByName?: string }> {
+  return this.http.post<{ locked: boolean; lockedBy?: string; lockedByName?: string }>(
+    `${this.apiUrl}/emails/${emailId}/lock`,
+    {},
+    { headers: this.getHeaders() }
+  );
+}
+
+/**
+ * Unlock an email
+ */
+unlockEmail(emailId: string): Observable<{ unlocked: boolean }> {
+  return this.http.post<{ unlocked: boolean }>(
+    `${this.apiUrl}/emails/${emailId}/unlock`,
+    {},
+    { headers: this.getHeaders() }
+  );
+}
+
+/**
+ * Unlock all emails for current user (on page leave/logout)
+ */
+unlockAllEmails(): Observable<{ unlocked: boolean }> {
+  return this.http.post<{ unlocked: boolean }>(
+    `${this.apiUrl}/emails/unlock-all`,
+    {},
+    { headers: this.getHeaders() }
+  );
+}
+
+/**
+ * Synchronous unlock using fetch+keepalive — survives page unload/reload.
+ * Use this in beforeunload handlers where Observable-based calls get cancelled.
+ */
+unlockEmailSync(emailId: string): void {
+  const token = localStorage.getItem('access_token');
+  try {
+    fetch(`${this.apiUrl}/emails/${emailId}/unlock`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: '{}',
+      keepalive: true,
+    });
+  } catch (_) { /* best-effort */ }
 }
 
 // ==================== THREADING & REAL-TIME ENDPOINTS ====================

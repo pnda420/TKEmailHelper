@@ -276,6 +276,7 @@ export class EmailsService {
       'email.cleanedBody', 'email.agentKeyFacts', 'email.customerPhone',
       'email.suggestedReplySubject', 'email.repliedAt',
       'email.threadId', 'email.inReplyTo', 'email.references',
+      'email.lockedBy', 'email.lockedByName', 'email.lockedAt',
       'email.createdAt', 'email.updatedAt',
     ]);
 
@@ -608,6 +609,7 @@ export class EmailsService {
       replySentBody: replyBody,
       isRead: true,
     });
+    this.emailEvents.emit('email-status-changed', { emailId: id, status: EmailStatus.SENT });
     return this.getEmailById(id);
   }
 
@@ -627,6 +629,7 @@ export class EmailsService {
       status: EmailStatus.TRASH,
       isRead: true,
     });
+    this.emailEvents.emit('email-status-changed', { emailId: id, status: EmailStatus.TRASH });
     return this.getEmailById(id);
   }
 
@@ -639,12 +642,13 @@ export class EmailsService {
 
     if (email?.messageId) {
       // Re-add the flag so it shows up in the app again
-      await this.addImapFlag(email.messageId, this.SOURCE_FOLDER, '\\\\Flagged');
+      await this.addImapFlag(email.messageId, this.SOURCE_FOLDER, '\\Flagged');
     }
 
     await this.emailRepository.update(id, { 
       status: EmailStatus.INBOX,
     });
+    this.emailEvents.emit('email-status-changed', { emailId: id, status: EmailStatus.INBOX });
     return this.getEmailById(id);
   }
 
@@ -659,6 +663,82 @@ export class EmailsService {
       this.emailRepository.count({ where: { isRead: false, status: EmailStatus.INBOX } }),
     ]);
     return { inbox, sent, trash, unread };
+  }
+
+  // ==================== EMAIL LOCKING ====================
+
+  /** Lock timeout in minutes — locks expire after this */
+  private readonly LOCK_TIMEOUT_MINUTES = 15;
+
+  /**
+   * Lock an email for a specific user (prevents others from replying)
+   */
+  async lockEmail(emailId: string, userId: string, userName: string): Promise<{ locked: boolean; lockedBy?: string; lockedByName?: string }> {
+    const email = await this.getEmailById(emailId);
+    if (!email) {
+      return { locked: false };
+    }
+
+    // Already locked by same user — extend
+    if (email.lockedBy === userId) {
+      await this.emailRepository.update(emailId, { lockedAt: new Date() });
+      return { locked: true };
+    }
+
+    // Locked by someone else — check if expired
+    if (email.lockedBy && email.lockedAt) {
+      const elapsed = Date.now() - new Date(email.lockedAt).getTime();
+      if (elapsed < this.LOCK_TIMEOUT_MINUTES * 60 * 1000) {
+        return { locked: false, lockedBy: email.lockedBy, lockedByName: email.lockedByName };
+      }
+      // Lock expired, take over
+    }
+
+    // Acquire lock
+    await this.emailRepository.update(emailId, {
+      lockedBy: userId,
+      lockedByName: userName,
+      lockedAt: new Date(),
+    });
+
+    // Notify other clients via SSE
+    this.emailEvents.emit('email-locked', { emailId, lockedBy: userId, lockedByName: userName });
+
+    return { locked: true };
+  }
+
+  /**
+   * Unlock an email (user closes detail or navigates away)
+   */
+  async unlockEmail(emailId: string, userId: string): Promise<void> {
+    const email = await this.getEmailById(emailId);
+    if (!email) return;
+
+    // Only the locking user (or expired lock) can unlock
+    if (email.lockedBy === userId || !email.lockedBy) {
+      await this.emailRepository.update(emailId, {
+        lockedBy: null,
+        lockedByName: null,
+        lockedAt: null,
+      });
+
+      // Notify other clients via SSE
+      this.emailEvents.emit('email-unlocked', { emailId });
+    }
+  }
+
+  /**
+   * Unlock all emails for a user (e.g. on disconnect/logout)
+   */
+  async unlockAllForUser(userId: string): Promise<void> {
+    await this.emailRepository
+      .createQueryBuilder()
+      .update()
+      .set({ lockedBy: null, lockedByName: null, lockedAt: null })
+      .where('lockedBy = :userId', { userId })
+      .execute();
+
+    this.emailEvents.emit('email-unlocked', { emailId: null, all: true, userId });
   }
 
   // ==================== DATABASE MANAGEMENT ====================

@@ -200,6 +200,37 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     this.authService.currentUser$.subscribe(user => {
       this.currentUser = user;
     });
+
+    // Lock email so no other user can open it
+    this.lockCurrentEmail();
+  }
+
+  @HostListener('window:beforeunload')
+  onBeforeUnload(): void {
+    // Use fetch+keepalive so the unlock survives page reload
+    if (this.emailId) {
+      this.api.unlockEmailSync(this.emailId);
+    }
+  }
+
+  private lockCurrentEmail(): void {
+    if (!this.emailId) return;
+    this.api.lockEmail(this.emailId).subscribe({
+      next: (res: any) => {
+        if (!res.locked) {
+          this.toasts.error(`Diese E-Mail wird bereits von ${res.lockedByName || 'einem anderen Benutzer'} bearbeitet`);
+          this.router.navigate(['/emails']);
+        }
+      },
+      error: () => {
+        this.toasts.error('Fehler beim Sperren der E-Mail');
+      }
+    });
+  }
+
+  private unlockCurrentEmail(): void {
+    if (!this.emailId) return;
+    this.api.unlockEmail(this.emailId).subscribe();
   }
 
   setTone(tone: 'professional' | 'friendly' | 'formal' | 'casual'): void {
@@ -210,6 +241,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     this.sub?.unsubscribe();
     this.stopListening();
     this.stopInsaneAnimation();
+    this.unlockCurrentEmail();
   }
 
   loadEmail(): void {
@@ -747,6 +779,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
       next: () => {
         this.toasts.success('E-Mail wurde gesendet und archiviert!');
         this.sendingReply = false;
+        this.unlockCurrentEmail();
         this.router.navigate(['/emails']);
       },
       error: (err) => {
@@ -763,6 +796,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     this.api.moveEmailToTrash(this.email.id).subscribe({
       next: () => {
         this.toasts.success('E-Mail in Papierkorb verschoben');
+        this.unlockCurrentEmail();
         this.router.navigate(['/emails']);
       },
       error: (err) => {
@@ -773,6 +807,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   }
 
   cancel(): void {
+    this.unlockCurrentEmail();
     this.router.navigate(['/emails']);
   }
 

@@ -44,7 +44,12 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
   emails: Email[] = [];
   totalEmails = 0;
   loading = false;
+  loadingDetail = false;
   selectedEmail: Email | null = null;
+
+  // Conversation thread
+  threadEmails: Email[] = [];
+  threadLoading = false;
 
   // Attachment Preview
   attachmentPreviewOpen = false;
@@ -54,6 +59,7 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
   private limit = 50;
   private offset = 0;
   private sub?: Subscription;
+  private detailSub?: Subscription;
 
   constructor(
     private api: ApiService,
@@ -68,6 +74,7 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    this.detailSub?.unsubscribe();
   }
 
   switchTab(tab: HistoryTab): void {
@@ -103,11 +110,43 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
   selectEmail(email: Email): void {
     this.selectedEmail = email;
     this.currentAttachments = email.attachments?.length ? this.getAttachmentInfos(email) : [];
+    this.threadEmails = [];
+
+    // Fetch full email data (list API excludes heavy fields like replySentBody, htmlBody, textBody)
+    this.loadingDetail = true;
+    this.detailSub?.unsubscribe();
+    this.detailSub = this.api.getEmailById(email.id).subscribe({
+      next: (fullEmail) => {
+        this.selectedEmail = fullEmail;
+        this.currentAttachments = fullEmail.attachments?.length ? this.getAttachmentInfos(fullEmail) : [];
+        this.loadingDetail = false;
+        // Auto-load conversation thread
+        this.loadThread(fullEmail.id);
+      },
+      error: () => {
+        this.loadingDetail = false;
+      }
+    });
+  }
+
+  private loadThread(emailId: string): void {
+    this.threadLoading = true;
+    this.api.getEmailThread(emailId).subscribe({
+      next: (res) => {
+        this.threadEmails = res.thread;
+        this.threadLoading = false;
+      },
+      error: () => {
+        this.threadEmails = [];
+        this.threadLoading = false;
+      }
+    });
   }
 
   closeDetail(): void {
     this.selectedEmail = null;
     this.currentAttachments = [];
+    this.threadEmails = [];
   }
 
   getAttachmentInfos(email: Email): AttachmentInfo[] {
@@ -224,5 +263,28 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
     const parts = name.split(/[\s@]+/).filter(Boolean);
     if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
     return name.substring(0, 2).toUpperCase();
+  }
+
+  /** Get the best available body text for the original email */
+  getOriginalBody(email: Email): string {
+    return email.textBody || email.preview || email.cleanedBody || '';
+  }
+
+  /** Get the best available body text for the reply */
+  getReplyBody(email: Email): string {
+    return email.replySentBody || '';
+  }
+
+  /** Get the best available snippet for the list view */
+  getListSnippet(email: Email): string {
+    if (this.activeTab === 'sent') {
+      return email.aiSummary || email.cleanedBody || email.preview || '';
+    }
+    return email.preview || email.cleanedBody || '';
+  }
+
+  /** Get display name for "to" addresses */
+  getToDisplay(email: Email): string {
+    return email.toAddresses?.join(', ') || email.fromAddress || '';
   }
 }

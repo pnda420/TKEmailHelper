@@ -83,25 +83,22 @@
 
         <div class="mail-content">
           <div class="mail-top">
-            <span class="mail-sender">
-              {{ activeTab === 'sent' ? email.fromAddress : getSenderName(email) }}
-            </span>
+            <span class="mail-sender">{{ getSenderName(email) }}</span>
             <span class="mail-time">
-              {{ formatDate(activeTab === 'sent' ? (email.repliedAt || email.updatedAt) : email.receivedAt) }}
+              {{ formatDate(email.repliedAt || email.receivedAt) }}
             </span>
           </div>
-          <div class="mail-subject">
-            {{ activeTab === 'sent' ? (email.replySentSubject || email.subject) : email.subject }}
-          </div>
-          <div class="mail-snippet">
-            {{ activeTab === 'sent'
-              ? (email.replySentBody | slice:0:100)
-              : (email.preview || email.textBody | slice:0:100) }}
+          <div class="mail-subject">{{ email.subject }}</div>
+          <div class="mail-snippet">{{ getListSnippet(email) | slice:0:120 }}</div>
+          <!-- AI Tags in list -->
+          <div class="mail-tags" *ngIf="email.aiTags?.length">
+            <span class="mail-tag" *ngFor="let tag of email.aiTags | slice:0:3">{{ tag }}</span>
           </div>
         </div>
 
         <div class="mail-meta">
           <span class="material-symbols-outlined clip-icon" *ngIf="email.attachments?.length">attach_file</span>
+          <span class="material-symbols-outlined status-icon sent-icon" *ngIf="email.repliedAt && activeTab === 'sent'" title="Beantwortet">reply</span>
           <button class="restore-inline" *ngIf="activeTab === 'trash'" (click)="restoreEmail(email, $event)" title="Wiederherstellen">
             <span class="material-symbols-outlined">restore</span>
           </button>
@@ -128,89 +125,211 @@
         </button>
       </div>
 
-      <div class="detail-scroll">
+      <!-- Detail loading skeleton -->
+      <div class="detail-loading" *ngIf="loadingDetail">
+        <div class="skeleton-detail">
+          <div class="skeleton-line w60"></div>
+          <div class="skeleton-line w90"></div>
+          <div class="skeleton-line w40"></div>
+          <div class="skeleton-line w90"></div>
+          <div class="skeleton-line w60"></div>
+        </div>
+      </div>
+
+      <div class="detail-scroll" *ngIf="!loadingDetail">
         <!-- Conversation header -->
         <div class="conversation-header">
           <h2>{{ selectedEmail.subject }}</h2>
-          <div class="conversation-participants">
-            <span class="material-symbols-outlined">group</span>
-            <span>{{ getSenderName(selectedEmail) }} &lt;{{ selectedEmail.fromAddress }}&gt;</span>
-          </div>
-        </div>
-
-        <!-- Sent reply section -->
-        <div class="message-block message-block--reply" *ngIf="activeTab === 'sent'">
-          <div class="message-block__gutter">
-            <div class="message-block__avatar reply">
-              <span class="material-symbols-outlined">reply</span>
+          <div class="conversation-meta">
+            <div class="conversation-participants">
+              <span class="material-symbols-outlined">person</span>
+              <span>{{ getSenderName(selectedEmail) }} &lt;{{ selectedEmail.fromAddress }}&gt;</span>
             </div>
-            <div class="message-block__line"></div>
-          </div>
-          <div class="message-block__body">
-            <div class="message-block__header">
-              <span class="message-block__label">Deine Antwort</span>
-              <span class="message-block__time" *ngIf="selectedEmail.repliedAt">{{ formatFullDate(selectedEmail.repliedAt) }}</span>
+            <div class="conversation-participants" *ngIf="selectedEmail.toAddresses.length">
+              <span class="material-symbols-outlined">arrow_forward</span>
+              <span>{{ getToDisplay(selectedEmail) }}</span>
             </div>
-            <div class="message-block__meta">
-              <div class="meta-row">
-                <span class="meta-key">An</span>
-                <span class="meta-val">{{ selectedEmail.fromAddress }}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-key">Betreff</span>
-                <span class="meta-val">{{ selectedEmail.replySentSubject }}</span>
-              </div>
-            </div>
-            <div class="message-block__content">
-              <pre class="body-text">{{ selectedEmail.replySentBody }}</pre>
+            <div class="conversation-date">
+              <span class="material-symbols-outlined">schedule</span>
+              <span>Empfangen: {{ formatFullDate(selectedEmail.receivedAt) }}</span>
             </div>
           </div>
         </div>
 
-        <!-- Original email section -->
-        <div class="message-block message-block--original">
-          <div class="message-block__gutter">
-            <div class="message-block__avatar original">
-              <span class="material-symbols-outlined">mail</span>
-            </div>
+        <!-- AI Summary Card -->
+        <div class="ai-card" *ngIf="selectedEmail.aiSummary || selectedEmail.aiTags?.length">
+          <div class="ai-card__header">
+            <span class="material-symbols-outlined ai-icon">auto_awesome</span>
+            <span class="ai-card__title">KI-Zusammenfassung</span>
           </div>
-          <div class="message-block__body">
-            <div class="message-block__header">
-              <span class="message-block__label">{{ activeTab === 'sent' ? 'Original E-Mail' : 'E-Mail' }}</span>
-              <span class="message-block__time">{{ formatFullDate(selectedEmail.receivedAt) }}</span>
-            </div>
-            <div class="message-block__meta">
-              <div class="meta-row">
-                <span class="meta-key">Von</span>
-                <span class="meta-val">{{ getSenderName(selectedEmail) }} &lt;{{ selectedEmail.fromAddress }}&gt;</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-key">Betreff</span>
-                <span class="meta-val">{{ selectedEmail.subject }}</span>
-              </div>
-            </div>
+          <p class="ai-card__summary" *ngIf="selectedEmail.aiSummary">{{ selectedEmail.aiSummary }}</p>
+          <div class="ai-card__tags" *ngIf="selectedEmail.aiTags?.length">
+            <span class="ai-tag" *ngFor="let tag of selectedEmail.aiTags">{{ tag }}</span>
+          </div>
+        </div>
 
-            <!-- Attachments -->
-            <div class="attachments" *ngIf="selectedEmail.attachments?.length">
-              <div class="att-header">
-                <span class="material-symbols-outlined">attach_file</span>
-                {{ selectedEmail.attachments!.length }} Anhang{{ selectedEmail.attachments!.length > 1 ? 'e' : '' }}
+        <!-- Agent Key Facts -->
+        <div class="keyfacts-card" *ngIf="selectedEmail.agentKeyFacts?.length">
+          <div class="keyfacts-card__header">
+            <span class="material-symbols-outlined">fact_check</span>
+            <span>Wichtige Infos</span>
+          </div>
+          <div class="keyfacts-grid">
+            <div class="keyfact" *ngFor="let fact of selectedEmail.agentKeyFacts">
+              <span class="material-symbols-outlined keyfact__icon">{{ fact.icon }}</span>
+              <div class="keyfact__text">
+                <span class="keyfact__label">{{ fact.label }}</span>
+                <span class="keyfact__value">{{ fact.value }}</span>
               </div>
-              <div class="att-list">
-                <button class="att-chip" *ngFor="let att of selectedEmail.attachments; let i = index" (click)="openAttachmentPreview(att, i)">
-                  <span class="material-symbols-outlined">{{ getFileIcon(att.contentType) }}</span>
-                  <span class="att-name">{{ att.filename }}</span>
-                  <span class="att-size">{{ formatFileSize(att.size) }}</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="message-block__content">
-              <div *ngIf="selectedEmail.htmlBody" [innerHTML]="selectedEmail.htmlBody" class="html-body"></div>
-              <pre *ngIf="!selectedEmail.htmlBody && selectedEmail.textBody" class="body-text">{{ selectedEmail.textBody }}</pre>
             </div>
           </div>
         </div>
+
+        <!-- ═══ FULL CONVERSATION THREAD ═══ -->
+        <div class="thread-section" *ngIf="threadEmails.length > 1">
+          <div class="thread-section__header">
+            <span class="material-symbols-outlined">forum</span>
+            <span>Gesamter Verlauf ({{ threadEmails.length }})</span>
+          </div>
+
+          <div class="thread-timeline">
+            <div class="thread-msg" *ngFor="let te of threadEmails; let last = last"
+                 [class.is-reply]="te.status === 'sent'"
+                 [class.is-current]="te.id === selectedEmail.id"
+                 [class.is-trash]="te.status === 'trash'">
+              <div class="thread-msg__gutter">
+                <div class="thread-msg__avatar" [class.reply]="te.status === 'sent'">
+                  <span class="material-symbols-outlined">{{ te.status === 'sent' ? 'reply' : 'mail' }}</span>
+                </div>
+                <div class="thread-msg__line" *ngIf="!last"></div>
+              </div>
+              <div class="thread-msg__body">
+                <div class="thread-msg__top">
+                  <span class="thread-msg__sender">
+                    {{ te.status === 'sent' ? 'Deine Antwort' : (te.fromName || te.fromAddress) }}
+                  </span>
+                  <span class="thread-msg__badge sent" *ngIf="te.status === 'sent'">Gesendet</span>
+                  <span class="thread-msg__badge trash" *ngIf="te.status === 'trash'">Papierkorb</span>
+                  <span class="thread-msg__date">{{ formatFullDate(te.status === 'sent' && te.repliedAt ? te.repliedAt : te.receivedAt) }}</span>
+                </div>
+                <div class="thread-msg__subject" *ngIf="te.subject !== selectedEmail.subject">{{ te.subject }}</div>
+                <!-- Show reply body for sent emails, original body for received -->
+                <div class="thread-msg__content">
+                  <pre class="body-text" *ngIf="te.status === 'sent' && te.replySentBody">{{ te.replySentBody }}</pre>
+                  <pre class="body-text" *ngIf="te.status !== 'sent'">{{ te.cleanedBody || te.textBody || te.preview || '(Kein Inhalt)' }}</pre>
+                  <pre class="body-text" *ngIf="te.status === 'sent' && !te.replySentBody">{{ te.preview || '(Kein Inhalt)' }}</pre>
+                </div>
+                <div class="thread-msg__tags" *ngIf="te.aiTags?.length">
+                  <span class="ai-tag mini" *ngFor="let tag of te.aiTags">{{ tag }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading thread -->
+        <div class="thread-loading" *ngIf="threadLoading">
+          <div class="loading-spinner-small"></div>
+          <span>Verlauf wird geladen…</span>
+        </div>
+
+        <!-- Fallback: single email view when no thread -->
+        <ng-container *ngIf="threadEmails.length <= 1 && !threadLoading">
+          <!-- Cleaned Body / Conversation Summary -->
+          <div class="summary-card" *ngIf="selectedEmail.cleanedBody">
+            <div class="summary-card__header">
+              <span class="material-symbols-outlined">summarize</span>
+              <span>Gesprächsverlauf</span>
+            </div>
+            <p class="summary-card__text">{{ selectedEmail.cleanedBody }}</p>
+          </div>
+
+          <!-- Sent reply section -->
+          <div class="message-block message-block--reply" *ngIf="activeTab === 'sent' && (selectedEmail.replySentBody || selectedEmail.repliedAt)">
+            <div class="message-block__gutter">
+              <div class="message-block__avatar reply">
+                <span class="material-symbols-outlined">reply</span>
+              </div>
+              <div class="message-block__line"></div>
+            </div>
+            <div class="message-block__body">
+              <div class="message-block__header">
+                <span class="message-block__label">Deine Antwort</span>
+                <span class="message-block__time" *ngIf="selectedEmail.repliedAt">{{ formatFullDate(selectedEmail.repliedAt) }}</span>
+              </div>
+              <div class="message-block__meta">
+                <div class="meta-row">
+                  <span class="meta-key">An</span>
+                  <span class="meta-val">{{ selectedEmail.fromAddress }}</span>
+                </div>
+                <div class="meta-row" *ngIf="selectedEmail.replySentSubject">
+                  <span class="meta-key">Betreff</span>
+                  <span class="meta-val">{{ selectedEmail.replySentSubject }}</span>
+                </div>
+              </div>
+              <div class="message-block__content" *ngIf="selectedEmail.replySentBody">
+                <pre class="body-text">{{ selectedEmail.replySentBody }}</pre>
+              </div>
+              <div class="message-block__content message-block__empty" *ngIf="!selectedEmail.replySentBody">
+                <span class="material-symbols-outlined">info</span>
+                <span>Antwort-Inhalt nicht verfügbar</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Original email section -->
+          <div class="message-block message-block--original">
+            <div class="message-block__gutter">
+              <div class="message-block__avatar original">
+                <span class="material-symbols-outlined">mail</span>
+              </div>
+            </div>
+            <div class="message-block__body">
+              <div class="message-block__header">
+                <span class="message-block__label">{{ activeTab === 'sent' ? 'Original E-Mail' : 'E-Mail' }}</span>
+                <span class="message-block__time">{{ formatFullDate(selectedEmail.receivedAt) }}</span>
+              </div>
+              <div class="message-block__meta">
+                <div class="meta-row">
+                  <span class="meta-key">Von</span>
+                  <span class="meta-val">{{ getSenderName(selectedEmail) }} &lt;{{ selectedEmail.fromAddress }}&gt;</span>
+                </div>
+                <div class="meta-row" *ngIf="selectedEmail.toAddresses.length">
+                  <span class="meta-key">An</span>
+                  <span class="meta-val">{{ getToDisplay(selectedEmail) }}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-key">Betreff</span>
+                  <span class="meta-val">{{ selectedEmail.subject }}</span>
+                </div>
+              </div>
+
+              <!-- Attachments -->
+              <div class="attachments" *ngIf="selectedEmail.attachments?.length">
+                <div class="att-header">
+                  <span class="material-symbols-outlined">attach_file</span>
+                  {{ selectedEmail.attachments!.length }} Anhang{{ selectedEmail.attachments!.length > 1 ? 'e' : '' }}
+                </div>
+                <div class="att-list">
+                  <button class="att-chip" *ngFor="let att of selectedEmail.attachments; let i = index" (click)="openAttachmentPreview(att, i)">
+                    <span class="material-symbols-outlined">{{ getFileIcon(att.contentType) }}</span>
+                    <span class="att-name">{{ att.filename }}</span>
+                    <span class="att-size">{{ formatFileSize(att.size) }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="message-block__content">
+                <div *ngIf="selectedEmail.htmlBody" [innerHTML]="selectedEmail.htmlBody" class="html-body"></div>
+                <pre *ngIf="!selectedEmail.htmlBody && getOriginalBody(selectedEmail)" class="body-text">{{ getOriginalBody(selectedEmail) }}</pre>
+                <div *ngIf="!selectedEmail.htmlBody && !getOriginalBody(selectedEmail)" class="message-block__empty">
+                  <span class="material-symbols-outlined">info</span>
+                  <span>Kein Inhalt verfügbar</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
       </div>
     </div>
 

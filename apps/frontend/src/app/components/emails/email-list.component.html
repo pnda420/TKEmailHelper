@@ -117,12 +117,14 @@
             <div class="mail-item" *ngFor="let email of emails"
                 [class.unread]="!email.isRead"
                 [class.active]="selectedEmail?.id === email.id"
-                [class.blocked]="aiProcessing"
-                [class.analyzing]="aiProcessing && !email.aiProcessedAt"
+                [class.blocked]="email.aiProcessing"
+                [class.locked]="email.lockedBy && email.lockedBy !== currentUserId"
+                [class.analyzing]="email.aiProcessing && !email.aiProcessedAt"
                 (click)="selectEmail(email)">
 
-                <div class="mail-avatar" [class.unread]="!email.isRead">
-                    {{ getSenderInitials(email) }}
+                <div class="mail-avatar" [class.unread]="!email.isRead" [class.ai-pulse]="email.aiProcessing && !email.aiProcessedAt">
+                    <span class="material-symbols-outlined ai-avatar-icon" *ngIf="email.aiProcessing && !email.aiProcessedAt">auto_awesome</span>
+                    <span *ngIf="!email.aiProcessing || email.aiProcessedAt">{{ getSenderInitials(email) }}</span>
                 </div>
 
                 <div class="mail-content">
@@ -132,13 +134,23 @@
                     </div>
                     <div class="mail-subject">{{ email.subject }}</div>
                     <div class="mail-snippet"
-                        *ngIf="!aiProcessing || email.aiSummary || email.aiProcessedAt">
+                        *ngIf="!email.aiProcessing || email.aiSummary || email.aiProcessedAt">
                         {{ email.aiSummary || email.preview || '(Kein Inhalt)' }}
                     </div>
                     <div class="mail-snippet shimmer-line"
-                        *ngIf="aiProcessing && !email.aiSummary && !email.aiProcessedAt"></div>
+                        *ngIf="email.aiProcessing && !email.aiSummary && !email.aiProcessedAt"></div>
                     <div class="mail-tags" *ngIf="email.aiTags?.length">
                         <span class="tag" *ngFor="let tag of email.aiTags">{{ tag }}</span>
+                    </div>
+                    <!-- AI processing badge -->
+                    <div class="mail-ai-badge" *ngIf="email.aiProcessing && !email.aiProcessedAt">
+                        <span class="ai-spinner"></span>
+                        <span>KI analysiert…</span>
+                    </div>
+                    <!-- Locked indicator -->
+                    <div class="mail-lock-badge" *ngIf="email.lockedBy && email.lockedBy !== currentUserId">
+                        <span class="material-symbols-outlined">lock</span>
+                        <span>{{ email.lockedByName || 'Benutzer' }}</span>
                     </div>
                 </div>
 
@@ -164,141 +176,179 @@
 
         <!-- Detail pane -->
         <main class="detail-pane" *ngIf="selectedEmail" @slideIn>
-            <!-- Top toolbar -->
-            <div class="detail-toolbar">
-                <button class="toolbar-btn back-btn" (click)="closeDetail()" title="Zurück">
+            <!-- Compact top bar -->
+            <div class="detail-topbar">
+                <button class="topbar-back" (click)="closeDetail()">
                     <span class="material-symbols-outlined">arrow_back</span>
                 </button>
-
-                <div class="toolbar-center">
-                    <div class="view-switch" *ngIf="selectedEmail.aiProcessedAt">
-                        <button [class.active]="showAiView" (click)="showAiView = true">
-                            <span class="material-symbols-outlined">auto_awesome</span> KI
-                        </button>
-                        <button [class.active]="!showAiView" (click)="showAiView = false">
-                            <span class="material-symbols-outlined">article</span> Original
-                        </button>
-                    </div>
-                </div>
-
-                <div class="toolbar-actions">
-                    <button class="toolbar-btn" (click)="loadThread()" title="Konversation anzeigen"
-                        [class.active]="threadOpen">
-                        <span class="material-symbols-outlined">forum</span>
-                    </button>
-                    <button class="toolbar-btn" (click)="loadCustomerHistory()" title="Kundenhistorie"
-                        [class.active]="customerHistoryOpen">
-                        <span class="material-symbols-outlined">history</span>
-                    </button>
-                    <button class="toolbar-btn" *ngIf="isAdmin" (click)="recalculateSingleEmail(selectedEmail)" title="Neu analysieren">
-                        <span class="material-symbols-outlined">refresh</span>
-                    </button>
-                    <button class="toolbar-btn danger" (click)="moveToTrash()" title="Löschen">
-                        <span class="material-symbols-outlined">delete_outline</span>
-                    </button>
-                    <button class="reply-btn" (click)="openReplyPage()">
-                        Antworten
-                        <span class="material-symbols-outlined">chevron_right</span>
-                    </button>
-                </div>
+                <div class="topbar-spacer"></div>
+                <button class="topbar-icon-btn" *ngIf="isAdmin" (click)="recalculateSingleEmail(selectedEmail)" title="Neu analysieren">
+                    <span class="material-symbols-outlined">refresh</span>
+                </button>
+                <button class="topbar-icon-btn danger" (click)="moveToTrash()" title="Löschen">
+                    <span class="material-symbols-outlined">delete_outline</span>
+                </button>
+                <button class="topbar-reply-btn" (click)="openReplyPage()">
+                    <span class="material-symbols-outlined">reply</span>
+                    Antworten
+                </button>
             </div>
 
-            <!-- Header -->
-            <div class="detail-header">
+            <!-- Sender card -->
+            <div class="sender-card">
+                <div class="sender-avatar">{{ getSenderInitials(selectedEmail) }}</div>
+                <div class="sender-info">
+                    <div class="sender-name">{{ selectedEmail.fromName || selectedEmail.fromAddress }}</div>
+                    <div class="sender-email" *ngIf="selectedEmail.fromName">{{ selectedEmail.fromAddress }}</div>
+                </div>
+                <div class="sender-date">{{ selectedEmail.receivedAt | date:'dd.MM.yy, HH:mm' }}</div>
+            </div>
+
+            <!-- Subject -->
+            <div class="detail-subject-bar">
                 <h2 class="detail-subject">{{ selectedEmail.subject }}</h2>
-                <div class="detail-meta">
-                    <strong>{{ selectedEmail.fromName || selectedEmail.fromAddress }}</strong>
-                    <span class="meta-addr" *ngIf="selectedEmail.fromName">&lt;{{ selectedEmail.fromAddress }}&gt;</span>
-                    <span class="meta-arrow">→</span>
-                    <span class="meta-to">{{ selectedEmail.toAddresses[0] }}</span>
-                    <span class="meta-date">{{ selectedEmail.receivedAt | date:'dd.MM.yyyy HH:mm' }}</span>
+                <div class="detail-to">
+                    <span class="material-symbols-outlined">arrow_forward</span>
+                    {{ selectedEmail.toAddresses[0] }}
                 </div>
             </div>
 
-            <!-- AI View -->
-            <div class="detail-body" *ngIf="showAiView && selectedEmail.aiProcessedAt">
-                <div class="ai-card">
-                    <div class="ai-card__header">
+            <!-- Tab bar -->
+            <nav class="detail-tabs">
+                <button class="detail-tab" [class.active]="activeDetailTab === 'email'"
+                    (click)="switchDetailTab('email')">
+                    <span class="material-symbols-outlined">mail</span>
+                    E-Mail
+                </button>
+                <button class="detail-tab" [class.active]="activeDetailTab === 'thread'"
+                    (click)="switchDetailTab('thread')">
+                    <span class="material-symbols-outlined">forum</span>
+                    Konversation
+                    <span class="tab-count" *ngIf="threadEmails.length > 0">{{ threadEmails.length }}</span>
+                </button>
+                <button class="detail-tab" [class.active]="activeDetailTab === 'history'"
+                    (click)="switchDetailTab('history')">
+                    <span class="material-symbols-outlined">history</span>
+                    Verlauf
+                    <span class="tab-count" *ngIf="customerHistory.length > 0">{{ customerHistory.length }}</span>
+                </button>
+            </nav>
+
+            <!-- ═══ TAB: E-Mail ═══ -->
+            <div class="detail-content" *ngIf="activeDetailTab === 'email'">
+                <!-- AI summary card -->
+                <div class="ai-summary-card" *ngIf="selectedEmail.aiProcessedAt && selectedEmail.aiSummary">
+                    <div class="ai-summary-card__header">
                         <span class="material-symbols-outlined">auto_awesome</span>
-                        Zusammenfassung
+                        KI-Zusammenfassung
+                        <button class="ai-toggle-btn" (click)="showAiView = !showAiView">
+                            {{ showAiView ? 'Original zeigen' : 'Zusammenfassung zeigen' }}
+                        </button>
                     </div>
-                    <p class="ai-card__text">{{ selectedEmail.aiSummary }}</p>
-                    <div class="ai-card__tags" *ngIf="selectedEmail.aiTags?.length">
+                    <p class="ai-summary-card__text" *ngIf="showAiView">{{ selectedEmail.aiSummary }}</p>
+                    <div class="ai-summary-card__tags" *ngIf="showAiView && selectedEmail.aiTags?.length">
                         <span class="tag" *ngFor="let tag of selectedEmail.aiTags">{{ tag }}</span>
                     </div>
                 </div>
-                <div class="clean-body" *ngIf="selectedEmail.cleanedBody">
-                    <pre class="body-text">{{ selectedEmail.cleanedBody }}</pre>
+
+                <!-- Email body -->
+                <div class="email-body-wrap">
+                    <div *ngIf="showAiView && selectedEmail.aiProcessedAt && selectedEmail.cleanedBody" class="email-body-text">
+                        <pre class="body-text">{{ selectedEmail.cleanedBody }}</pre>
+                    </div>
+                    <div *ngIf="!showAiView || !selectedEmail.aiProcessedAt || !selectedEmail.cleanedBody">
+                        <div *ngIf="selectedEmail.htmlBody" class="html-body" [innerHTML]="selectedEmail.htmlBody"></div>
+                        <pre *ngIf="!selectedEmail.htmlBody && selectedEmail.textBody"
+                            class="body-text">{{ selectedEmail.textBody }}</pre>
+                        <p *ngIf="!selectedEmail.htmlBody && !selectedEmail.textBody" class="no-body">(Kein Inhalt)</p>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Original View -->
-            <div class="detail-body" *ngIf="!showAiView || !selectedEmail.aiProcessedAt">
-                <div *ngIf="selectedEmail.htmlBody" class="html-body" [innerHTML]="selectedEmail.htmlBody"></div>
-                <pre *ngIf="!selectedEmail.htmlBody && selectedEmail.textBody"
-                    class="body-text">{{ selectedEmail.textBody }}</pre>
-                <p *ngIf="!selectedEmail.htmlBody && !selectedEmail.textBody" class="no-body">(Kein Inhalt)</p>
-            </div>
-
-            <!-- Attachments -->
-            <div class="detail-attachments" *ngIf="selectedEmail.attachments?.length">
-                <button class="att-chip" *ngFor="let att of selectedEmail.attachments; let i = index"
-                    (click)="openAttachmentPreview(att, i)">
-                    <span class="material-symbols-outlined">{{ getAttachmentIcon(att.contentType) }}</span>
-                    <span class="att-name">{{ att.filename }}</span>
-                    <span class="att-size">{{ formatFileSize(att.size) }}</span>
-                </button>
-            </div>
-
-            <!-- Thread / Conversation Panel -->
-            <div class="thread-panel" *ngIf="threadOpen && threadEmails.length > 0">
-                <div class="thread-panel__header">
-                    <span class="material-symbols-outlined">forum</span>
-                    <span>Konversation ({{ threadEmails.length }})</span>
-                    <button class="thread-panel__close" (click)="closeThreadPanel()">
-                        <span class="material-symbols-outlined">close</span>
-                    </button>
-                </div>
-                <div class="thread-panel__list">
-                    <div class="thread-item" *ngFor="let te of threadEmails"
-                         [class.current]="te.id === selectedEmail.id"
-                         [class.sent]="te.status === 'sent'"
-                         (click)="selectEmail(te)">
-                        <div class="thread-item__header">
-                            <span class="thread-item__sender">{{ te.fromName || te.fromAddress }}</span>
-                            <span class="thread-item__date">{{ formatDate(te.receivedAt) }}</span>
-                            <span class="thread-item__status-badge" *ngIf="te.status === 'sent'">Gesendet</span>
-                        </div>
-                        <div class="thread-item__subject" *ngIf="te.subject !== selectedEmail?.subject">{{ te.subject }}</div>
-                        <div class="thread-item__preview">{{ te.aiSummary || te.preview || '(Kein Inhalt)' }}</div>
+                <!-- Attachments inline -->
+                <div class="attachments-section" *ngIf="selectedEmail.attachments?.length">
+                    <div class="attachments-label">
+                        <span class="material-symbols-outlined">attach_file</span>
+                        {{ selectedEmail.attachments!.length }} Anhäng{{ selectedEmail.attachments!.length === 1 ? '' : 'e' }}
+                    </div>
+                    <div class="attachments-list">
+                        <button class="att-chip" *ngFor="let att of selectedEmail.attachments; let i = index"
+                            (click)="openAttachmentPreview(att, i)">
+                            <span class="material-symbols-outlined">{{ getAttachmentIcon(att.contentType) }}</span>
+                            <span class="att-name">{{ att.filename }}</span>
+                            <span class="att-size">{{ formatFileSize(att.size) }}</span>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Customer History Panel -->
-            <div class="thread-panel" *ngIf="customerHistoryOpen && customerHistory.length > 0">
-                <div class="thread-panel__header">
-                    <span class="material-symbols-outlined">history</span>
-                    <span>Kundenhistorie — {{ selectedEmail.fromName || selectedEmail.fromAddress }} ({{ customerHistory.length }})</span>
-                    <button class="thread-panel__close" (click)="closeThreadPanel()">
-                        <span class="material-symbols-outlined">close</span>
-                    </button>
+            <!-- ═══ TAB: Konversation ═══ -->
+            <div class="detail-content" *ngIf="activeDetailTab === 'thread'">
+                <div class="tab-loading" *ngIf="threadLoading">
+                    <div class="loading-spinner"></div>
+                    <span>Konversation wird geladen…</span>
                 </div>
-                <div class="thread-panel__list">
-                    <div class="thread-item" *ngFor="let ce of customerHistory"
+                <div class="tab-empty" *ngIf="!threadLoading && threadEmails.length === 0">
+                    <span class="material-symbols-outlined">forum</span>
+                    <p>Keine weiteren Nachrichten in dieser Konversation</p>
+                </div>
+                <div class="thread-list" *ngIf="threadEmails.length > 0">
+                    <div class="thread-card" *ngFor="let te of threadEmails"
+                         [class.current]="te.id === selectedEmail.id"
+                         [class.sent]="te.status === 'sent'"
+                         (click)="selectEmail(te)">
+                        <div class="thread-card__left">
+                            <div class="thread-card__avatar" [class.sent]="te.status === 'sent'">
+                                {{ getSenderInitials(te) }}
+                            </div>
+                            <div class="thread-card__line" *ngIf="te !== threadEmails[threadEmails.length - 1]"></div>
+                        </div>
+                        <div class="thread-card__body">
+                            <div class="thread-card__top">
+                                <span class="thread-card__sender">{{ te.fromName || te.fromAddress }}</span>
+                                <span class="thread-card__badge sent" *ngIf="te.status === 'sent'">Gesendet</span>
+                                <span class="thread-card__date">{{ formatDate(te.receivedAt) }}</span>
+                            </div>
+                            <div class="thread-card__subject" *ngIf="te.subject !== selectedEmail.subject">{{ te.subject }}</div>
+                            <div class="thread-card__preview">{{ te.aiSummary || te.preview || '(Kein Inhalt)' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ TAB: Kundenhistorie ═══ -->
+            <div class="detail-content" *ngIf="activeDetailTab === 'history'">
+                <div class="tab-loading" *ngIf="historyLoading">
+                    <div class="loading-spinner"></div>
+                    <span>Verlauf wird geladen…</span>
+                </div>
+                <div class="tab-empty" *ngIf="!historyLoading && customerHistory.length === 0">
+                    <span class="material-symbols-outlined">history</span>
+                    <p>Kein bisheriger Verlauf mit diesem Kontakt</p>
+                </div>
+                <div class="thread-list" *ngIf="customerHistory.length > 0">
+                    <div class="thread-card" *ngFor="let ce of customerHistory"
                          [class.current]="ce.id === selectedEmail.id"
                          [class.sent]="ce.status === 'sent'"
+                         [class.trash]="ce.status === 'trash'"
                          (click)="selectEmail(ce)">
-                        <div class="thread-item__header">
-                            <span class="thread-item__sender">{{ ce.fromName || ce.fromAddress }}</span>
-                            <span class="thread-item__date">{{ formatDate(ce.receivedAt) }}</span>
-                            <span class="thread-item__status-badge" *ngIf="ce.status === 'sent'">Gesendet</span>
-                            <span class="thread-item__status-badge trash" *ngIf="ce.status === 'trash'">Papierkorb</span>
+                        <div class="thread-card__left">
+                            <div class="thread-card__avatar" [class.sent]="ce.status === 'sent'">
+                                {{ getSenderInitials(ce) }}
+                            </div>
+                            <div class="thread-card__line" *ngIf="ce !== customerHistory[customerHistory.length - 1]"></div>
                         </div>
-                        <div class="thread-item__subject">{{ ce.subject }}</div>
-                        <div class="thread-item__preview">{{ ce.aiSummary || ce.preview || '(Kein Inhalt)' }}</div>
-                        <div class="thread-item__tags" *ngIf="ce.aiTags?.length">
-                            <span class="tag mini" *ngFor="let tag of ce.aiTags">{{ tag }}</span>
+                        <div class="thread-card__body">
+                            <div class="thread-card__top">
+                                <span class="thread-card__sender">{{ ce.fromName || ce.fromAddress }}</span>
+                                <span class="thread-card__badge sent" *ngIf="ce.status === 'sent'">Gesendet</span>
+                                <span class="thread-card__badge trash" *ngIf="ce.status === 'trash'">Papierkorb</span>
+                                <span class="thread-card__date">{{ formatDate(ce.receivedAt) }}</span>
+                            </div>
+                            <div class="thread-card__subject">{{ ce.subject }}</div>
+                            <div class="thread-card__preview">{{ ce.aiSummary || ce.preview || '(Kein Inhalt)' }}</div>
+                            <div class="thread-card__tags" *ngIf="ce.aiTags?.length">
+                                <span class="tag mini" *ngFor="let tag of ce.aiTags">{{ tag }}</span>
+                            </div>
                         </div>
                     </div>
                 </div>

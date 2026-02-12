@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, NgZone, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone, ViewChild, ElementRef, AfterViewChecked, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -67,7 +67,10 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   aiStatus: { total: number; processed: number; processing: number; pending: number } | null = null;
   
   // Email detail view toggle
-  showAiView = true; // Toggle between AI summary and full email
+  showAiView = true;
+  activeDetailTab: 'email' | 'thread' | 'history' = 'email';
+  threadLoading = false;
+  historyLoading = false;
   
   // Conversation threading
   threadEmails: Email[] = [];
@@ -105,6 +108,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   
   // Admin status
   isAdmin = false;
+  currentUserId: string | null = null;
 
   constructor(
     private api: ApiService,
@@ -119,6 +123,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
+    this.currentUserId = this.authService.getCurrentUser()?.id || null;
     // Load emails AND check processing status in parallel
     this.loadEmails();
     this.loadAvailableTags();
@@ -209,12 +214,24 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   ngOnDestroy(): void {
+    // Unlock any selected email when leaving — but NOT when navigating to reply
+    if (this.selectedEmail && !this.navigatingToReply) {
+      this.api.unlockEmail(this.selectedEmail.id).subscribe();
+    }
     this.sub?.unsubscribe();
     this.closeEventSource();
     this.closeGlobalEventSource();
     this.stopPolling();
     this.stopEtaTimer();
     if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
+  }
+
+  @HostListener('window:beforeunload')
+  onBeforeUnload(): void {
+    // Use fetch+keepalive so the unlock survives page reload
+    if (this.selectedEmail) {
+      this.api.unlockEmailSync(this.selectedEmail.id);
+    }
   }
 
   private closeEventSource(): void {
@@ -248,7 +265,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
         if (status.isProcessing) {
           // Backend is already processing — reconnect SSE for live updates
           this.aiProcessing = true;
-          this.terminalOpen = true;
+          this.terminalOpen = false; // Don't open terminal automatically on page load, only if user clicks "Process with AI"
           this.processingStartTime = status.startedAt ? new Date(status.startedAt).getTime() : Date.now();
           this.aiStatus = { 
             total: status.total, 
@@ -288,7 +305,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   processWithAi(): void {
     if (this.aiProcessing) return;
     this.aiProcessing = true;
-    this.terminalOpen = true;
+    this.terminalOpen = false; // Don't open terminal automatically, only if user clicks "Process with AI"
     this.terminalLogs = [];
     this.processingStartTime = Date.now();
     this.sseReconnectAttempts = 0;
@@ -339,7 +356,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.clearAiDataFromEmails();
     this.selectedEmail = null; // Close detail while recalculating
     this.aiProcessing = true;
-    this.terminalOpen = true;
+    this.terminalOpen = false; // Don't open terminal automatically, only if user clicks "Recalculate with AI"
     this.terminalLogs = [];
     this.processingStartTime = Date.now();
     this.sseReconnectAttempts = 0;
@@ -633,11 +650,38 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   selectEmail(email: Email): void {
-    // Block selection while AI processing is running
-    if (this.aiProcessing) return;
+    // Block selection if this specific email is being AI processed
+    if (email.aiProcessing) return;
+
+    // Block if locked by another user
+    const currentUser = this.authService.getCurrentUser();
+    if (email.lockedBy && currentUser && email.lockedBy !== currentUser.id) {
+      this.toasts.info(`Wird bearbeitet von ${email.lockedByName || 'anderem Benutzer'}`);
+      return;
+    }
+
+    // Unlock previously selected email
+    if (this.selectedEmail && this.selectedEmail.id !== email.id) {
+      this.api.unlockEmail(this.selectedEmail.id).subscribe();
+    }
     
     // Sofort anzeigen (Liste-Daten), dann vollständige E-Mail nachladen
     this.selectedEmail = email;
+    this.activeDetailTab = 'email';
+    this.threadEmails = [];
+    this.customerHistory = [];
+
+    // Lock this email for current user
+    this.api.lockEmail(email.id).subscribe({
+      next: (res) => {
+        if (!res.locked) {
+          this.toasts.info(`Wird bearbeitet von ${res.lockedByName || 'anderem Benutzer'}`);
+          this.selectedEmail = null;
+          return;
+        }
+      },
+      error: () => {} // Best-effort locking
+    });
     
     // Mark as read if not already
     if (!email.isRead) {
@@ -670,12 +714,18 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   closeDetail(): void {
+    // Unlock the email when closing detail
+    if (this.selectedEmail) {
+      this.api.unlockEmail(this.selectedEmail.id).subscribe();
+    }
     this.selectedEmail = null;
   }
 
   // Navigate to reply page
+  navigatingToReply = false;
   openReplyPage(): void {
     if (!this.selectedEmail) return;
+    this.navigatingToReply = true; // Keep lock alive across navigation
     this.router.navigate(['/emails', this.selectedEmail.id, 'reply']);
   }
 
@@ -715,7 +765,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // Open sidebar & set loading state — same as batch
     this.aiProcessing = true;
-    this.terminalOpen = true;
+    this.terminalOpen = false; // Don't open terminal automatically, only if user clicks "Recalculate"
     this.terminalLogs = [];
     this.processingStartTime = Date.now();
     this.sseReconnectAttempts = 0;
@@ -751,11 +801,13 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   // Move to trash (no reply needed)
   moveToTrash(): void {
     if (!this.selectedEmail) return;
+    const emailId = this.selectedEmail.id;
 
-    this.api.moveEmailToTrash(this.selectedEmail.id).subscribe({
+    this.api.moveEmailToTrash(emailId).subscribe({
       next: () => {
+        this.api.unlockEmail(emailId).subscribe();
         this.toasts.success('E-Mail in Papierkorb verschoben');
-        this.emails = this.emails.filter(e => e.id !== this.selectedEmail?.id);
+        this.emails = this.emails.filter(e => e.id !== emailId);
         this.totalEmails--;
         this.selectedEmail = null;
       },
@@ -966,7 +1018,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
                 // AI processing auto-started by IMAP IDLE
                 if (!this.aiProcessing) {
                   this.aiProcessing = true;
-                  this.terminalOpen = true;
+                  this.terminalOpen = false; // Don't open terminal automatically, only if user clicks "Process with AI"
                   this.processingStartTime = Date.now();
                   this.sseReconnectAttempts = 0;
                   this.pushLog('system', data.message || 'KI-Analyse automatisch gestartet');
@@ -994,6 +1046,71 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
                 this.loadEmailsSilent();
                 this.loadAvailableTags();
                 break;
+
+              case 'email-locked': {
+                // Another user locked an email — update in list
+                const lockedIdx = this.emails.findIndex(e => e.id === data.emailId);
+                if (lockedIdx !== -1) {
+                  this.emails[lockedIdx] = {
+                    ...this.emails[lockedIdx],
+                    lockedBy: data.lockedBy,
+                    lockedByName: data.lockedByName,
+                    lockedAt: new Date(),
+                  };
+                }
+                break;
+              }
+
+              case 'email-unlocked': {
+                // Email was unlocked
+                if (data.emailId) {
+                  const unlockedIdx = this.emails.findIndex(e => e.id === data.emailId);
+                  if (unlockedIdx !== -1) {
+                    this.emails[unlockedIdx] = {
+                      ...this.emails[unlockedIdx],
+                      lockedBy: null,
+                      lockedByName: null,
+                      lockedAt: null,
+                    };
+                  }
+                } else if (data.all) {
+                  // User disconnected — unlock all their emails
+                  this.emails = this.emails.map(e =>
+                    e.lockedBy === data.userId
+                      ? { ...e, lockedBy: null, lockedByName: null, lockedAt: null }
+                      : e
+                  );
+                }
+                break;
+              }
+
+              case 'email-status-changed': {
+                // Another user moved email to trash/sent/restored — update our list
+                const changedId = data.emailId;
+                const newStatus = data.status;
+                const idx = this.emails.findIndex(e => e.id === changedId);
+
+                if (idx !== -1) {
+                  // Email is in our list but status changed — remove if it no longer belongs
+                  // email-list shows 'inbox' status only
+                  if (newStatus !== 'inbox') {
+                    // Close detail if we have this email selected
+                    if (this.selectedEmail?.id === changedId) {
+                      this.selectedEmail = null;
+                    }
+                    this.emails.splice(idx, 1);
+                    this.toasts.info(
+                      newStatus === 'sent'
+                        ? 'E-Mail wurde von einem anderen Benutzer beantwortet'
+                        : 'E-Mail wurde von einem anderen Benutzer gelöscht'
+                    );
+                  }
+                } else if (newStatus === 'inbox') {
+                  // Email restored to inbox — reload list to pick it up
+                  this.loadEmailsSilent();
+                }
+                break;
+              }
 
               case 'keepalive':
                 // Just a keepalive, ignore
@@ -1043,19 +1160,33 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   // ==================== CONVERSATION THREADING ====================
 
+  switchDetailTab(tab: 'email' | 'thread' | 'history'): void {
+    this.activeDetailTab = tab;
+    if (tab === 'thread' && this.threadEmails.length === 0) {
+      this.loadThread();
+    } else if (tab === 'history' && this.customerHistory.length === 0) {
+      this.loadCustomerHistory();
+    }
+  }
+
   loadThread(): void {
     if (!this.selectedEmail) return;
     if (this.threadOpen) {
       this.threadOpen = false;
       return;
     }
+    this.threadLoading = true;
     this.api.getEmailThread(this.selectedEmail.id).subscribe({
       next: (res) => {
         this.threadEmails = res.thread;
         this.threadOpen = true;
         this.customerHistoryOpen = false;
+        this.threadLoading = false;
       },
-      error: (err) => console.error('Thread load error:', err),
+      error: (err) => {
+        console.error('Thread load error:', err);
+        this.threadLoading = false;
+      },
     });
   }
 
@@ -1065,13 +1196,18 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.customerHistoryOpen = false;
       return;
     }
+    this.historyLoading = true;
     this.api.getCustomerHistory(this.selectedEmail.fromAddress).subscribe({
       next: (res) => {
         this.customerHistory = res.history;
         this.customerHistoryOpen = true;
         this.threadOpen = false;
+        this.historyLoading = false;
       },
-      error: (err) => console.error('Customer history error:', err),
+      error: (err) => {
+        console.error('Customer history error:', err);
+        this.historyLoading = false;
+      },
     });
   }
 

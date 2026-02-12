@@ -122,6 +122,16 @@ export class Email {
   @Column({ nullable: true })
   customerPhone: string;
 
+  // User lock — prevents multiple users from replying to the same email
+  @Column({ nullable: true })
+  lockedBy: string; // user ID who has this email open
+
+  @Column({ nullable: true })
+  lockedByName: string; // user display name (for UI)
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lockedAt: Date;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
