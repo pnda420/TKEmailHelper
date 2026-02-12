@@ -231,6 +231,173 @@
   gap: $admin-space-md;
 }
 
+// ── Quick Stats Row ──
+.quick-stats {
+  display: flex;
+  gap: $admin-space-sm;
+  flex-wrap: wrap;
+}
+
+.quick-stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 140px;
+  padding: 10px 14px;
+  background: $glass-bg;
+  backdrop-filter: blur(20px);
+  border: 1px solid $glass-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-glass;
+  animation: staggerFade $transition-normal ease-out both;
+
+  .material-symbols-outlined {
+    font-size: 1.3rem;
+    opacity: 0.85;
+  }
+
+  .qs-text {
+    display: flex;
+    flex-direction: column;
+
+    .qs-value {
+      font-size: 1rem;
+      font-weight: 800;
+      color: $text-primary;
+      line-height: 1.2;
+    }
+
+    .qs-label {
+      font-size: 0.65rem;
+      color: $text-muted;
+      letter-spacing: 0.02em;
+    }
+  }
+}
+
+.text-green { color: $accent-green !important; }
+.text-red { color: $accent-red !important; }
+.text-yellow { color: $accent-yellow !important; }
+.text-blue { color: $accent-blue !important; }
+.text-purple { color: #8B5CF6 !important; }
+
+// ── Charts Section ──
+.charts-section {
+  background: $glass-bg;
+  backdrop-filter: blur(20px);
+  border: 1px solid $glass-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-glass;
+  overflow: hidden;
+  animation: staggerFade $transition-normal ease-out 0.2s both;
+}
+
+.charts-header {
+  display: flex;
+  align-items: center;
+  gap: $admin-space-md;
+  padding: $admin-space-sm $admin-space-lg;
+  border-bottom: 1px solid $border-light;
+
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: $text-primary;
+    white-space: nowrap;
+
+    .material-symbols-outlined {
+      font-size: 1.1rem;
+      color: $accent-blue;
+    }
+  }
+
+  .chart-hint {
+    margin-left: auto;
+    font-size: 0.7rem;
+    color: $text-muted;
+    white-space: nowrap;
+  }
+}
+
+.chart-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.chart-tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $text-muted;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all $transition-fast;
+  white-space: nowrap;
+
+  .material-symbols-outlined {
+    font-size: 0.9rem;
+  }
+
+  &:hover {
+    background: rgba($accent-blue, 0.05);
+    color: $text-secondary;
+  }
+
+  &.active {
+    background: rgba($accent-blue, 0.08);
+    border-color: rgba($accent-blue, 0.2);
+    color: $accent-blue;
+  }
+}
+
+.chart-container {
+  position: relative;
+  padding: $admin-space-sm $admin-space-md;
+  min-height: 200px;
+}
+
+.chart-canvas {
+  width: 100%;
+  height: 200px;
+  display: block;
+}
+
+.chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: $text-muted;
+  gap: 8px;
+
+  .material-symbols-outlined {
+    font-size: 2rem;
+    opacity: 0.4;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.8rem;
+    text-align: center;
+  }
+}
+
+// ── Host card icon ──
+.card-icon-wrap.host {
+  background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+}
+
 // ── Health Card ──
 .health-card {
   background: $glass-bg;
@@ -517,5 +684,26 @@
 
   .health-grid {
     grid-template-columns: 1fr;
+  }
+
+  .quick-stats {
+    flex-direction: column;
+  }
+
+  .quick-stat {
+    min-width: auto;
+  }
+
+  .charts-header {
+    flex-wrap: wrap;
+    gap: $admin-space-xs;
+  }
+
+  .chart-tabs {
+    flex-wrap: wrap;
+  }
+
+  .chart-canvas {
+    height: 160px;
   }
 }

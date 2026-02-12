@@ -10,8 +10,6 @@ import { ToastService } from '../../../shared/toasts/toast.service';
 
 interface UserStats {
   totalUsers: number;
-  newsletterSubscribers: number;
-  subscriberRate: number;
 }
 
 @Component({
@@ -46,7 +44,6 @@ export class AdminUsersComponent implements OnInit {
   formPassword = '';
   formPasswordConfirm = '';
   formIsVerified = false;
-  formWantsNewsletter = false;
   formIsProfileComplete = false;
 
   // Password visibility
@@ -153,7 +150,6 @@ export class AdminUsersComponent implements OnInit {
     this.formPassword = '';
     this.formPasswordConfirm = '';
     this.formIsVerified = true;
-    this.formWantsNewsletter = false;
     this.formIsProfileComplete = false;
     this.showPassword = false;
     this.showPasswordConfirm = false;
@@ -169,7 +165,6 @@ export class AdminUsersComponent implements OnInit {
     this.formPassword = '';
     this.formPasswordConfirm = '';
     this.formIsVerified = user.isVerified ?? false;
-    this.formWantsNewsletter = user.wantsNewsletter ?? false;
     this.formIsProfileComplete = user.isProfileComplete ?? false;
     this.showPassword = false;
     this.showPasswordConfirm = false;
@@ -238,7 +233,6 @@ export class AdminUsersComponent implements OnInit {
         name: this.formName.trim(),
         email: this.formEmail.trim().toLowerCase(),
         password: this.formPassword,
-        wantsNewsletter: this.formWantsNewsletter,
       };
       this.api.adminCreateUser(dto).subscribe({
         next: (created) => {
@@ -280,7 +274,6 @@ export class AdminUsersComponent implements OnInit {
         email: this.formEmail.trim().toLowerCase(),
         role: this.formRole,
         isVerified: this.formIsVerified,
-        wantsNewsletter: this.formWantsNewsletter,
         isProfileComplete: this.formIsProfileComplete,
       };
       if (this.formPassword.length >= 8 && this.formPassword === this.formPasswordConfirm) {

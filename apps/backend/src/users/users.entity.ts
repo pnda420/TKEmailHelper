@@ -32,10 +32,6 @@ export class User {
 
   @Index()
   @Column({ default: false })
-  wantsNewsletter: boolean;
-
-  @Index()
-  @Column({ default: false })
   isVerified: boolean;
 
   @Column({ nullable: true })

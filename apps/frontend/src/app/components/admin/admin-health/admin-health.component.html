@@ -41,6 +41,45 @@
   <!-- Scrollable Content -->
   <div class="health-content" *ngIf="health">
 
+    <!-- Quick Stats Row -->
+    <div class="quick-stats">
+      <div class="quick-stat">
+        <span class="material-symbols-outlined" [class.text-green]="connectedCount === totalServices" [class.text-yellow]="connectedCount > 0 && connectedCount < totalServices" [class.text-red]="connectedCount === 0">dns</span>
+        <div class="qs-text">
+          <span class="qs-value">{{ connectedCount }}/{{ totalServices }}</span>
+          <span class="qs-label">Services online</span>
+        </div>
+      </div>
+      <div class="quick-stat">
+        <span class="material-symbols-outlined text-blue">speed</span>
+        <div class="qs-text">
+          <span class="qs-value">{{ health.totalLatency }}ms</span>
+          <span class="qs-label">Health-Check</span>
+        </div>
+      </div>
+      <div class="quick-stat">
+        <span class="material-symbols-outlined" [class]="'text-' + getCpuColor()">memory</span>
+        <div class="qs-text">
+          <span class="qs-value">{{ health.system.cpuPercent }}%</span>
+          <span class="qs-label">CPU</span>
+        </div>
+      </div>
+      <div class="quick-stat">
+        <span class="material-symbols-outlined" [class]="'text-' + getMemoryColor()">database</span>
+        <div class="qs-text">
+          <span class="qs-value">{{ health.system.memoryMb.heapUsed }}MB</span>
+          <span class="qs-label">Heap</span>
+        </div>
+      </div>
+      <div class="quick-stat">
+        <span class="material-symbols-outlined text-purple">schedule</span>
+        <div class="qs-text">
+          <span class="qs-value">{{ health.system.uptimeFormatted }}</span>
+          <span class="qs-label">Uptime</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Health Cards -->
     <div class="health-grid">
 
@@ -172,36 +211,6 @@
       </div>
     </div>
 
-    <!-- Mail (IMAP/SMTP) -->
-    <!-- <div class="health-card healthy">
-      <div class="card-header">
-        <div class="card-icon-wrap mail">
-          <span class="material-symbols-outlined">mail</span>
-        </div>
-        <div class="card-title">
-          <h3>E-Mail</h3>
-          <span class="card-subtitle">IMAP / SMTP</span>
-        </div>
-        <div class="status-dot config">
-          <span class="material-symbols-outlined" style="font-size: 14px;">settings</span>
-        </div>
-      </div>
-      <div class="card-details">
-        <div class="detail-row">
-          <span class="detail-label">Account</span>
-          <span class="detail-value mono">{{ health.services.mail.account }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">IMAP</span>
-          <span class="detail-value mono">{{ health.services.mail.imapHost }}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">SMTP</span>
-          <span class="detail-value mono">{{ health.services.mail.smtpHost }}</span>
-        </div>
-      </div>
-    </div> -->
-
     <!-- IMAP IDLE -->
     <div class="health-card"
          [class.healthy]="health.services.imapIdle.connected"
@@ -244,15 +253,15 @@
       </div>
     </div>
 
-    <!-- System Info -->
+    <!-- System / Backend -->
     <div class="health-card system-card healthy">
       <div class="card-header">
         <div class="card-icon-wrap system">
           <span class="material-symbols-outlined">memory</span>
         </div>
         <div class="card-title">
-          <h3>Backend</h3>
-          <span class="card-subtitle">Node.js Runtime</span>
+          <h3>Backend / Runtime</h3>
+          <span class="card-subtitle">Node.js &amp; System</span>
         </div>
         <div class="status-dot online">
           <span class="dot-pulse"></span>
@@ -274,8 +283,13 @@
           </span>
         </div>
         <div class="detail-row">
-          <span class="detail-label">RAM (RSS)</span>
-          <span class="detail-value">{{ health.system.memoryMb.rss }} MB</span>
+          <span class="detail-label">CPU</span>
+          <span class="detail-value">
+            {{ health.system.cpuPercent }}%
+            <span class="memory-bar">
+              <span class="memory-fill" [class]="getCpuColor()" [style.width.%]="health.system.cpuPercent"></span>
+            </span>
+          </span>
         </div>
         <div class="detail-row">
           <span class="detail-label">Heap</span>
@@ -286,9 +300,103 @@
             </span>
           </span>
         </div>
+        <div class="detail-row">
+          <span class="detail-label">RSS</span>
+          <span class="detail-value">{{ health.system.memoryMb.rss }} MB</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">CPU Kerne</span>
+          <span class="detail-value mono">{{ health.system.cpuCores }}x</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Plattform</span>
+          <span class="detail-value mono">{{ health.system.platform }}/{{ health.system.arch }}</span>
+        </div>
       </div>
     </div>
 
+    <!-- Host / OS -->
+    <div class="health-card system-card healthy" *ngIf="health.system.os">
+      <div class="card-header">
+        <div class="card-icon-wrap host">
+          <span class="material-symbols-outlined">dns</span>
+        </div>
+        <div class="card-title">
+          <h3>Host / Server</h3>
+          <span class="card-subtitle">{{ health.system.os.hostname }}</span>
+        </div>
+        <div class="status-dot online">
+          <span class="dot-pulse"></span>
+        </div>
+      </div>
+      <div class="card-details">
+        <div class="detail-row">
+          <span class="detail-label">OS Uptime</span>
+          <span class="detail-value">{{ health.system.os.uptimeFormatted }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">RAM gesamt</span>
+          <span class="detail-value">{{ health.system.os.totalMemMb }} MB</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">RAM belegt</span>
+          <span class="detail-value">
+            {{ health.system.os.usedMemMb }} MB ({{ getOsMemoryPercent() }}%)
+            <span class="memory-bar">
+              <span class="memory-fill" [class]="getOsMemoryPercent() > 85 ? 'red' : getOsMemoryPercent() > 65 ? 'yellow' : 'green'" [style.width.%]="getOsMemoryPercent()"></span>
+            </span>
+          </span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">RAM frei</span>
+          <span class="detail-value">{{ health.system.os.freeMemMb }} MB</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">CPU Model</span>
+          <span class="detail-value mono" style="font-size: 0.65rem;">{{ health.system.cpuModel }}</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Charts Section -->
+  <div class="charts-section" *ngIf="health?.history?.length">
+    <div class="charts-header">
+      <h2>
+        <span class="material-symbols-outlined">insights</span>
+        Monitoring
+      </h2>
+      <div class="chart-tabs">
+        <button class="chart-tab" [class.active]="activeChart === 'latency'" (click)="switchChart('latency')">
+          <span class="material-symbols-outlined">speed</span>
+          Latenz
+        </button>
+        <button class="chart-tab" [class.active]="activeChart === 'memory'" (click)="switchChart('memory')">
+          <span class="material-symbols-outlined">memory</span>
+          Memory
+        </button>
+        <button class="chart-tab" [class.active]="activeChart === 'cpu'" (click)="switchChart('cpu')">
+          <span class="material-symbols-outlined">developer_board</span>
+          CPU
+        </button>
+        <button class="chart-tab" [class.active]="activeChart === 'uptime'" (click)="switchChart('uptime')">
+          <span class="material-symbols-outlined">timeline</span>
+          Verfügbarkeit
+        </button>
+      </div>
+      <span class="chart-hint">{{ health.history.length }} Datenpunkte</span>
+    </div>
+    <div class="chart-container">
+      <canvas #latencyCanvas class="chart-canvas" *ngIf="activeChart === 'latency'"></canvas>
+      <canvas #memoryCanvas class="chart-canvas" *ngIf="activeChart === 'memory'"></canvas>
+      <canvas #cpuCanvas class="chart-canvas" *ngIf="activeChart === 'cpu'"></canvas>
+      <canvas #uptimeCanvas class="chart-canvas" *ngIf="activeChart === 'uptime'"></canvas>
+      <div class="chart-empty" *ngIf="!health.history.length">
+        <span class="material-symbols-outlined">analytics</span>
+        <p>Noch keine Verlaufsdaten — werden nach mehreren Health-Checks verfügbar</p>
+      </div>
+    </div>
   </div>
 
   <!-- Response Time -->

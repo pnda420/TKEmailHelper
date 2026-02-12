@@ -21,7 +21,6 @@ export interface LoginResponse {
         name: string;
         role: UserRole;
         createdAt: Date;
-        wantsNewsletter?: boolean;
         isVerified?: boolean;
         isProfileComplete?: boolean;
         signatureName?: string | null;
@@ -102,7 +101,7 @@ export class AuthService {
     async validateUser(userId: string): Promise<User | null> {
         return this.userRepo.findOne({
             where: { id: userId },
-            select: ['id', 'email', 'name', 'role', 'wantsNewsletter', 'isVerified', 'isProfileComplete', 'createdAt', 'signatureName', 'signaturePosition', 'signatureCompany', 'signaturePhone', 'signatureWebsite', 'emailSignature']
+            select: ['id', 'email', 'name', 'role', 'isVerified', 'isProfileComplete', 'createdAt', 'signatureName', 'signaturePosition', 'signatureCompany', 'signaturePhone', 'signatureWebsite', 'emailSignature']
         });
     }
 
@@ -125,7 +124,6 @@ export class AuthService {
                 name: user.name,
                 role: user.role,
                 createdAt: user.createdAt,
-                wantsNewsletter: user.wantsNewsletter,
                 isVerified: user.isVerified,
                 isProfileComplete: user.isProfileComplete,
                 signatureName: user.signatureName,

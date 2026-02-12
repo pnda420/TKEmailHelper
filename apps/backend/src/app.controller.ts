@@ -8,9 +8,27 @@ import { DatabaseService } from './database/database.service';
 import { ImapIdleService } from './emails/imap-idle.service';
 import { DataSource } from 'typeorm';
 import * as net from 'net';
+import * as os from 'os';
 
 @Controller()
 export class AppController {
+  private healthHistory: Array<{
+    timestamp: string;
+    vpnLatency: number;
+    pgLatency: number;
+    mssqlLatency: number;
+    heapUsedMb: number;
+    heapTotalMb: number;
+    rssMb: number;
+    cpuPercent: number;
+    totalLatency: number;
+    vpnOk: boolean;
+    pgOk: boolean;
+    mssqlOk: boolean;
+    imapOk: boolean;
+  }> = [];
+  private lastCpuUsage: { user: number; system: number; time: number } | null = null;
+
   constructor(
     private readonly appService: AppService,
     private readonly configService: ConfigService,
@@ -149,8 +167,47 @@ export class AppController {
     const uptime = process.uptime();
     const memUsage = process.memoryUsage();
 
+    // CPU usage calculation
+    const cpuUsage = process.cpuUsage();
+    let cpuPercent = 0;
+    if (this.lastCpuUsage) {
+      const elapsedMs = (Date.now() - this.lastCpuUsage.time);
+      const elapsedMicros = elapsedMs * 1000;
+      const userDiff = cpuUsage.user - this.lastCpuUsage.user;
+      const sysDiff = cpuUsage.system - this.lastCpuUsage.system;
+      cpuPercent = Math.min(100, Math.round(((userDiff + sysDiff) / elapsedMicros) * 100));
+    }
+    this.lastCpuUsage = { user: cpuUsage.user, system: cpuUsage.system, time: Date.now() };
+
+    // OS info
+    const totalMemMb = Math.round(os.totalmem() / 1024 / 1024);
+    const freeMemMb = Math.round(os.freemem() / 1024 / 1024);
+    const osUptime = Math.floor(os.uptime());
+
     // 5. DB Connection Details from DatabaseService
     const dbStats = this.databaseService.getConnectionStats();
+
+    const healthEntry = {
+      timestamp: new Date().toISOString(),
+      vpnLatency: vpn.latency,
+      pgLatency: postgres.latency,
+      mssqlLatency: mssql.latency,
+      heapUsedMb: Math.round(memUsage.heapUsed / 1024 / 1024),
+      heapTotalMb: Math.round(memUsage.heapTotal / 1024 / 1024),
+      rssMb: Math.round(memUsage.rss / 1024 / 1024),
+      cpuPercent,
+      totalLatency: Date.now() - startTime,
+      vpnOk: vpn.connected,
+      pgOk: postgres.connected,
+      mssqlOk: mssql.connected,
+      imapOk: this.imapIdle.getStatus().connected,
+    };
+
+    // Keep last 60 data points (= 30 min at 30s interval)
+    this.healthHistory.push(healthEntry);
+    if (this.healthHistory.length > 60) {
+      this.healthHistory = this.healthHistory.slice(-60);
+    }
 
     return {
       status: postgres.connected ? (vpn.connected ? 'ok' : 'degraded') : 'degraded',
@@ -196,12 +253,27 @@ export class AppController {
         uptimeFormatted: this.formatUptime(uptime),
         nodeVersion: process.version,
         env: this.configService.get<string>('NODE_ENV', 'unknown'),
+        platform: os.platform(),
+        arch: os.arch(),
+        cpuPercent,
+        cpuCores: os.cpus().length,
+        cpuModel: os.cpus()[0]?.model || 'unknown',
         memoryMb: {
           rss: Math.round(memUsage.rss / 1024 / 1024),
           heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
           heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+          external: Math.round((memUsage.external || 0) / 1024 / 1024),
+        },
+        os: {
+          totalMemMb: totalMemMb,
+          freeMemMb: freeMemMb,
+          usedMemMb: totalMemMb - freeMemMb,
+          uptime: osUptime,
+          uptimeFormatted: this.formatUptime(osUptime),
+          hostname: os.hostname(),
         },
       },
+      history: this.healthHistory,
     };
   }
 

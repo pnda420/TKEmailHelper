@@ -27,11 +27,6 @@
           <strong>{{ verifiedCount }}</strong>
           <span>Verifiziert</span>
         </div>
-        <div class="stat-pill info">
-          <span class="material-symbols-outlined">mail</span>
-          <strong>{{ stats.newsletterSubscribers }}</strong>
-          <span>Newsletter</span>
-        </div>
       </div>
       <button class="btn-create" (click)="openCreateModal()">
         <span class="material-symbols-outlined">person_add</span>
@@ -148,9 +143,6 @@
               <span class="flag" [class.active]="user.isVerified" (click)="toggleVerified(user)" title="Verifiziert">
                 <span class="material-symbols-outlined">{{ user.isVerified ? 'verified' : 'new_releases' }}</span>
               </span>
-              <span class="flag" [class.active]="user.wantsNewsletter" title="Newsletter">
-                <span class="material-symbols-outlined">{{ user.wantsNewsletter ? 'mark_email_read' : 'mail' }}</span>
-              </span>
               <span class="flag" [class.active]="user.isProfileComplete" title="Profil vollständig">
                 <span class="material-symbols-outlined">{{ user.isProfileComplete ? 'task_alt' : 'pending' }}</span>
               </span>
@@ -256,10 +248,6 @@
             <label class="toggle-label">
               <input type="checkbox" [(ngModel)]="formIsVerified">
               <span>Verifiziert</span>
-            </label>
-            <label class="toggle-label">
-              <input type="checkbox" [(ngModel)]="formWantsNewsletter">
-              <span>Newsletter</span>
             </label>
             <label class="toggle-label">
               <input type="checkbox" [(ngModel)]="formIsProfileComplete">

@@ -313,7 +313,8 @@ export class EmailsController {
     @Param('address') address: string,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ) {
-    const history = await this.emailsService.getCustomerHistory(address, limit);
+    const decodedAddress = decodeURIComponent(address);
+    const history = await this.emailsService.getCustomerHistory(decodedAddress, limit);
     return { history };
   }
 

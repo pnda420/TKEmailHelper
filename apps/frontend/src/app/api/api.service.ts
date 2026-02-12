@@ -21,7 +21,6 @@ export interface CreateUserDto {
   email: string;
   name: string;
   password: string;
-  wantsNewsletter?: boolean;
 }
 
 export interface LoginDto {
@@ -35,17 +34,12 @@ export interface LoginResponse {
   token?: string; // Später wenn JWT implementiert ist
 }
 
-export interface NewsletterSubscribeDto {
-  email: string;
-  name?: string;
-}
 
 export interface UpdateUserDto {
   name?: string;
   email?: string;
   password?: string;
   isVerified?: boolean;
-  wantsNewsletter?: boolean;
   role?: UserRole;
   // AI Context Signature fields (for AI to know who the user is)
   signatureName?: string | null;
@@ -61,8 +55,6 @@ export interface UpdateUserDto {
 
 export interface UserStats {
   totalUsers: number;
-  newsletterSubscribers: number;
-  subscriberRate: number;
 }
 
 // Contact Requests
@@ -168,12 +160,6 @@ export interface DayWithSlots {
   isPast: boolean;
 }
 
-export interface NewsletterSubscriber {
-  id: string;
-  email: string;
-  isActive: boolean;
-  subscribedAt: Date;
-}
 
 // ==================== FAQ INTERFACES ====================
 
@@ -230,7 +216,6 @@ export interface Settings {
   maintenanceMessage?: string;
   maintenancePassword?: string;
   allowRegistration: boolean;
-  allowNewsletter: boolean;
   siteTitle?: string;
   siteDescription?: string;
   contactEmail?: string;
@@ -244,7 +229,6 @@ export interface UpdateSettingsDto {
   maintenanceMessage?: string;
   maintenancePassword?: string;
   allowRegistration?: boolean;
-  allowNewsletter?: boolean;
   siteTitle?: string;
   siteDescription?: string;
   contactEmail?: string;
@@ -257,7 +241,6 @@ export interface PublicSettings {
   siteTitle?: string;
   siteDescription?: string;
   allowRegistration?: boolean;
-  allowNewsletter?: boolean;
 }
 
 // ==================== SERVICES CATALOG INTERFACES ====================
@@ -655,8 +638,38 @@ export interface SystemHealth {
     uptimeFormatted: string;
     nodeVersion: string;
     env: string;
-    memoryMb: { rss: number; heapUsed: number; heapTotal: number };
+    platform: string;
+    arch: string;
+    cpuPercent: number;
+    cpuCores: number;
+    cpuModel: string;
+    memoryMb: { rss: number; heapUsed: number; heapTotal: number; external: number };
+    os: {
+      totalMemMb: number;
+      freeMemMb: number;
+      usedMemMb: number;
+      uptime: number;
+      uptimeFormatted: string;
+      hostname: string;
+    };
   };
+  history: HealthHistoryEntry[];
+}
+
+export interface HealthHistoryEntry {
+  timestamp: string;
+  vpnLatency: number;
+  pgLatency: number;
+  mssqlLatency: number;
+  heapUsedMb: number;
+  heapTotalMb: number;
+  rssMb: number;
+  cpuPercent: number;
+  totalLatency: number;
+  vpnOk: boolean;
+  pgOk: boolean;
+  mssqlOk: boolean;
+  imapOk: boolean;
 }
 
 export interface SystemStatus {
@@ -780,39 +793,6 @@ export class ApiService {
    */
   getUserStats(): Observable<UserStats> {
     return this.http.get<UserStats>(`${this.apiUrl}/users/stats`, {
-      headers: this.getHeaders()
-    });
-  }
-
-  // ==================== NEWSLETTER ENDPOINTS ====================
-
-  /**
-   * Newsletter abonnieren
-   */
-  subscribeNewsletterUser(dto: NewsletterSubscribeDto): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(
-      `${this.apiUrl}/users/newsletter/subscribe`,
-      dto,
-      { headers: this.getHeaders() }
-    );
-  }
-
-  /**
-   * Newsletter abmelden
-   */
-  unsubscribeNewsletterUser(email: string): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(
-      `${this.apiUrl}/users/newsletter/unsubscribe`,
-      { email },
-      { headers: this.getHeaders() }
-    );
-  }
-
-  /**
-   * Alle Newsletter-Abonnenten abrufen (Admin)
-   */
-  getNewsletterUserSubscribers(): Observable<User[]> {
-    return this.http.get<User[]>(`${this.apiUrl}/users/newsletter/subscribers`, {
       headers: this.getHeaders()
     });
   }

@@ -14,7 +14,6 @@ export interface User {
   email: string;
   name: string;
   role: UserRole;
-  wantsNewsletter?: boolean;
   isVerified?: boolean;
   isProfileComplete?: boolean;
   createdAt: Date;

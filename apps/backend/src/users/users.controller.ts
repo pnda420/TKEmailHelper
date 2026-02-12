@@ -13,7 +13,7 @@ import {
   } from '@nestjs/common';
   import { Throttle } from '@nestjs/throttler';
   import { UsersService } from './users.service';
-import { CreateUserDto, LoginDto, NewsletterSubscribeDto, UpdateUserDto, AdminResetPasswordDto } from './users.dto';
+import { CreateUserDto, LoginDto, UpdateUserDto, AdminResetPasswordDto } from './users.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
@@ -47,41 +47,14 @@ import { User } from './users.entity';
       };
     }
   
-    // 🛡️ STRENG: 3 Newsletter-Anmeldungen pro Stunde
-    @Public()
-    @Throttle({ default: { limit: 3, ttl: 3600000 } })
-    @Post('newsletter/subscribe')
-    @HttpCode(HttpStatus.OK)
-    async subscribeNewsletter(@Body() dto: NewsletterSubscribeDto) {
-      return this.usersService.subscribeNewsletter(dto);
-    }
-  
-    @Public()
-    @Post('newsletter/unsubscribe')
-    @HttpCode(HttpStatus.OK)
-    async unsubscribeNewsletter(@Body() body: { email: string }) {
-      return this.usersService.unsubscribeNewsletter(body.email);
-    }
-  
     // Admin Routen
-    @UseGuards(JwtAuthGuard, AdminGuard)
-    @Get('newsletter/subscribers')
-    async getNewsletterSubscribers() {
-      return this.usersService.getNewsletterSubscribers();
-    }
-  
     @UseGuards(JwtAuthGuard, AdminGuard)
     @Get('stats')
     async getStats() {
       const totalUsers = await this.usersService.count();
-      const newsletterSubscribers = await this.usersService.countNewsletterSubscribers();
       
       return {
         totalUsers,
-        newsletterSubscribers,
-        subscriberRate: totalUsers > 0 
-          ? Math.round((newsletterSubscribers / totalUsers) * 100) 
-          : 0,
       };
     }
   
@@ -98,7 +71,7 @@ import { User } from './users.entity';
 
     /**
      * PATCH /users/me - Update own profile (no admin required)
-     * Users can update their own: name, wantsNewsletter, signature fields, emailSignature
+     * Users can update their own: name, signature fields, emailSignature
      * Users CANNOT update: role, email, password (separate endpoints needed)
      */
     @UseGuards(JwtAuthGuard)

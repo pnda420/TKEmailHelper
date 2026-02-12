@@ -1045,6 +1045,10 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   loadThread(): void {
     if (!this.selectedEmail) return;
+    if (this.threadOpen) {
+      this.threadOpen = false;
+      return;
+    }
     this.api.getEmailThread(this.selectedEmail.id).subscribe({
       next: (res) => {
         this.threadEmails = res.thread;
@@ -1057,6 +1061,10 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   loadCustomerHistory(): void {
     if (!this.selectedEmail) return;
+    if (this.customerHistoryOpen) {
+      this.customerHistoryOpen = false;
+      return;
+    }
     this.api.getCustomerHistory(this.selectedEmail.fromAddress).subscribe({
       next: (res) => {
         this.customerHistory = res.history;

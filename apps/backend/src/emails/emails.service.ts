@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, In, IsNull, ILike, Brackets } from 'typeorm';
+import { Repository, Not, In, IsNull, ILike, Brackets, Raw } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as Imap from 'imap';
 import { simpleParser } from 'mailparser';
@@ -1405,7 +1405,7 @@ export class EmailsService {
     return this.emailRepository.find({
       where: [
         { fromAddress },
-        { toAddresses: fromAddress as any }, // Also include emails sent TO this address
+        { toAddresses: Raw(alias => `:addr = ANY(${alias})`, { addr: fromAddress }) },
       ],
       order: { receivedAt: 'DESC' },
       take: limit,

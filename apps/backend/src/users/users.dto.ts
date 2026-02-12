@@ -13,20 +13,12 @@ export class CreateUserDto {
   @IsString()
   @MinLength(8, { message: 'Passwort muss mindestens 8 Zeichen lang sein' })
   password: string;
-
-  @IsBoolean()
-  @IsOptional()
-  wantsNewsletter?: boolean;
 }
 
 export class UpdateUserDto {
   @IsString()
   @IsOptional()
   name?: string;
-
-  @IsBoolean()
-  @IsOptional()
-  wantsNewsletter?: boolean;
 
   @IsEnum(UserRole)
   @IsOptional()
@@ -100,11 +92,3 @@ export class AdminResetPasswordDto {
   newPassword: string;
 }
 
-export class NewsletterSubscribeDto {
-  @IsEmail()
-  email: string;
-
-  @IsString()
-  @IsOptional()
-  name?: string;
-}

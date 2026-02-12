@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from './users.entity';
-import { CreateUserDto, LoginDto, NewsletterSubscribeDto, UpdateUserDto } from './users.dto';
+import { CreateUserDto, LoginDto, UpdateUserDto } from './users.dto';
 
 @Injectable()
 export class UsersService {
@@ -40,7 +40,7 @@ export class UsersService {
     async findAll(): Promise<User[]> {
         const users = await this.userRepo.find({
             order: { createdAt: 'DESC' },
-            select: ['id', 'email', 'name', 'wantsNewsletter', 'isVerified', 'isProfileComplete', 'createdAt', 'updatedAt', 'role', 'signatureName', 'signaturePosition', 'signatureCompany', 'signaturePhone', 'signatureWebsite', 'emailSignature'],
+            select: ['id', 'email', 'name', 'isVerified', 'isProfileComplete', 'createdAt', 'updatedAt', 'role', 'signatureName', 'signaturePosition', 'signatureCompany', 'signaturePhone', 'signatureWebsite', 'emailSignature'],
         });
         return users;
     }
@@ -48,7 +48,7 @@ export class UsersService {
     async findOne(id: string): Promise<User> {
         const user = await this.userRepo.findOne({
             where: { id },
-            select: ['id', 'email', 'name', 'wantsNewsletter', 'isVerified', 'isProfileComplete', 'createdAt', 'updatedAt', 'role', 'signatureName', 'signaturePosition', 'signatureCompany', 'signaturePhone', 'signatureWebsite', 'emailSignature'],
+            select: ['id', 'email', 'name', 'isVerified', 'isProfileComplete', 'createdAt', 'updatedAt', 'role', 'signatureName', 'signaturePosition', 'signatureCompany', 'signaturePhone', 'signatureWebsite', 'emailSignature'],
         });
 
         if (!user) {
@@ -126,57 +126,7 @@ export class UsersService {
         return this.validateUser(dto.email, dto.password);
     }
 
-    async subscribeNewsletter(dto: NewsletterSubscribeDto): Promise<{ message: string }> {
-        let user = await this.findByEmail(dto.email);
-
-        if (user) {
-            // User existiert bereits, Newsletter-Flag updaten
-            if (user.wantsNewsletter) {
-                return { message: 'Already subscribed to newsletter' };
-            }
-
-            user.wantsNewsletter = true;
-            await this.userRepo.save(user);
-            return { message: 'Successfully subscribed to newsletter' };
-        }
-
-        // Neuer User nur für Newsletter
-        user = this.userRepo.create({
-            email: dto.email,
-            name: dto.name || dto.email.split('@')[0],
-            password: await bcrypt.hash(Math.random().toString(36), 10), // Dummy Password
-            wantsNewsletter: true,
-        });
-
-        await this.userRepo.save(user);
-        return { message: 'Successfully subscribed to newsletter' };
-    }
-
-    async unsubscribeNewsletter(email: string): Promise<{ message: string }> {
-        const user = await this.findByEmail(email);
-
-        if (!user) {
-            throw new NotFoundException('Email not found');
-        }
-
-        user.wantsNewsletter = false;
-        await this.userRepo.save(user);
-
-        return { message: 'Successfully unsubscribed from newsletter' };
-    }
-
-    async getNewsletterSubscribers(): Promise<User[]> {
-        return this.userRepo.find({
-            where: { wantsNewsletter: true },
-            select: ['id', 'email', 'name', 'createdAt'],
-        });
-    }
-
     async count(): Promise<number> {
         return this.userRepo.count();
-    }
-
-    async countNewsletterSubscribers(): Promise<number> {
-        return this.userRepo.count({ where: { wantsNewsletter: true } });
     }
 }
