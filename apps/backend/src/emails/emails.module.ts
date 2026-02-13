@@ -7,12 +7,14 @@ import { EmailTemplatesModule } from '../email-templates/email-templates.module'
 import { AiAgentModule } from '../ai-agent/ai-agent.module';
 import { EmailEventsService } from './email-events.service';
 import { ImapIdleService } from './imap-idle.service';
+import { MailboxesModule } from '../mailboxes/mailboxes.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Email]),
     forwardRef(() => EmailTemplatesModule),
     forwardRef(() => AiAgentModule),
+    MailboxesModule,
   ],
   controllers: [EmailsController],
   providers: [EmailsService, EmailEventsService, ImapIdleService],

@@ -26,7 +26,7 @@
             <span class="material-symbols-outlined ms-size-18">history</span>
             Verlauf
           </a>
-          <a *ngIf="user?.role === UserRole.ADMIN" routerLink="/admin" routerLinkActive="active"
+          <a *ngIf="user.role === UserRole.ADMIN" routerLink="/admin" routerLinkActive="active"
             class="nav-link--admin-main" (click)="servicesDropdownOpen = false; closeMenu()">
             <span class="material-symbols-outlined ms-size-18">admin_panel_settings</span>
             Admin
@@ -88,10 +88,36 @@
               <span class="connection-popup__time" *ngIf="connectionStatus">
                 {{ connectionStatus.timestamp | date:'HH:mm:ss' }}
               </span>
-              <a routerLink="/admin/health" *ngIf="user?.role === UserRole.ADMIN" class="connection-popup__link"
+              <a routerLink="/admin/health" *ngIf="user.role === UserRole.ADMIN" class="connection-popup__link"
                 (click)="connectionPopupOpen = false; closeMenu()">
                 Details →
               </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mailbox Selector (only show if user has multiple mailboxes) -->
+        <div class="mailbox-selector-container" *ngIf="user && myMailboxes.length > 0">
+          <button class="mailbox-selector-btn" (click)="toggleMailboxDropdown($event)" title="Postfächer">
+            <span class="material-symbols-outlined ms-size-20">inbox</span>
+            <span class="mailbox-count" *ngIf="hasMultipleMailboxes">{{ activeMailboxCount }}/{{ myMailboxes.length }}</span>
+          </button>
+
+          <div class="mailbox-dropdown" *ngIf="mailboxDropdownOpen">
+            <div class="mailbox-dropdown__header">
+              <span class="material-symbols-outlined">inbox</span>
+              <span>Postfächer</span>
+            </div>
+            <div class="mailbox-dropdown__body">
+              <label class="mailbox-option" *ngFor="let um of myMailboxes"
+                [class.active]="um.isActive"
+                [style.border-left-color]="um.mailbox.color || '#1565c0'">
+                <input type="checkbox" [checked]="um.isActive" (change)="toggleMailboxActive(um, $event)" />
+                <div class="mailbox-option__info">
+                  <span class="mailbox-option__name">{{ um.mailbox.name || 'Postfach' }}</span>
+                  <span class="mailbox-option__email">{{ um.mailbox.email }}</span>
+                </div>
+              </label>
             </div>
           </div>
         </div>

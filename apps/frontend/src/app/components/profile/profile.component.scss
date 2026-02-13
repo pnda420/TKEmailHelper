@@ -441,6 +441,57 @@
   }
 }
 
+// ===== MAILBOX LIST =====
+
+.mailbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mailbox-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.75rem 1rem;
+  background: $color-gray-50;
+  border-radius: $radius-sm;
+  border-left: 3px solid #1565c0;
+
+  .mailbox-item-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .mailbox-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: $color-text-primary;
+  }
+
+  .mailbox-active-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: #4caf50;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .mailbox-email {
+    font-size: 0.8rem;
+    color: $color-text-secondary;
+  }
+
+  .mailbox-company {
+    font-size: 0.75rem;
+    color: $color-text-tertiary;
+  }
+}
+
 // ===== BUTTONS =====
 
 .btn {

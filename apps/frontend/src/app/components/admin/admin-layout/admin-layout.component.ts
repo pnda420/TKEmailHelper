@@ -62,6 +62,7 @@ export class AdminLayoutComponent implements OnInit, OnDestroy {
     { path: 'admin/logs', label: 'Error Logs', icon: 'bug_report' },
     { path: 'admin/ai-usage', label: 'AI Usage', icon: 'smart_toy' },
     { path: 'admin/ai-config', label: 'Regeln', icon: 'gavel' },
+    { path: 'admin/mailboxes', label: 'Postfächer', icon: 'mail' },
     { path: 'admin/users', label: 'Benutzer', icon: 'group' },
     { path: 'admin/sql', label: 'SQL', icon: 'database' },
     { path: 'admin/console', label: 'Console', icon: 'terminal' },

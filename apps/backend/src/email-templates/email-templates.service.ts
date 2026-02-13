@@ -7,10 +7,12 @@ const MailComposer = require('nodemailer/lib/mail-composer');
 import OpenAI from 'openai';
 import { EmailTemplate } from './email-templates.entity';
 import { User } from '../users/users.entity';
+import { Mailbox } from '../mailboxes/mailbox.entity';
 import { AI_MODELS } from '../config/ai-models.config';
 import { AiUsageService } from '../ai-usage/ai-usage.service';
 import { AiConfigService } from '../ai-config/ai-config.service';
 import { EmailsService } from '../emails/emails.service';
+import { MailboxesService } from '../mailboxes/mailboxes.service';
 import {
   PROMPT_GENERATE_REPLY,
   PROMPT_REVISE_REPLY,
@@ -63,6 +65,7 @@ export interface SendReplyDto {
   to: string;
   subject: string;
   body: string;
+  mailboxId?: string; // Which mailbox to send from (uses its SMTP config + signature)
   emailId?: string; // DB id of the original email (to mark as sent + move on IMAP)
   inReplyTo?: string; // Original message ID for threading
   references?: string; // Full References header chain
@@ -86,13 +89,14 @@ export class EmailTemplatesService {
     private aiConfigService: AiConfigService,
     @Inject(forwardRef(() => EmailsService))
     private emailsService: EmailsService,
+    private mailboxesService: MailboxesService,
   ) {
     // Initialize OpenAI
     this.openai = new OpenAI({
       apiKey: this.configService.get<string>('OPENAI_API_KEY'),
     });
 
-    // Initialize SMTP transporter
+    // Initialize legacy SMTP transporter (fallback when no mailbox specified)
     this.transporter = nodemailer.createTransport({
       host: this.configService.get<string>('MAIL_AUSGANG'),
       port: 587,
@@ -100,6 +104,21 @@ export class EmailTemplatesService {
       auth: {
         user: this.configService.get<string>('MAIL'),
         pass: this.configService.get<string>('MAIL_PASS'),
+      },
+    });
+  }
+
+  /**
+   * Create SMTP transporter for a specific mailbox
+   */
+  private createTransporterForMailbox(mailbox: Mailbox): nodemailer.Transporter {
+    return nodemailer.createTransport({
+      host: mailbox.smtpHost,
+      port: mailbox.smtpPort || 587,
+      secure: mailbox.smtpSecure || false,
+      auth: {
+        user: mailbox.email,
+        pass: mailbox.password,
       },
     });
   }
@@ -142,15 +161,19 @@ export class EmailTemplatesService {
   // ==================== GPT EMAIL GENERATION ====================
 
   /**
-   * Get signature from user settings, fallback to env variables
+   * Get plain-text signature for AI context.
+   * Prefers mailbox-based signature, falls back to env variables.
    */
-  private getSignature(user?: User): string {
-    // Prioritize user-specific signature if available
+  private getSignature(user?: User, mailbox?: Mailbox): string {
+    if (mailbox) {
+      return this.mailboxesService.getPlainSignature(mailbox, user);
+    }
+    // Legacy fallback
     const name = user?.signatureName || this.configService.get<string>('MAIL_SIGNATURE_NAME') || '';
     const position = user?.signaturePosition || this.configService.get<string>('MAIL_SIGNATURE_POSITION') || '';
-    const company = user?.signatureCompany || this.configService.get<string>('MAIL_SIGNATURE_COMPANY') || '';
-    const phone = user?.signaturePhone || this.configService.get<string>('MAIL_SIGNATURE_PHONE') || '';
-    const website = user?.signatureWebsite || this.configService.get<string>('MAIL_SIGNATURE_WEBSITE') || '';
+    const company = this.configService.get<string>('MAIL_SIGNATURE_COMPANY') || '';
+    const phone = this.configService.get<string>('MAIL_SIGNATURE_PHONE') || '';
+    const website = this.configService.get<string>('MAIL_SIGNATURE_WEBSITE') || '';
 
     const parts = [];
     if (name) parts.push(name);
@@ -342,11 +365,13 @@ ${revisionInstructions}
   // ==================== SEND EMAIL ====================
 
   /**
-   * Get the user's real HTML email signature (like Outlook)
+   * Get the real HTML email signature.
+   * Uses mailbox-based signature template (with user placeholders resolved).
    */
-  private getRealSignatureHtml(user?: User): string {
-    if (user?.emailSignature && user.emailSignature.trim()) {
-      return `<br><br>${user.emailSignature}`;
+  private getRealSignatureHtml(user?: User, mailbox?: Mailbox): string {
+    if (mailbox && mailbox.signatureTemplate) {
+      const resolved = this.mailboxesService.resolveSignature(mailbox, user);
+      return `<br><br>${resolved}`;
     }
     return '';
   }
@@ -374,13 +399,25 @@ ${revisionInstructions}
   }
 
   async sendReply(dto: SendReplyDto, user?: User): Promise<{ success: boolean; messageId?: string }> {
-    const mailFrom = this.configService.get<string>('MAIL');
-    // Use user's signature company name or fallback to company name or default
-    const senderName = user?.signatureCompany || user?.signatureName || this.configService.get<string>('COMPANY_NAME') || 'Email Helper';
+    // Resolve mailbox (from DTO or from the email's stored mailboxId)
+    let mailbox: Mailbox | null = null;
+    if (dto.mailboxId) {
+      mailbox = await this.mailboxesService.findOne(dto.mailboxId).catch(() => null);
+    } else if (dto.emailId) {
+      // Try to get the mailboxId from the original email
+      const email = await this.emailsService.getEmailById(dto.emailId);
+      if (email?.mailboxId) {
+        mailbox = await this.mailboxesService.findOne(email.mailboxId).catch(() => null);
+      }
+    }
+
+    const mailFrom = mailbox?.email || this.configService.get<string>('MAIL');
+    const senderName = mailbox?.companyName || user?.signatureName || this.configService.get<string>('COMPANY_NAME') || 'Email Helper';
+    const activeTransporter = mailbox ? this.createTransporterForMailbox(mailbox) : this.transporter;
 
     // Build HTML version with real signature
     const bodyHtml = this.textToHtml(dto.body);
-    const signatureHtml = this.getRealSignatureHtml(user);
+    const signatureHtml = this.getRealSignatureHtml(user, mailbox);
 
     // Build quoted original email (like Outlook reply)
     let quotedOriginalHtml = '';
@@ -446,7 +483,7 @@ ${quotedOriginalHtml}
         references: referencesChain || undefined,
       };
 
-      const info = await this.transporter.sendMail(mailOptions);
+      const info = await activeTransporter.sendMail(mailOptions);
       this.logger.log(`Email sent: ${info.messageId}`);
 
       // Build raw MIME message and append to IMAP Sent folder (non-blocking)

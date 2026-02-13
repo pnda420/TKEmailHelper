@@ -37,25 +37,12 @@ export class User {
   @Column({ nullable: true })
   verificationToken: string | null;
 
-  // Email Signature fields (user-based)
+  // Email Signature fields (user-based — name & position only, rest comes from mailbox)
   @Column({ nullable: true })
   signatureName: string | null;
 
   @Column({ nullable: true })
   signaturePosition: string | null;
-
-  @Column({ nullable: true })
-  signatureCompany: string | null;
-
-  @Column({ nullable: true })
-  signaturePhone: string | null;
-
-  @Column({ nullable: true })
-  signatureWebsite: string | null;
-
-  // Real email signature (HTML, like Outlook) - attached to outgoing emails
-  @Column('text', { nullable: true })
-  emailSignature: string | null;
 
   // Profile setup complete flag - new users must complete setup wizard first
   @Column({ default: false })

@@ -22,6 +22,7 @@ import { AdminConsoleComponent } from './components/admin/admin-console/admin-co
 import { HelpComponent } from './components/help/help.component';
 import { WelcomeComponent } from './components/welcome/welcome.component';
 import { SetupComponent } from './components/setup/setup.component';
+import { AdminMailboxesComponent } from './components/admin/admin-mailboxes/admin-mailboxes.component';
 
 const pageMainName = 'MailFlow';
 export const routes: Routes = [
@@ -52,6 +53,7 @@ export const routes: Routes = [
     { path: 'admin/users', component: AdminUsersComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Admin Users', data: { description: 'Admin Users verwalten.' } },
     { path: 'admin/ai-usage', component: AdminAiUsageComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | AI Usage', data: { description: 'AI Usage & Kosten Monitoring.' } },
     { path: 'admin/ai-config', component: AdminAiConfigComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Antwort-Regeln', data: { description: 'Antwort-Regeln verwalten.' } },
+    { path: 'admin/mailboxes', component: AdminMailboxesComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Postfächer', data: { description: 'E-Mail Postfächer verwalten.' } },
     { path: 'admin/sql', component: AdminSqlComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | SQL', data: { description: 'SQL Query Tool.' } },
     { path: 'admin/console', component: AdminConsoleComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | Live Console', data: { description: 'Live Backend Console.' } },
 ];

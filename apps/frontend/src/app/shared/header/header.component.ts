@@ -4,8 +4,9 @@ import { Router, RouterModule } from '@angular/router';
 import { AuthService, User, UserRole } from '../../services/auth.service';
 import { ToastService } from '../toasts/toast.service';
 import { ConfirmationService } from '../confirmation/confirmation.service';
-import { ApiService, ServiceCategory, SystemStatus } from '../../api/api.service';
+import { ApiService, ServiceCategory, SystemStatus, UserMailbox, Mailbox } from '../../api/api.service';
 import { Subscription } from 'rxjs';
+import { MailboxStateService } from '../../services/mailbox-state.service';
 
 interface NavCategory {
   id: string;
@@ -36,13 +37,18 @@ export class HeaderComponent implements OnInit, OnDestroy {
   connectionPopupOpen = false;
   private connectionInterval?: any;
 
+  // Mailbox Selector
+  myMailboxes: UserMailbox[] = [];
+  mailboxDropdownOpen = false;
+
   constructor(
     @Inject(DOCUMENT) private doc: Document,
     public router: Router,
     private authService: AuthService,
     private toasts: ToastService,
     private confirmationService: ConfirmationService,
-    private api: ApiService
+    private api: ApiService,
+    private mailboxState: MailboxStateService
   ) { }
 
   ngOnInit(): void {
@@ -50,10 +56,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.user = user;
       if (user) {
         this.loadConnectionStatus();
+        this.loadMyMailboxes();
         // Poll every 30s while logged in
         this.connectionInterval = setInterval(() => this.loadConnectionStatus(), 30_000);
       } else {
         this.connectionStatus = null;
+        this.myMailboxes = [];
         if (this.connectionInterval) {
           clearInterval(this.connectionInterval);
           this.connectionInterval = undefined;
@@ -66,6 +74,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.routerSub = this.router.events.subscribe(() => {
       this.servicesDropdownOpen = false;
       this.connectionPopupOpen = false;
+      this.mailboxDropdownOpen = false;
       this.open = false;
       this.doc.body.style.overflow = '';
       this.doc.body.style.touchAction = '';
@@ -132,6 +141,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
     if (!target.closest('.connection-status-container')) {
       this.connectionPopupOpen = false;
     }
+    // Mailbox Dropdown schließen
+    if (!target.closest('.mailbox-selector-container')) {
+      this.mailboxDropdownOpen = false;
+    }
   }
 
   toggleServicesDropdown(event: Event): void {
@@ -152,6 +165,51 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.router.navigate(['/services']);
     this.servicesDropdownOpen = false;
     this.closeMenu();
+  }
+
+  // ── Mailbox Selector ──
+
+  private loadMyMailboxes(): void {
+    this.api.getMyMailboxes().subscribe({
+      next: (mailboxes) => this.myMailboxes = mailboxes,
+      error: () => this.myMailboxes = [],
+    });
+  }
+
+  toggleMailboxDropdown(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.mailboxDropdownOpen = !this.mailboxDropdownOpen;
+    this.connectionPopupOpen = false;
+    this.servicesDropdownOpen = false;
+  }
+
+  toggleMailboxActive(um: UserMailbox, event: Event): void {
+    event.stopPropagation();
+    const newActive = !um.isActive;
+    // Compute new active mailbox IDs
+    const activeIds = this.myMailboxes
+      .filter(m => m.mailboxId === um.mailboxId ? newActive : m.isActive)
+      .map(m => m.mailboxId);
+
+    this.api.setActiveMailboxes(activeIds).subscribe({
+      next: () => {
+        this.myMailboxes = this.myMailboxes.map(m => ({
+          ...m,
+          isActive: activeIds.includes(m.mailboxId),
+        }));
+        this.mailboxState.notifyMailboxChanged();
+      },
+      error: () => {},
+    });
+  }
+
+  get activeMailboxCount(): number {
+    return this.myMailboxes.filter(m => m.isActive).length;
+  }
+
+  get hasMultipleMailboxes(): boolean {
+    return this.myMailboxes.length > 1;
   }
 
   // Public damit es im Template verwendet werden kann

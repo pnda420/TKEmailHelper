@@ -12,8 +12,9 @@ export interface TerminalLogEntry {
   message: string;
   detail?: string;
 }
-import { ApiService, Email } from '../../api/api.service';
+import { ApiService, Email, Mailbox } from '../../api/api.service';
 import { ToastService } from '../../shared/toasts/toast.service';
+import { MailboxStateService } from '../../services/mailbox-state.service';
 import { PageTitleComponent } from '../../shared/page-title/page-title.component';
 import { AttachmentPreviewComponent, AttachmentInfo } from '../../shared/attachment-preview/attachment-preview.component';
 import { ConfigService } from '../../services/config.service';
@@ -78,6 +79,9 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   customerHistory: Email[] = [];
   customerHistoryOpen = false;
   
+  // Mailbox map
+  mailboxMap = new Map<string, Mailbox>();
+
   // IMAP IDLE status
   idleConnected = false;
   
@@ -102,6 +106,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   private limit = 50;
   private offset = 0;
   private sub?: Subscription;
+  private mailboxSub?: Subscription;
   private eventSource?: EventSource;
   private globalEventSource?: EventSource;
   private pollInterval?: any;
@@ -118,17 +123,26 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
     private http: HttpClient,
     private authService: AuthService,
     private ngZone: NgZone,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private mailboxState: MailboxStateService
   ) {}
 
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
     this.currentUserId = this.authService.getCurrentUser()?.id || null;
     // Load emails AND check processing status in parallel
+    this.loadMailboxes();
     this.loadEmails();
     this.loadAvailableTags();
     this.checkProcessingAndConnect();
     this.connectGlobalEvents();
+
+    // Re-fetch when user toggles active mailboxes in the header
+    this.mailboxSub = this.mailboxState.mailboxChanged$.subscribe(() => {
+      this.offset = 0;
+      this.loadEmails();
+      this.loadMailboxes();
+    });
   }
 
   ngAfterViewChecked(): void {
@@ -219,6 +233,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.api.unlockEmail(this.selectedEmail.id).subscribe();
     }
     this.sub?.unsubscribe();
+    this.mailboxSub?.unsubscribe();
     this.closeEventSource();
     this.closeGlobalEventSource();
     this.stopPolling();
@@ -1218,5 +1233,28 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   getThreadCount(): number {
     return this.threadEmails.length;
+  }
+
+  // Mailbox helpers
+  private loadMailboxes(): void {
+    this.api.getMyMailboxes().subscribe({
+      next: (userMailboxes) => {
+        this.mailboxMap.clear();
+        userMailboxes.forEach(um => {
+          if (um.mailbox) {
+            this.mailboxMap.set(um.mailbox.id, um.mailbox as any);
+          }
+        });
+      },
+      error: (err) => console.error('Failed to load mailboxes:', err)
+    });
+  }
+
+  getMailboxName(mailboxId: string): string {
+    return this.mailboxMap.get(mailboxId)?.name || '';
+  }
+
+  getMailboxColor(mailboxId: string): string {
+    return this.mailboxMap.get(mailboxId)?.color || '#1565c0';
   }
 }

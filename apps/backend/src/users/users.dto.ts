@@ -24,7 +24,7 @@ export class UpdateUserDto {
   @IsOptional()
   role?: UserRole;
 
-  // Email Signature fields
+  // Email Signature fields (user only sets name & position, rest comes from mailbox)
   @IsString()
   @IsOptional()
   @MaxLength(100)
@@ -34,27 +34,6 @@ export class UpdateUserDto {
   @IsOptional()
   @MaxLength(100)
   signaturePosition?: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(100)
-  signatureCompany?: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(50)
-  signaturePhone?: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(100)
-  signatureWebsite?: string;
-
-  // Real email signature (HTML, attached to outgoing emails)
-  @IsString()
-  @IsOptional()
-  @MaxLength(10000)
-  emailSignature?: string;
 
   // Profile setup complete flag
   @IsBoolean()

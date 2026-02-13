@@ -493,6 +493,18 @@ $g900: #111827;
   margin-left: 8px;
 }
 
+.mailbox-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 6px;
+  line-height: 1.4;
+}
+
 .mail-subject {
   font-size: 0.8125rem;
   font-weight: 500;

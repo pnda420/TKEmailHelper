@@ -21,6 +21,9 @@ import { AiUsageModule } from './ai-usage/ai-usage.module';
 import { AiUsage } from './ai-usage/ai-usage.entity';
 import { AiConfigModule } from './ai-config/ai-config.module';
 import { AiConfig } from './ai-config/ai-config.entity';
+import { MailboxesModule } from './mailboxes/mailboxes.module';
+import { Mailbox } from './mailboxes/mailbox.entity';
+import { UserMailbox } from './mailboxes/user-mailbox.entity';
 import { User } from './users/users.entity';
 import { Email } from './emails/emails.entity';
 import { EmailTemplate } from './email-templates/email-templates.entity';
@@ -61,7 +64,7 @@ import { AppService } from './app.service';
       username: process.env.DB_USER ?? 'app',
       password: process.env.DB_PASS ?? 'secret',
       database: process.env.DB_NAME ?? 'appdb',
-      entities: [User, Email, EmailTemplate, AppLog, AiUsage, AiConfig],
+      entities: [User, Email, EmailTemplate, AppLog, AiUsage, AiConfig, Mailbox, UserMailbox],
       // synchronize: Kein Migrations-System vorhanden, daher immer aktiv.
       // Bei neuem Entity/Column wird die DB automatisch angepasst.
       synchronize: true,
@@ -82,6 +85,7 @@ import { AppService } from './app.service';
     LogsModule,
     AiUsageModule,
     AiConfigModule,
+    MailboxesModule,
   ],
   controllers: [AppController],
   providers: [

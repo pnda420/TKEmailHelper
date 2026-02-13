@@ -130,6 +130,11 @@
                 <div class="mail-content">
                     <div class="mail-top">
                         <span class="mail-sender">{{ getSenderName(email) }}</span>
+                        <span class="mailbox-badge" *ngIf="email.mailboxId && getMailboxName(email.mailboxId)"
+                          [style.background-color]="getMailboxColor(email.mailboxId)"
+                          [title]="getMailboxName(email.mailboxId)">
+                          {{ getMailboxName(email.mailboxId) }}
+                        </span>
                         <span class="mail-time">{{ formatDate(email.receivedAt) }}</span>
                     </div>
                     <div class="mail-subject">{{ email.subject }}</div>

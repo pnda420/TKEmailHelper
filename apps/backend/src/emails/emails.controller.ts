@@ -23,6 +23,8 @@ import { ImapIdleService } from './imap-idle.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { EmailStatus } from './emails.entity';
+import { MailboxesService } from '../mailboxes/mailboxes.service';
+import { User } from '../users/users.entity';
 
 @Controller('emails')
 @UseGuards(JwtAuthGuard) // All email routes require authentication
@@ -31,6 +33,7 @@ export class EmailsController {
     private readonly emailsService: EmailsService,
     private readonly emailEvents: EmailEventsService,
     private readonly imapIdle: ImapIdleService,
+    private readonly mailboxesService: MailboxesService,
   ) {}
 
   /**
@@ -38,6 +41,7 @@ export class EmailsController {
    */
   @Get()
   async getAllEmails(
+    @CurrentUser() user: User,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
     @Query('search') search?: string,
@@ -45,7 +49,13 @@ export class EmailsController {
     @Query('read') read?: string,
   ) {
     const filterRead = read === 'true' ? true : read === 'false' ? false : undefined;
-    return this.emailsService.getAllEmails(limit, offset, undefined, search, tag, filterRead);
+    const mailboxIds = await this.mailboxesService.getActiveMailboxIdsForUser(user.id);
+    // If user has mailbox assignments but none active → return empty
+    const userMailboxCount = await this.mailboxesService.getUserMailboxCount(user.id);
+    if (userMailboxCount > 0 && mailboxIds.length === 0) {
+      return { emails: [], total: 0 };
+    }
+    return this.emailsService.getAllEmails(limit, offset, undefined, search, tag, filterRead, mailboxIds.length > 0 ? mailboxIds : undefined);
   }
 
   /**

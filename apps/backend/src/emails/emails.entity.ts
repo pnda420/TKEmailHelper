@@ -5,6 +5,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 
 export enum EmailStatus {
@@ -17,9 +19,14 @@ export enum EmailStatus {
 @Index('IDX_emails_status_receivedAt', ['status', 'receivedAt'])
 @Index('IDX_emails_fromAddress', ['fromAddress'])
 @Index('IDX_emails_threadId', ['threadId'])
+@Index('IDX_emails_mailboxId', ['mailboxId'])
 export class Email {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  // Which mailbox this email belongs to
+  @Column({ nullable: true })
+  mailboxId: string;
 
   @Index()
   @Column({ unique: true })

@@ -1,0 +1,708 @@
+@import '../admin-shared.scss';
+
+// ════════════════════════════════════════════════════════════
+// MAILBOX CARDS GRID
+// ════════════════════════════════════════════════════════════
+
+.mailbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: $admin-space-lg;
+  margin-top: $admin-space-md;
+}
+
+.mailbox-card {
+  background: $glass-bg;
+  border: 1px solid $glass-border;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  transition: transform $transition-normal, box-shadow $transition-normal;
+  animation: staggerFade 0.4s ease both;
+  position: relative;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-glass-hover;
+  }
+
+  &--inactive {
+    opacity: 0.65;
+
+    &:hover {
+      opacity: 0.85;
+    }
+  }
+
+  &__accent {
+    height: 4px;
+    width: 100%;
+  }
+
+  &__content {
+    padding: $admin-space-lg;
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: $admin-space-md;
+    gap: $admin-space-sm;
+  }
+
+  &__identity {
+    display: flex;
+    align-items: center;
+    gap: $admin-space-sm;
+    min-width: 0;
+  }
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: $radius-md;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  &__name {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: $color-text-primary;
+    line-height: 1.3;
+  }
+
+  &__email {
+    font-size: 0.8125rem;
+    color: $color-text-secondary;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $admin-space-xs $admin-space-md;
+    padding: $admin-space-sm $admin-space-md;
+    background: rgba($color-gray-100, 0.5);
+    border-radius: $radius-sm;
+    margin-bottom: $admin-space-md;
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: $admin-space-2xs;
+      font-size: 0.8125rem;
+
+      .material-symbols-outlined {
+        color: $color-text-tertiary;
+        font-size: 16px;
+      }
+
+      .info-label {
+        color: $color-text-tertiary;
+        font-weight: 500;
+        min-width: 38px;
+      }
+
+      .info-value {
+        color: $color-text-secondary;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  }
+
+  &__users {
+    display: flex;
+    align-items: center;
+    gap: $admin-space-2xs;
+    font-size: 0.8125rem;
+    color: $color-text-secondary;
+    margin-bottom: $admin-space-md;
+
+    .material-symbols-outlined {
+      color: $color-text-tertiary;
+      font-size: 16px;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: $admin-space-sm;
+    border-top: 1px solid rgba($color-gray-200, 0.6);
+  }
+
+  &__actions-right {
+    display: flex;
+    gap: $admin-space-2xs;
+  }
+}
+
+.toggle-active {
+  color: $color-success !important;
+}
+
+.btn-delete {
+  &:hover {
+    color: $color-error !important;
+    background: rgba($color-error, 0.08) !important;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// MODAL HEADER ICON ALIGNMENT
+// ════════════════════════════════════════════════════════════
+
+.admin-modal-header h2 {
+  display: flex;
+  align-items: center;
+  gap: $admin-space-xs;
+}
+
+// ════════════════════════════════════════════════════════════
+// FORM TABS (inside modal)
+// ════════════════════════════════════════════════════════════
+
+.form-tabs {
+  display: flex;
+  gap: $admin-space-2xs;
+  padding: 0 0 $admin-space-md;
+  border-bottom: 1px solid $color-gray-200;
+  margin-bottom: $admin-space-lg;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.form-tab {
+  display: flex;
+  align-items: center;
+  gap: $admin-space-2xs;
+  padding: $admin-space-xs $admin-space-md;
+  border: none;
+  background: transparent;
+  border-radius: $radius-md;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: $color-text-secondary;
+  cursor: pointer;
+  transition: all $transition-fast;
+  white-space: nowrap;
+
+  .material-symbols-outlined {
+    font-size: 18px;
+  }
+
+  &:hover {
+    background: rgba($color-gray-100, 0.8);
+    color: $color-text-primary;
+  }
+
+  &.active {
+    background: #fff;
+    color: $color-brand-primary;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    font-weight: 600;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// FORM SECTIONS
+// ════════════════════════════════════════════════════════════
+
+.mailbox-form {
+  min-height: 200px;
+}
+
+.form-section {
+  animation: fadeIn 0.2s ease;
+}
+
+.section-info {
+  display: flex;
+  align-items: center;
+  gap: $admin-space-xs;
+  padding: $admin-space-sm $admin-space-md;
+  background: rgba($color-brand-primary, 0.04);
+  border: 1px solid rgba($color-brand-primary, 0.1);
+  border-radius: $radius-sm;
+  font-size: 0.8125rem;
+  color: $color-text-secondary;
+  margin-bottom: $admin-space-lg;
+
+  .material-symbols-outlined {
+    font-size: 18px;
+    color: $color-brand-primary;
+  }
+}
+
+.form-divider {
+  border: none;
+  border-top: 1px solid $color-gray-200;
+  margin: $admin-space-lg 0 $admin-space-md;
+}
+
+.form-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $color-text-primary;
+  margin: 0 0 $admin-space-md;
+}
+
+.required {
+  color: $color-error;
+}
+
+// ════════════════════════════════════════════════════════════
+// COLOR PICKER
+// ════════════════════════════════════════════════════════════
+
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: $admin-space-sm;
+  flex-wrap: wrap;
+}
+
+.color-input {
+  width: 40px;
+  height: 40px;
+  border: 2px solid $color-gray-200;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  padding: 2px;
+  background: transparent;
+
+  &::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+
+  &::-webkit-color-swatch {
+    border: none;
+    border-radius: 4px;
+  }
+}
+
+.color-hex {
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.8125rem;
+  color: $color-text-secondary;
+  min-width: 65px;
+}
+
+.color-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.color-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all $transition-fast;
+  padding: 0;
+
+  &:hover {
+    transform: scale(1.2);
+  }
+
+  &.active {
+    border-color: $color-text-primary;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px currentColor;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// SIGNATURE TAB
+// ════════════════════════════════════════════════════════════
+
+.placeholder-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $admin-space-xs;
+  margin-bottom: $admin-space-md;
+}
+
+.placeholder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: $admin-space-2xs;
+  padding: 4px 10px;
+  background: rgba($color-gray-100, 0.8);
+  border: 1px solid $color-gray-200;
+  border-radius: $radius-full;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  code {
+    font-family: 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.7rem;
+    color: $color-brand-primary;
+    font-weight: 600;
+  }
+
+  .placeholder-desc {
+    color: $color-text-tertiary;
+  }
+
+  &:hover {
+    background: rgba($color-brand-primary, 0.06);
+    border-color: rgba($color-brand-primary, 0.3);
+  }
+}
+
+.signature-toolbar {
+  display: flex;
+  gap: $admin-space-xs;
+  margin-bottom: $admin-space-sm;
+}
+
+.code-editor {
+  font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace !important;
+  font-size: 0.8rem !important;
+  line-height: 1.6 !important;
+  background: #1a1a2e !important;
+  color: #e0e0e0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: $radius-md !important;
+  padding: $admin-space-md !important;
+  resize: vertical;
+  tab-size: 2;
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: rgba($color-brand-primary, 0.5) !important;
+    box-shadow: 0 0 0 3px rgba($color-brand-primary, 0.1);
+  }
+}
+
+.signature-preview {
+  border: 1px solid $color-gray-200;
+  border-radius: $radius-md;
+  overflow: hidden;
+
+  &__label {
+    padding: $admin-space-xs $admin-space-md;
+    background: $color-gray-50;
+    border-bottom: 1px solid $color-gray-200;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: $color-text-tertiary;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  &__content {
+    padding: $admin-space-lg;
+    background: #fff;
+    min-height: 120px;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// MODAL FOOTER LAYOUT
+// ════════════════════════════════════════════════════════════
+
+.admin-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-footer-left {
+  display: flex;
+  gap: $admin-space-xs;
+}
+
+.modal-footer-right {
+  display: flex;
+  gap: $admin-space-xs;
+  margin-left: auto;
+}
+
+// ════════════════════════════════════════════════════════════
+// USER ASSIGNMENT MODAL
+// ════════════════════════════════════════════════════════════
+
+.assign-mailbox-info {
+  display: flex;
+  align-items: center;
+  gap: $admin-space-sm;
+  padding: $admin-space-sm $admin-space-lg;
+  background: $color-gray-50;
+  border-bottom: 1px solid $color-gray-200;
+
+  .assign-mailbox-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: $radius-sm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  strong {
+    font-size: 0.9rem;
+    color: $color-text-primary;
+  }
+
+  .assign-mailbox-email {
+    display: block;
+    font-size: 0.8rem;
+    color: $color-text-secondary;
+  }
+}
+
+.user-assign-list {
+  display: flex;
+  flex-direction: column;
+  gap: $admin-space-xs;
+}
+
+.user-assign-count {
+  font-size: 0.8125rem;
+  color: $color-text-tertiary;
+  margin-bottom: $admin-space-xs;
+  font-weight: 500;
+}
+
+.user-assign-row {
+  display: flex;
+  align-items: center;
+  gap: $admin-space-sm;
+  padding: $admin-space-sm $admin-space-md;
+  border-radius: $radius-md;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: rgba($color-gray-100, 0.6);
+  }
+
+  &.assigned {
+    background: rgba($color-brand-primary, 0.04);
+    border-color: rgba($color-brand-primary, 0.15);
+  }
+
+  input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: $color-brand-primary;
+  }
+
+  &__avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: $gradient-primary;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  &__info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    display: block;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: $color-text-primary;
+  }
+
+  &__email {
+    display: block;
+    font-size: 0.8rem;
+    color: $color-text-secondary;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// RESPONSIVE
+// ════════════════════════════════════════════════════════════
+
+@media (max-width: 640px) {
+  .mailbox-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mailbox-card__info {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row {
+    flex-direction: column !important;
+
+    &.two-col,
+    &.three-col {
+      > * {
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+      }
+    }
+  }
+
+  .form-tabs {
+    gap: 2px;
+  }
+
+  .form-tab {
+    padding: $admin-space-xs $admin-space-sm;
+    font-size: 0.75rem;
+
+    .material-symbols-outlined {
+      display: none;
+    }
+  }
+
+  .color-presets {
+    display: none;
+  }
+
+  .placeholder-chips {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .mailbox-card__actions {
+    flex-direction: column;
+    gap: $admin-space-xs;
+  }
+
+  .mailbox-card__actions-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// CONNECTION TEST
+// ═══════════════════════════════════════════════
+
+.test-connection-btn {
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: $color-text-secondary !important;
+  transition: $transition-fast;
+
+  &:hover:not(:disabled) {
+    border-color: #3b82f6 !important;
+    color: #3b82f6 !important;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+.connection-test-results {
+  display: flex;
+  align-items: center;
+  gap: $admin-space-xs;
+  flex-shrink: 0;
+}
+
+.test-result-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: $radius-full;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: default;
+  transition: $transition-fast;
+
+  &.success {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+  }
+
+  &.error {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+
+  .test-duration {
+    opacity: 0.7;
+    font-weight: 400;
+    font-size: 0.7rem;
+  }
+}
+
+.test-error-details {
+  width: 100%;
+  padding: $admin-space-xs $admin-space-sm;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: $radius-md;
+  font-size: 0.78rem;
+  color: #fca5a5;
+  margin-top: $admin-space-xs;
+
+  .test-error-line {
+    padding: 2px 0;
+
+    strong {
+      color: #ef4444;
+    }
+
+    & + .test-error-line {
+      border-top: 1px solid rgba(239, 68, 68, 0.15);
+      margin-top: 4px;
+      padding-top: 6px;
+    }
+  }
+}
+
+// Spin animation for the test button icon
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.admin-modal-footer {
+  flex-wrap: wrap;
+  gap: $admin-space-xs;
+}

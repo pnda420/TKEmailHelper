@@ -41,14 +41,9 @@ export interface UpdateUserDto {
   password?: string;
   isVerified?: boolean;
   role?: UserRole;
-  // AI Context Signature fields (for AI to know who the user is)
+  // User signature fields (name & position only, rest comes from mailbox)
   signatureName?: string | null;
   signaturePosition?: string | null;
-  signatureCompany?: string | null;
-  signaturePhone?: string | null;
-  signatureWebsite?: string | null;
-  // Real HTML Email Signature (like Outlook)
-  emailSignature?: string | null;
   // Profile setup completion flag
   isProfileComplete?: boolean;
 }
@@ -353,6 +348,68 @@ export interface ImportServicesCatalogResultDto {
   errors: string[];
 }
 
+// ==================== MAILBOX INTERFACES ====================
+
+export interface Mailbox {
+  id: string;
+  name: string;
+  email: string;
+  imapHost: string;
+  smtpHost: string;
+  imapPort: number;
+  smtpPort: number;
+  imapTls: boolean;
+  smtpSecure: boolean;
+  imapSourceFolder: string;
+  imapSentFolder: string;
+  imapDoneFolder: string;
+  imapTrashFolder: string;
+  companyName: string | null;
+  companyPhone: string | null;
+  companyWebsite: string | null;
+  companyAddress: string | null;
+  signatureTemplate: string | null;
+  color: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserMailbox {
+  id: string;
+  userId: string;
+  mailboxId: string;
+  mailbox: Mailbox;
+  isActive: boolean;
+  assignedAt: Date;
+}
+
+export interface CreateMailboxDto {
+  name: string;
+  email: string;
+  password: string;
+  imapHost: string;
+  smtpHost: string;
+  imapPort?: number;
+  smtpPort?: number;
+  imapTls?: boolean;
+  smtpSecure?: boolean;
+  imapSourceFolder?: string;
+  imapSentFolder?: string;
+  imapDoneFolder?: string;
+  imapTrashFolder?: string;
+  companyName?: string;
+  companyPhone?: string;
+  companyWebsite?: string;
+  companyAddress?: string;
+  signatureTemplate?: string;
+  color?: string;
+}
+
+export interface UpdateMailboxDto extends Partial<CreateMailboxDto> {
+  isActive?: boolean;
+}
+
 // ==================== EMAIL INTERFACES ====================
 
 export type EmailStatus = 'inbox' | 'sent' | 'trash';
@@ -363,6 +420,7 @@ export interface Email {
   inReplyTo: string | null;
   references: string | null;
   threadId: string | null;
+  mailboxId: string | null;
   subject: string;
   fromAddress: string;
   fromName: string | null;
@@ -484,6 +542,7 @@ export interface SendReplyDto {
   to: string;
   subject: string;
   body: string;
+  mailboxId?: string;
   emailId?: string;
   inReplyTo?: string;
   references?: string;
@@ -1472,4 +1531,60 @@ clearAiData(): Observable<{ message: string; updated: number }> {
     headers: this.getHeaders(),
   });
 }
+
+  // ==================== MAILBOX ENDPOINTS ====================
+
+  // Admin CRUD
+  createMailbox(dto: CreateMailboxDto): Observable<Mailbox> {
+    return this.http.post<Mailbox>(`${this.apiUrl}/mailboxes`, dto, { headers: this.getHeaders() });
+  }
+
+  getAllMailboxes(): Observable<Mailbox[]> {
+    return this.http.get<Mailbox[]>(`${this.apiUrl}/mailboxes/admin/all`, { headers: this.getHeaders() });
+  }
+
+  getMailbox(id: string): Observable<Mailbox> {
+    return this.http.get<Mailbox>(`${this.apiUrl}/mailboxes/${id}`, { headers: this.getHeaders() });
+  }
+
+  updateMailbox(id: string, dto: UpdateMailboxDto): Observable<Mailbox> {
+    return this.http.patch<Mailbox>(`${this.apiUrl}/mailboxes/admin/${id}`, dto, { headers: this.getHeaders() });
+  }
+
+  deleteMailbox(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/mailboxes/admin/${id}`, { headers: this.getHeaders() });
+  }
+
+  testMailboxConnection(params: any): Observable<{
+    imap: { success: boolean; message: string; durationMs: number };
+    smtp: { success: boolean; message: string; durationMs: number };
+  }> {
+    return this.http.post<any>(`${this.apiUrl}/mailboxes/admin/test-connection`, params, { headers: this.getHeaders() });
+  }
+
+  // Admin user assignment
+  assignUsersToMailbox(mailboxId: string, userIds: string[]): Observable<any> {
+    return this.http.post(`${this.apiUrl}/mailboxes/admin/${mailboxId}/assign`, { userIds }, { headers: this.getHeaders() });
+  }
+
+  removeUserFromMailbox(mailboxId: string, userId: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/mailboxes/admin/${mailboxId}/users/${userId}`, { headers: this.getHeaders() });
+  }
+
+  getMailboxUsers(mailboxId: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/mailboxes/admin/${mailboxId}/users`, { headers: this.getHeaders() });
+  }
+
+  // User's own mailboxes
+  getMyMailboxes(): Observable<UserMailbox[]> {
+    return this.http.get<UserMailbox[]>(`${this.apiUrl}/mailboxes/my`, { headers: this.getHeaders() });
+  }
+
+  setActiveMailboxes(mailboxIds: string[]): Observable<UserMailbox[]> {
+    return this.http.post<UserMailbox[]>(`${this.apiUrl}/mailboxes/my/active`, { mailboxIds }, { headers: this.getHeaders() });
+  }
+
+  getActiveMailboxes(): Observable<UserMailbox[]> {
+    return this.http.get<UserMailbox[]>(`${this.apiUrl}/mailboxes/my/active`, { headers: this.getHeaders() });
+  }
 }

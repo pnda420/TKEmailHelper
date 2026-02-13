@@ -3,51 +3,53 @@ import { ConfigService } from '@nestjs/config';
 import * as Imap from 'imap';
 import { EmailsService } from './emails.service';
 import { EmailEventsService } from './email-events.service';
+import { MailboxesService } from '../mailboxes/mailboxes.service';
+import { Mailbox } from '../mailboxes/mailbox.entity';
+
+interface MailboxWatcher {
+  mailbox: Mailbox;
+  imap: Imap | null;
+  isConnected: boolean;
+  reconnectAttempts: number;
+  reconnectTimer: NodeJS.Timeout | null;
+  pollTimer: NodeJS.Timeout | null;
+  fetchDebounceTimer: NodeJS.Timeout | null;
+}
 
 /**
- * IMAP IDLE Watcher — Persistent connection to the IMAP server.
- * Watches the INBOX for FLAGGED emails using IMAP IDLE + polling.
+ * IMAP IDLE Watcher — Persistent connections to multiple mailboxes.
+ * Watches each active mailbox's INBOX for FLAGGED emails using IMAP IDLE + polling.
  * When a user flags an email in Outlook (⚑) → auto-fetch → auto-process with AI.
- * 
- * Uses a hybrid approach:
- * - IMAP IDLE 'update' event detects flag changes in real-time (when supported by server)
- * - Polling every 30s as fallback (Exchange/Outlook IMAP doesn't always push flag changes via IDLE)
- * 
- * Lifecycle:
- * 1. On module init → connect + open SOURCE_FOLDER + start IDLE + start polling
- * 2. On flag change / poll → fetch flagged emails → emit SSE 'new-emails' → start AI processing
- * 3. On connection loss → exponential backoff reconnect
- * 4. On module destroy → clean disconnect
  */
 @Injectable()
 export class ImapIdleService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ImapIdleService.name);
   
-  private imap: Imap | null = null;
-  private isConnected = false;
+  private watchers: Map<string, MailboxWatcher> = new Map();
   private isDestroying = false;
-  private reconnectTimer: NodeJS.Timeout | null = null;
-  private reconnectAttempts = 0;
   private readonly maxReconnectAttempts = 50;
-  private readonly baseReconnectDelay = 3000; // 3s
-  private keepAliveTimer: NodeJS.Timeout | null = null;
-  private pollTimer: NodeJS.Timeout | null = null;
-  private readonly pollIntervalMs = 30000; // Poll every 30s as fallback
+  private readonly baseReconnectDelay = 3000;
+  private readonly pollIntervalMs = 30000;
+  private readonly fetchDebounceMs = 2000;
 
-  // IMAP config
+  // Legacy single-mailbox support (from env)
+  private legacyImap: Imap | null = null;
+  private legacyConnected = false;
+  private legacyReconnectTimer: NodeJS.Timeout | null = null;
+  private legacyReconnectAttempts = 0;
+  private legacyPollTimer: NodeJS.Timeout | null = null;
+  private legacyFetchDebounceTimer: NodeJS.Timeout | null = null;
+
   private readonly imapUser: string;
   private readonly imapPass: string;
   private readonly imapHost: string;
   private readonly sourceFolder: string;
 
-  // Debounce: don't fetch more than once per 2s
-  private fetchDebounceTimer: NodeJS.Timeout | null = null;
-  private readonly fetchDebounceMs = 2000;
-
   constructor(
     private configService: ConfigService,
     private emailsService: EmailsService,
     private emailEvents: EmailEventsService,
+    private mailboxesService: MailboxesService,
   ) {
     this.imapUser = this.configService.get<string>('MAIL') || '';
     this.imapPass = this.configService.get<string>('MAIL_PASS') || '';
@@ -56,250 +58,387 @@ export class ImapIdleService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit(): Promise<void> {
-    if (!this.imapUser || !this.imapPass || !this.imapHost) {
-      this.logger.warn('IMAP credentials not configured — IDLE watcher disabled');
-      return;
+    // Assign any orphaned emails (mailboxId = null) to the correct mailbox
+    try {
+      await this.emailsService.assignOrphanedEmails();
+    } catch (err) {
+      this.logger.warn(`Could not assign orphaned emails: ${err?.message}`);
     }
-    this.logger.log(`Starting IMAP IDLE watcher on ${this.sourceFolder}`);
-    this.connect();
+
+    // Try to start watchers for all active DB-configured mailboxes
+    try {
+      const mailboxes = await this.mailboxesService.findAllActive();
+      if (mailboxes.length > 0) {
+        this.logger.log(`Starting IMAP IDLE watchers for ${mailboxes.length} mailbox(es)`);
+        for (const mailbox of mailboxes) {
+          this.startWatcher(mailbox);
+        }
+        return;
+      }
+    } catch (err) {
+      this.logger.warn(`Could not load mailboxes from DB: ${err?.message}`);
+    }
+
+    // Fallback: legacy env-based single mailbox
+    if (this.imapUser && this.imapPass && this.imapHost) {
+      this.logger.log(`Starting legacy IMAP IDLE watcher on ${this.sourceFolder}`);
+      this.connectLegacy();
+    } else {
+      this.logger.warn('No mailboxes configured and no IMAP env credentials — IDLE watcher disabled');
+    }
   }
 
   onModuleDestroy(): void {
     this.isDestroying = true;
-    this.disconnect();
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
+    // Stop all mailbox watchers
+    for (const [id, watcher] of this.watchers) {
+      this.stopWatcher(watcher);
     }
-    if (this.keepAliveTimer) {
-      clearInterval(this.keepAliveTimer);
-      this.keepAliveTimer = null;
-    }
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-      this.pollTimer = null;
-    }
+    this.watchers.clear();
+    // Stop legacy
+    this.disconnectLegacy();
+    if (this.legacyReconnectTimer) { clearTimeout(this.legacyReconnectTimer); this.legacyReconnectTimer = null; }
+    if (this.legacyPollTimer) { clearInterval(this.legacyPollTimer); this.legacyPollTimer = null; }
   }
 
   /**
    * Get current IDLE watcher status (for health checks / admin UI)
    */
   getStatus(): { connected: boolean; folder: string; reconnectAttempts: number } {
+    // Check if any watcher is connected
+    let anyConnected = this.legacyConnected;
+    let totalReconnects = this.legacyReconnectAttempts;
+    for (const [, w] of this.watchers) {
+      if (w.isConnected) anyConnected = true;
+      totalReconnects += w.reconnectAttempts;
+    }
     return {
-      connected: this.isConnected,
-      folder: this.sourceFolder,
-      reconnectAttempts: this.reconnectAttempts,
+      connected: anyConnected,
+      folder: this.watchers.size > 0 ? `${this.watchers.size} mailboxes` : this.sourceFolder,
+      reconnectAttempts: totalReconnects,
     };
   }
 
-  private connect(): void {
+  /**
+   * Restart all watchers (e.g. after admin adds/removes a mailbox)
+   */
+  async restartWatchers(): Promise<void> {
+    // Stop all existing
+    for (const [, watcher] of this.watchers) {
+      this.stopWatcher(watcher);
+    }
+    this.watchers.clear();
+
+    try {
+      const mailboxes = await this.mailboxesService.findAllActive();
+      for (const mailbox of mailboxes) {
+        this.startWatcher(mailbox);
+      }
+      this.logger.log(`Restarted IMAP IDLE watchers for ${mailboxes.length} mailbox(es)`);
+    } catch (err) {
+      this.logger.error(`Failed to restart watchers: ${err?.message}`);
+    }
+  }
+
+  // ==================== MULTI-MAILBOX WATCHERS ====================
+
+  private startWatcher(mailbox: Mailbox): void {
     if (this.isDestroying) return;
+    const existing = this.watchers.get(mailbox.id);
+    if (existing) this.stopWatcher(existing);
 
-    this.disconnect(); // clean up any existing connection
+    const watcher: MailboxWatcher = {
+      mailbox,
+      imap: null,
+      isConnected: false,
+      reconnectAttempts: 0,
+      reconnectTimer: null,
+      pollTimer: null,
+      fetchDebounceTimer: null,
+    };
+    this.watchers.set(mailbox.id, watcher);
+    this.connectWatcher(watcher);
+  }
 
-    this.imap = new Imap({
+  private stopWatcher(watcher: MailboxWatcher): void {
+    if (watcher.pollTimer) { clearInterval(watcher.pollTimer); watcher.pollTimer = null; }
+    if (watcher.reconnectTimer) { clearTimeout(watcher.reconnectTimer); watcher.reconnectTimer = null; }
+    if (watcher.fetchDebounceTimer) { clearTimeout(watcher.fetchDebounceTimer); watcher.fetchDebounceTimer = null; }
+    if (watcher.imap) {
+      try {
+        watcher.imap.removeAllListeners();
+        if (watcher.isConnected) watcher.imap.end();
+      } catch {}
+      watcher.imap = null;
+      watcher.isConnected = false;
+    }
+  }
+
+  private connectWatcher(watcher: MailboxWatcher): void {
+    if (this.isDestroying) return;
+    this.stopWatcher(watcher);
+
+    const mb = watcher.mailbox;
+    const imapOpts: any = {
+      user: mb.email,
+      password: mb.password,
+      host: mb.imapHost,
+      port: mb.imapPort || 993,
+      tls: mb.imapTls !== false,
+      tlsOptions: { rejectUnauthorized: false, servername: mb.imapHost },
+      authTimeout: 15000,
+      connTimeout: 15000,
+      keepalive: { interval: 10000, idleInterval: 300000, forceNoop: false },
+    };
+    // Enable STARTTLS when not using direct TLS
+    if (mb.imapTls === false) {
+      imapOpts.autotls = 'always';
+    }
+    watcher.imap = new Imap(imapOpts);
+
+    // Force LOGIN auth instead of AUTHENTICATE PLAIN (fixes IONOS etc.)
+    this.forceImapLogin(watcher.imap);
+
+    watcher.imap.once('ready', () => {
+      this.logger.log(`IMAP IDLE [${mb.email}]: Connected`);
+      watcher.isConnected = true;
+      watcher.reconnectAttempts = 0;
+      this.emitCombinedIdleStatus();
+      this.openBoxAndIdleWatcher(watcher);
+    });
+
+    watcher.imap.on('mail', () => {
+      this.debouncedFetchForWatcher(watcher);
+    });
+
+    watcher.imap.on('update', (_seqno: number, info: any) => {
+      if (info?.flags && (info.flags as string[]).includes('\\Flagged')) {
+        this.debouncedFetchForWatcher(watcher);
+      }
+    });
+
+    watcher.imap.once('error', (err: Error) => {
+      this.logger.error(`IMAP IDLE [${mb.email}] error: ${err.message}`);
+      watcher.isConnected = false;
+      this.emitCombinedIdleStatus();
+      this.scheduleReconnectWatcher(watcher);
+    });
+
+    watcher.imap.once('end', () => {
+      watcher.isConnected = false;
+      if (!this.isDestroying) this.scheduleReconnectWatcher(watcher);
+    });
+
+    watcher.imap.once('close', () => {
+      watcher.isConnected = false;
+      if (!this.isDestroying) this.scheduleReconnectWatcher(watcher);
+    });
+
+    try {
+      watcher.imap.connect();
+    } catch (err) {
+      this.logger.error(`IMAP IDLE [${mb.email}]: Failed to connect: ${err?.message}`);
+      this.scheduleReconnectWatcher(watcher);
+    }
+  }
+
+  private openBoxAndIdleWatcher(watcher: MailboxWatcher): void {
+    if (!watcher.imap || this.isDestroying) return;
+    const folder = watcher.mailbox.imapSourceFolder || 'INBOX';
+
+    watcher.imap.openBox(folder, false, (err, box) => {
+      if (err) {
+        this.logger.error(`IMAP IDLE [${watcher.mailbox.email}]: Failed to open ${folder}: ${err.message}`);
+        this.scheduleReconnectWatcher(watcher);
+        return;
+      }
+      this.logger.log(`IMAP IDLE [${watcher.mailbox.email}]: Watching ${folder} (${box.messages.total} msgs)`);
+      this.fetchAndProcessWatcher(watcher);
+      // Start polling
+      if (watcher.pollTimer) clearInterval(watcher.pollTimer);
+      watcher.pollTimer = setInterval(() => {
+        if (watcher.isConnected && !this.isDestroying) {
+          this.debouncedFetchForWatcher(watcher);
+        }
+      }, this.pollIntervalMs);
+    });
+  }
+
+  private debouncedFetchForWatcher(watcher: MailboxWatcher): void {
+    if (watcher.fetchDebounceTimer) clearTimeout(watcher.fetchDebounceTimer);
+    watcher.fetchDebounceTimer = setTimeout(() => {
+      watcher.fetchDebounceTimer = null;
+      this.fetchAndProcessWatcher(watcher);
+    }, this.fetchDebounceMs);
+  }
+
+  private async fetchAndProcessWatcher(watcher: MailboxWatcher): Promise<void> {
+    try {
+      const result = await this.emailsService.fetchFlaggedEmailsForMailbox(watcher.mailbox);
+      if (result.stored > 0) {
+        this.logger.log(`IMAP IDLE [${watcher.mailbox.email}]: ${result.stored} new emails`);
+        this.emailEvents.emit('new-emails', { fetched: result.fetched, stored: result.stored, mailboxId: watcher.mailbox.id });
+
+        const status = this.emailsService.getProcessingStatus();
+        if (!status.isProcessing) {
+          this.emailEvents.emit('processing-started', {
+            trigger: 'imap-idle',
+            message: `${result.stored} neue E-Mails von ${watcher.mailbox.name} werden analysiert`,
+          });
+          await this.emailsService.startBackgroundProcessing('process');
+        }
+      }
+    } catch (err) {
+      this.logger.error(`IMAP IDLE [${watcher.mailbox.email}]: Fetch failed: ${err?.message}`);
+    }
+  }
+
+  private scheduleReconnectWatcher(watcher: MailboxWatcher): void {
+    if (this.isDestroying || watcher.reconnectTimer) return;
+    watcher.reconnectAttempts++;
+    if (watcher.reconnectAttempts > this.maxReconnectAttempts) {
+      this.logger.error(`IMAP IDLE [${watcher.mailbox.email}]: Max reconnects reached`);
+      return;
+    }
+    const d = Math.min(this.baseReconnectDelay * Math.pow(2, watcher.reconnectAttempts - 1), 120000);
+    watcher.reconnectTimer = setTimeout(() => {
+      watcher.reconnectTimer = null;
+      this.connectWatcher(watcher);
+    }, d);
+  }
+
+  private emitCombinedIdleStatus(): void {
+    let anyConnected = this.legacyConnected;
+    for (const [, w] of this.watchers) {
+      if (w.isConnected) anyConnected = true;
+    }
+    this.emailEvents.emit('idle-status', { connected: anyConnected });
+  }
+
+  // ==================== LEGACY SINGLE-MAILBOX (env-based) ====================
+
+  private connectLegacy(): void {
+    if (this.isDestroying) return;
+    this.disconnectLegacy();
+
+    this.legacyImap = new Imap({
       user: this.imapUser,
       password: this.imapPass,
       host: this.imapHost,
       port: 993,
       tls: true,
-      tlsOptions: { rejectUnauthorized: false },
+      tlsOptions: { rejectUnauthorized: false, servername: this.imapHost },
       authTimeout: 15000,
-      keepalive: {
-        interval: 10000,     // send NOOP every 10s
-        idleInterval: 300000, // re-IDLE every 5min (many servers drop IDLE after 30min)
-        forceNoop: false,
-      },
+      connTimeout: 15000,
+      keepalive: { interval: 10000, idleInterval: 300000, forceNoop: false },
     });
 
-    this.imap.once('ready', () => {
-      this.logger.log('IMAP IDLE: Connected');
-      this.isConnected = true;
-      this.reconnectAttempts = 0;
+    // Force LOGIN auth instead of AUTHENTICATE PLAIN (fixes IONOS etc.)
+    this.forceImapLogin(this.legacyImap);
+
+    this.legacyImap.once('ready', () => {
+      this.logger.log('IMAP IDLE (legacy): Connected');
+      this.legacyConnected = true;
+      this.legacyReconnectAttempts = 0;
       this.emailEvents.emit('idle-status', { connected: true, folder: this.sourceFolder });
-      this.openBoxAndIdle();
+      this.openBoxAndIdleLegacy();
     });
 
-    this.imap.on('mail', (numNewMsgs: number) => {
-      this.logger.log(`IMAP IDLE: ${numNewMsgs} new message(s) detected in ${this.sourceFolder}`);
-      this.debouncedFetchAndProcess();
-    });
-
-    // Listen for flag changes (e.g. user flags/unflags email in Outlook)
-    this.imap.on('update', (seqno: number, info: any) => {
-      if (info?.flags) {
-        const flags = info.flags as string[];
-        if (flags.includes('\\Flagged')) {
-          this.logger.log(`IMAP IDLE: Email #${seqno} flagged in ${this.sourceFolder} — triggering fetch`);
-          this.debouncedFetchAndProcess();
-        }
+    this.legacyImap.on('mail', () => { this.debouncedFetchLegacy(); });
+    this.legacyImap.on('update', (_seqno: number, info: any) => {
+      if (info?.flags && (info.flags as string[]).includes('\\Flagged')) {
+        this.debouncedFetchLegacy();
       }
     });
 
-    this.imap.on('expunge', (seqno: number) => {
-      this.logger.debug(`IMAP IDLE: Message #${seqno} expunged from ${this.sourceFolder}`);
+    this.legacyImap.once('error', (err: Error) => {
+      this.logger.error(`IMAP IDLE (legacy) error: ${err.message}`);
+      this.legacyConnected = false;
+      this.scheduleLegacyReconnect();
     });
+    this.legacyImap.once('end', () => { this.legacyConnected = false; if (!this.isDestroying) this.scheduleLegacyReconnect(); });
+    this.legacyImap.once('close', () => { this.legacyConnected = false; if (!this.isDestroying) this.scheduleLegacyReconnect(); });
 
-    this.imap.once('error', (err: Error) => {
-      this.logger.error(`IMAP IDLE error: ${err.message}`);
-      this.isConnected = false;
-      this.emailEvents.emit('idle-status', { connected: false, error: err.message });
-      this.scheduleReconnect();
-    });
-
-    this.imap.once('end', () => {
-      this.logger.log('IMAP IDLE: Connection ended');
-      this.isConnected = false;
-      if (!this.isDestroying) {
-        this.scheduleReconnect();
-      }
-    });
-
-    this.imap.once('close', (hadError: boolean) => {
-      this.logger.log(`IMAP IDLE: Connection closed (hadError: ${hadError})`);
-      this.isConnected = false;
-      if (!this.isDestroying) {
-        this.scheduleReconnect();
-      }
-    });
-
-    try {
-      this.imap.connect();
-    } catch (err) {
-      this.logger.error(`IMAP IDLE: Failed to connect: ${err?.message}`);
-      this.scheduleReconnect();
-    }
+    try { this.legacyImap.connect(); } catch (err) { this.scheduleLegacyReconnect(); }
   }
 
-  private openBoxAndIdle(): void {
-    if (!this.imap || this.isDestroying) return;
-
-    this.imap.openBox(this.sourceFolder, false, (err, box) => {
-      if (err) {
-        this.logger.error(`IMAP IDLE: Failed to open ${this.sourceFolder}: ${err.message}`);
-        this.scheduleReconnect();
-        return;
-      }
-      this.logger.log(`IMAP IDLE: Watching ${this.sourceFolder} for flagged emails (${box.messages.total} messages)`);
-
-      // Do an initial fetch on connect to pick up any flagged emails while we were offline
-      this.fetchAndProcess();
-
-      // Start polling as fallback (Exchange doesn't always push flag changes via IDLE)
-      this.startPolling();
+  private openBoxAndIdleLegacy(): void {
+    if (!this.legacyImap || this.isDestroying) return;
+    this.legacyImap.openBox(this.sourceFolder, false, (err, box) => {
+      if (err) { this.scheduleLegacyReconnect(); return; }
+      this.logger.log(`IMAP IDLE (legacy): Watching ${this.sourceFolder} (${box.messages.total} msgs)`);
+      this.fetchAndProcessLegacy();
+      if (this.legacyPollTimer) clearInterval(this.legacyPollTimer);
+      this.legacyPollTimer = setInterval(() => {
+        if (this.legacyConnected && !this.isDestroying) this.debouncedFetchLegacy();
+      }, this.pollIntervalMs);
     });
   }
 
-  /**
-   * Start polling interval as fallback for servers that don't push flag changes via IDLE.
-   * Debounce prevents double-fetching when IDLE event + poll fire simultaneously.
-   */
-  private startPolling(): void {
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-    }
-    this.pollTimer = setInterval(() => {
-      if (this.isConnected && !this.isDestroying) {
-        this.logger.debug('IMAP IDLE: Polling for flagged emails...');
-        this.debouncedFetchAndProcess();
-      }
-    }, this.pollIntervalMs);
-    this.logger.log(`IMAP IDLE: Polling started (every ${this.pollIntervalMs / 1000}s)`);
-  }
-
-  /**
-   * Debounced fetch: if multiple 'mail'/'update' events fire in quick succession
-   * (e.g. user drags 10 emails at once), only fetch once after the burst
-   */
-  private debouncedFetchAndProcess(): void {
-    if (this.fetchDebounceTimer) {
-      clearTimeout(this.fetchDebounceTimer);
-    }
-    this.fetchDebounceTimer = setTimeout(() => {
-      this.fetchDebounceTimer = null;
-      this.fetchAndProcess();
+  private debouncedFetchLegacy(): void {
+    if (this.legacyFetchDebounceTimer) clearTimeout(this.legacyFetchDebounceTimer);
+    this.legacyFetchDebounceTimer = setTimeout(() => {
+      this.legacyFetchDebounceTimer = null;
+      this.fetchAndProcessLegacy();
     }, this.fetchDebounceMs);
   }
 
-  /**
-   * Fetch flagged emails from IMAP → store in DB → emit SSE event → auto-start AI processing
-   */
-  private async fetchAndProcess(): Promise<void> {
+  private async fetchAndProcessLegacy(): Promise<void> {
     try {
-      this.logger.log('IMAP IDLE: Fetching flagged emails...');
       const result = await this.emailsService.fetchFlaggedEmails();
-
       if (result.stored > 0) {
-        this.logger.log(`IMAP IDLE: ${result.stored} new emails stored`);
-
-        // Notify all connected SSE clients that new emails are available
-        this.emailEvents.emit('new-emails', {
-          fetched: result.fetched,
-          stored: result.stored,
-        });
-
-        // Auto-start AI processing for unprocessed emails
-        const processingStatus = this.emailsService.getProcessingStatus();
-        if (!processingStatus.isProcessing) {
-          this.logger.log('IMAP IDLE: Auto-starting AI processing for new emails');
-          
-          this.emailEvents.emit('processing-started', {
-            trigger: 'imap-idle',
-            message: `${result.stored} neue E-Mails werden automatisch analysiert`,
-          });
-
+        this.emailEvents.emit('new-emails', { fetched: result.fetched, stored: result.stored });
+        const status = this.emailsService.getProcessingStatus();
+        if (!status.isProcessing) {
+          this.emailEvents.emit('processing-started', { trigger: 'imap-idle', message: `${result.stored} neue E-Mails werden analysiert` });
           await this.emailsService.startBackgroundProcessing('process');
-        } else {
-          this.logger.log('IMAP IDLE: AI processing already running, new emails will be picked up');
         }
-      } else {
-        this.logger.debug(`IMAP IDLE: Fetch complete, no new emails (${result.fetched} checked)`);
       }
     } catch (err) {
-      this.logger.error(`IMAP IDLE: Fetch failed: ${err?.message}`);
+      this.logger.error(`IMAP IDLE (legacy): Fetch failed: ${err?.message}`);
     }
   }
 
-  private disconnect(): void {
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-      this.pollTimer = null;
+  private disconnectLegacy(): void {
+    if (this.legacyPollTimer) { clearInterval(this.legacyPollTimer); this.legacyPollTimer = null; }
+    if (this.legacyImap) {
+      try { this.legacyImap.removeAllListeners(); if (this.legacyConnected) this.legacyImap.end(); } catch {}
+      this.legacyImap = null;
+      this.legacyConnected = false;
     }
-    if (this.imap) {
-      try {
-        this.imap.removeAllListeners();
-        if (this.isConnected) {
-          this.imap.end();
-        }
-      } catch (e) {
-        // ignore cleanup errors
+  }
+
+  private scheduleLegacyReconnect(): void {
+    if (this.isDestroying || this.legacyReconnectTimer) return;
+    this.legacyReconnectAttempts++;
+    if (this.legacyReconnectAttempts > this.maxReconnectAttempts) return;
+    const d = Math.min(this.baseReconnectDelay * Math.pow(2, this.legacyReconnectAttempts - 1), 120000);
+    this.legacyReconnectTimer = setTimeout(() => {
+      this.legacyReconnectTimer = null;
+      this.connectLegacy();
+    }, d);
+  }
+
+  /**
+   * Force node-imap to use LOGIN command instead of AUTHENTICATE PLAIN.
+   * Some providers (IONOS, some Hetzner) reject AUTHENTICATE PLAIN
+   * but accept LOGIN with the same credentials.
+   */
+  private forceImapLogin(imap: Imap): void {
+    const origConnect = imap.connect.bind(imap);
+    imap.connect = function() {
+      origConnect();
+      const origOnReady = (imap as any)._onReady;
+      if (origOnReady) {
+        (imap as any)._onReady = function() {
+          if ((imap as any)._caps) {
+            (imap as any)._caps = (imap as any)._caps.filter(
+              (c: string) => !c.startsWith('AUTH='),
+            );
+          }
+          return origOnReady.apply(imap, arguments);
+        };
       }
-      this.imap = null;
-      this.isConnected = false;
-    }
-    if (this.keepAliveTimer) {
-      clearInterval(this.keepAliveTimer);
-      this.keepAliveTimer = null;
-    }
-  }
-
-  private scheduleReconnect(): void {
-    if (this.isDestroying || this.reconnectTimer) return;
-
-    this.reconnectAttempts++;
-    if (this.reconnectAttempts > this.maxReconnectAttempts) {
-      this.logger.error(`IMAP IDLE: Max reconnect attempts (${this.maxReconnectAttempts}) reached — giving up`);
-      this.emailEvents.emit('idle-status', { connected: false, error: 'Max reconnect attempts reached' });
-      return;
-    }
-
-    // Exponential backoff: 3s, 6s, 12s, 24s, ... capped at 120s
-    const delay = Math.min(this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 120000);
-    this.logger.log(`IMAP IDLE: Reconnecting in ${Math.round(delay / 1000)}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-    
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      this.connect();
-    }, delay);
+    };
   }
 }

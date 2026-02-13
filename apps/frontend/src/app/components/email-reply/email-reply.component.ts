@@ -7,7 +7,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 import { trigger, transition, style, animate, state } from '@angular/animations';
 import { AngularSplitModule } from 'angular-split';
-import { ApiService, Email, EmailTemplate, GenerateEmailDto, ReviseEmailDto } from '../../api/api.service';
+import { ApiService, Email, EmailTemplate, GenerateEmailDto, ReviseEmailDto, Mailbox } from '../../api/api.service';
 import { ToastService } from '../../shared/toasts/toast.service';
 import { AttachmentPreviewComponent, AttachmentInfo } from '../../shared/attachment-preview/attachment-preview.component';
 import { ConfigService } from '../../services/config.service';
@@ -138,6 +138,9 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   // Pre-computed draft state
   hasDraft = false;       // true when a pre-computed reply was loaded
   draftEdited = false;    // true when user has modified the draft
+
+  // Mailbox signature (resolved from mailbox template)
+  mailboxSignature = '';
   
   // Revision feature
   originalReplyBody = ''; // Stores the original AI-generated reply for diff tracking
@@ -257,6 +260,11 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
         // Load attachments for preview
         if (email.attachments?.length) {
           this.currentAttachments = this.getAttachmentInfos(email);
+        }
+        
+        // Load mailbox signature if email has a mailboxId
+        if (email.mailboxId) {
+          this.loadMailboxSignature(email.mailboxId);
         }
         
         // Analyze email for template suggestions and get summary
@@ -775,6 +783,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
       originalDate: this.email.receivedAt?.toString(),
       originalHtmlBody: this.email.htmlBody || undefined,
       originalTextBody: this.email.textBody || undefined,
+      mailboxId: this.email.mailboxId || undefined,
     }).subscribe({
       next: () => {
         this.toasts.success('E-Mail wurde gesendet und archiviert!');
@@ -864,14 +873,13 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Get the full preview including the user's email signature (text only, no HTML)
+   * Get the full preview including the mailbox email signature (text only, no HTML)
    */
   getFullPreview(): string {
     let preview = this.replyBody;
     
-    // Add signature if user has one (strip HTML for plain text preview)
-    if (this.currentUser?.emailSignature && this.currentUser.emailSignature.trim()) {
-      const plainSignature = this.stripHtml(this.currentUser.emailSignature);
+    if (this.mailboxSignature && this.mailboxSignature.trim()) {
+      const plainSignature = this.stripHtml(this.mailboxSignature);
       preview += '\n\n' + plainSignature;
     }
     
@@ -882,15 +890,15 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
    * Check if the signature contains HTML tags
    */
   isSignatureHtml(): boolean {
-    if (!this.currentUser?.emailSignature) return false;
-    return /<[a-z][\s\S]*>/i.test(this.currentUser.emailSignature);
+    if (!this.mailboxSignature) return false;
+    return /<[a-z][\s\S]*>/i.test(this.mailboxSignature);
   }
 
   /**
    * Get the signature for HTML rendering
    */
   getSignatureHtml(): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(this.currentUser?.emailSignature || '');
+    return this.sanitizer.bypassSecurityTrustHtml(this.mailboxSignature || '');
   }
 
   // ==================== SPEECH RECOGNITION ====================
@@ -1214,10 +1222,33 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Check if user has a signature configured
+   * Check if user has a signature configured (via mailbox)
    */
   hasSignature(): boolean {
-    return !!(this.currentUser?.emailSignature && this.currentUser.emailSignature.trim().length > 0);
+    return !!(this.mailboxSignature && this.mailboxSignature.trim().length > 0);
+  }
+
+  /**
+   * Load and resolve mailbox signature with user data
+   */
+  private loadMailboxSignature(mailboxId: string): void {
+    this.api.getMailbox(mailboxId).subscribe({
+      next: (mailbox) => {
+        if (mailbox.signatureTemplate) {
+          // Resolve placeholders locally for preview
+          let sig = mailbox.signatureTemplate;
+          sig = sig.replace(/\{\{userName\}\}/g, this.currentUser?.signatureName || this.currentUser?.name || '');
+          sig = sig.replace(/\{\{userPosition\}\}/g, this.currentUser?.signaturePosition || '');
+          sig = sig.replace(/\{\{companyName\}\}/g, mailbox.companyName || '');
+          sig = sig.replace(/\{\{companyPhone\}\}/g, mailbox.companyPhone || '');
+          sig = sig.replace(/\{\{companyWebsite\}\}/g, mailbox.companyWebsite || '');
+          sig = sig.replace(/\{\{companyAddress\}\}/g, mailbox.companyAddress || '');
+          sig = sig.replace(/\{\{mailboxEmail\}\}/g, mailbox.email || '');
+          this.mailboxSignature = sig;
+        }
+      },
+      error: (err) => console.error('Failed to load mailbox for signature:', err)
+    });
   }
 
   // ==================== AI AGENT ANALYSIS (Pre-computed) ====================

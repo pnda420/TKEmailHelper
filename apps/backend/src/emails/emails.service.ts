@@ -9,6 +9,8 @@ import { Email, EmailStatus } from './emails.entity';
 import { EmailTemplatesService } from '../email-templates/email-templates.service';
 import { AiAgentService } from '../ai-agent/ai-agent.service';
 import { EmailEventsService } from './email-events.service';
+import { MailboxesService } from '../mailboxes/mailboxes.service';
+import { Mailbox } from '../mailboxes/mailbox.entity';
 
 // Background processing state (survives client disconnect)
 export interface ProcessingStatus {
@@ -54,6 +56,7 @@ export class EmailsService {
     @Inject(forwardRef(() => AiAgentService))
     private aiAgentService: AiAgentService,
     private emailEvents: EmailEventsService,
+    private mailboxesService: MailboxesService,
   ) {
     this.SOURCE_FOLDER = this.configService.get<string>('IMAP_SOURCE_FOLDER') || 'INBOX';
     this.DONE_FOLDER = this.configService.get<string>('IMAP_DONE_FOLDER') || 'PROCESSED';
@@ -76,15 +79,91 @@ export class EmailsService {
       host: host,
       port: 993,
       tls: true,
-      tlsOptions: { rejectUnauthorized: false },
+      tlsOptions: { rejectUnauthorized: false, servername: host },
       authTimeout: 10000,
+      connTimeout: 10000,
     });
+
+    // Force LOGIN auth instead of AUTHENTICATE PLAIN (fixes IONOS etc.)
+    this.forceImapLogin(imap);
 
     imap.on('error', (err: Error) => {
       this.logger.error('IMAP connection error:', err.message);
     });
 
     return imap;
+  }
+
+  /**
+   * Create an IMAP connection for a specific mailbox entity
+   */
+  createImapConnectionForMailbox(mailbox: Mailbox): Imap {
+    const imapOpts: any = {
+      user: mailbox.email,
+      password: mailbox.password,
+      host: mailbox.imapHost,
+      port: mailbox.imapPort || 993,
+      tls: mailbox.imapTls !== false,
+      tlsOptions: { rejectUnauthorized: false, servername: mailbox.imapHost },
+      authTimeout: 10000,
+      connTimeout: 10000,
+    };
+    if (mailbox.imapTls === false) {
+      imapOpts.autotls = 'always';
+    }
+    const imap = new Imap(imapOpts);
+
+    // Force LOGIN auth instead of AUTHENTICATE PLAIN (fixes IONOS etc.)
+    this.forceImapLogin(imap);
+
+    imap.on('error', (err: Error) => {
+      this.logger.error(`IMAP connection error for ${mailbox.email}:`, err.message);
+    });
+
+    return imap;
+  }
+
+  /**
+   * Force node-imap to use LOGIN command instead of AUTHENTICATE PLAIN.
+   * Some providers (IONOS, some Hetzner setups) reject AUTHENTICATE PLAIN
+   * but accept LOGIN with the same credentials.
+   */
+  private forceImapLogin(imap: Imap): void {
+    const origConnect = imap.connect.bind(imap);
+    imap.connect = function() {
+      origConnect();
+      // After underlying socket connects but before auth,
+      // strip AUTH= capabilities so node-imap falls back to LOGIN
+      const origOnReady = (imap as any)._onReady;
+      if (origOnReady) {
+        (imap as any)._onReady = function() {
+          if ((imap as any)._caps) {
+            (imap as any)._caps = (imap as any)._caps.filter(
+              (c: string) => !c.startsWith('AUTH='),
+            );
+          }
+          return origOnReady.apply(imap, arguments);
+        };
+      }
+    };
+  }
+
+  /**
+   * Get a mailbox by ID
+   */
+  async getMailbox(mailboxId: string): Promise<Mailbox | null> {
+    try {
+      return await this.mailboxesService.findOne(mailboxId);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get all active mailboxes
+   */
+  async getAllActiveMailboxes(): Promise<Mailbox[]> {
+    return this.mailboxesService.findAllActive();
   }
 
   /**
@@ -166,7 +245,7 @@ export class EmailsService {
     });
   }
 
-  private async parseAndStoreEmail(stream: Readable): Promise<boolean> {
+  private async parseAndStoreEmail(stream: Readable, mailboxId?: string): Promise<boolean> {
     const parsed = await simpleParser(stream);
 
     if (!parsed.messageId) {
@@ -222,10 +301,53 @@ export class EmailsService {
       receivedAt: parsed.date || new Date(),
       hasAttachments: attachments.length > 0,
       attachments: attachments.length > 0 ? attachments : null,
+      mailboxId: mailboxId || null,
     });
 
     await this.emailRepository.save(email);
     return true;
+  }
+
+  /**
+   * Assign orphaned emails (mailboxId IS NULL) to the correct mailbox
+   * by matching the email's toAddress against known mailbox email addresses.
+   * Falls back to the first active mailbox if no match is found.
+   */
+  async assignOrphanedEmails(): Promise<number> {
+    const orphans = await this.emailRepository.find({
+      where: { mailboxId: IsNull() },
+      select: ['id', 'toAddresses'],
+    });
+    if (orphans.length === 0) return 0;
+
+    const mailboxes = await this.mailboxesService.findAll();
+    if (mailboxes.length === 0) return 0;
+
+    // Build a map: email address → mailbox ID
+    const emailToMailbox = new Map<string, string>();
+    for (const mb of mailboxes) {
+      emailToMailbox.set(mb.email.toLowerCase(), mb.id);
+    }
+
+    const fallbackId = mailboxes[0].id;
+    let assigned = 0;
+
+    for (const orphan of orphans) {
+      // Try to match toAddresses against mailbox emails
+      const toAddrs = (orphan.toAddresses || []).map(a => a.toLowerCase());
+      let matchedId = fallbackId;
+      for (const [mbEmail, mbId] of emailToMailbox) {
+        if (toAddrs.some(a => a.includes(mbEmail))) {
+          matchedId = mbId;
+          break;
+        }
+      }
+      await this.emailRepository.update(orphan.id, { mailboxId: matchedId });
+      assigned++;
+    }
+
+    this.logger.log(`Assigned ${assigned} orphaned email(s) to mailboxes`);
+    return assigned;
   }
 
   /**
@@ -238,11 +360,17 @@ export class EmailsService {
     search?: string,
     filterTag?: string,
     filterRead?: boolean,
+    mailboxIds?: string[],
   ): Promise<{ emails: Email[]; total: number }> {
     const qb = this.emailRepository.createQueryBuilder('email');
 
     // Status filter (default: INBOX)
     qb.where('email.status = :status', { status: status || EmailStatus.INBOX });
+
+    // Mailbox filter
+    if (mailboxIds && mailboxIds.length > 0) {
+      qb.andWhere('email.mailboxId IN (:...mailboxIds)', { mailboxIds });
+    }
 
     // Full-text search across subject, fromAddress, fromName, preview, aiSummary
     if (search && search.trim().length > 0) {
@@ -277,6 +405,7 @@ export class EmailsService {
       'email.suggestedReplySubject', 'email.repliedAt',
       'email.threadId', 'email.inReplyTo', 'email.references',
       'email.lockedBy', 'email.lockedByName', 'email.lockedAt',
+      'email.mailboxId',
       'email.createdAt', 'email.updatedAt',
     ]);
 
@@ -792,15 +921,32 @@ export class EmailsService {
   }
 
   /**
-   * Refresh emails - fetch flagged ones from INBOX
+   * Refresh emails - fetch flagged ones from all active mailboxes
    */
   async refreshEmails(): Promise<{ fetched: number; stored: number }> {
-    return this.fetchFlaggedEmails();
+    const mailboxes = await this.getAllActiveMailboxes();
+    if (mailboxes.length === 0) {
+      // Fallback to legacy env-based config
+      return this.fetchFlaggedEmails();
+    }
+    let totalFetched = 0;
+    let totalStored = 0;
+    for (const mailbox of mailboxes) {
+      try {
+        const result = await this.fetchFlaggedEmailsForMailbox(mailbox);
+        totalFetched += result.fetched;
+        totalStored += result.stored;
+      } catch (err) {
+        this.logger.error(`Error fetching from mailbox ${mailbox.email}: ${err?.message}`);
+      }
+    }
+    return { fetched: totalFetched, stored: totalStored };
   }
 
   /**
    * Fetch only FLAGGED emails from INBOX (user flags emails in Outlook with ⚑).
    * Uses IMAP SEARCH FLAGGED to find them, then parses & stores.
+   * Legacy: uses env config. New: use fetchFlaggedEmailsForMailbox().
    */
   async fetchFlaggedEmails(): Promise<{ fetched: number; stored: number }> {
     return new Promise((resolve, reject) => {
@@ -888,6 +1034,79 @@ export class EmailsService {
   }
 
   /**
+   * Fetch flagged emails for a specific mailbox entity
+   */
+  async fetchFlaggedEmailsForMailbox(mailbox: Mailbox): Promise<{ fetched: number; stored: number }> {
+    return new Promise((resolve, reject) => {
+      let fetchedCount = 0;
+      let storedCount = 0;
+      const imap = this.createImapConnectionForMailbox(mailbox);
+      const sourceFolder = mailbox.imapSourceFolder || 'INBOX';
+
+      imap.once('ready', () => {
+        imap.openBox(sourceFolder, true, (err, box) => {
+          if (err) {
+            this.logger.error(`Error opening ${sourceFolder} for ${mailbox.email}:`, err.message);
+            imap.end();
+            return reject(err);
+          }
+
+          this.logger.log(`${sourceFolder} opened for ${mailbox.email}. Total: ${box.messages.total}`);
+
+          imap.search(['FLAGGED'], (searchErr, uids) => {
+            if (searchErr) {
+              this.logger.error(`Error searching flagged for ${mailbox.email}:`, searchErr.message);
+              imap.end();
+              return reject(searchErr);
+            }
+
+            if (!uids || uids.length === 0) {
+              this.logger.debug(`No flagged emails in ${mailbox.email}`);
+              imap.end();
+              return resolve({ fetched: 0, stored: 0 });
+            }
+
+            this.logger.log(`Found ${uids.length} flagged email(s) in ${mailbox.email}`);
+
+            const fetch = imap.fetch(uids, { bodies: '', struct: true });
+            const emailPromises: Promise<void>[] = [];
+
+            fetch.on('message', (msg) => {
+              fetchedCount++;
+              msg.on('body', (stream: Readable) => {
+                const emailPromise = this.parseAndStoreEmail(stream, mailbox.id);
+                emailPromises.push(
+                  emailPromise
+                    .then((stored) => { if (stored) storedCount++; })
+                    .catch((e) => { this.logger.error(`Error processing email from ${mailbox.email}:`, e.message); }),
+                );
+              });
+            });
+
+            fetch.once('error', (fetchErr: Error) => {
+              this.logger.error(`Fetch error for ${mailbox.email}:`, fetchErr.message);
+            });
+
+            fetch.once('end', () => {
+              Promise.all(emailPromises).then(() => {
+                imap.end();
+                this.logger.log(`Mailbox ${mailbox.email}: Fetched ${fetchedCount}, Stored ${storedCount}`);
+                resolve({ fetched: fetchedCount, stored: storedCount });
+              });
+            });
+          });
+        });
+      });
+
+      imap.once('error', (imapErr: Error) => {
+        reject(imapErr);
+      });
+
+      imap.connect();
+    });
+  }
+
+  /**
    * Get attachment content from IMAP server
    */
   async getAttachmentContent(messageId: string, attachmentIndex: number): Promise<Buffer | null> {
@@ -929,9 +1148,13 @@ export class EmailsService {
         host: host,
         port: 993,
         tls: true,
-        tlsOptions: { rejectUnauthorized: false },
+        tlsOptions: { rejectUnauthorized: false, servername: host },
         authTimeout: 10000,
+        connTimeout: 10000,
       });
+
+      // Force LOGIN auth instead of AUTHENTICATE PLAIN
+      this.forceImapLogin(imapConnection);
 
       let resolved = false;
       const cleanup = () => {

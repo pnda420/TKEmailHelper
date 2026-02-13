@@ -1,0 +1,510 @@
+<app-admin-layout>
+  <div class="admin-page">
+
+    <!-- ═══════════ PAGE HEADER ═══════════ -->
+    <div class="admin-page-header">
+      <div class="admin-page-header__left">
+        <h1 class="admin-page-title">
+          <span class="material-symbols-outlined ms-fill">mail</span>
+          Postfächer
+        </h1>
+        <p class="admin-page-subtitle">IMAP/SMTP-Postfächer verwalten, Benutzer zuweisen und Signaturen konfigurieren.</p>
+      </div>
+      <button class="admin-btn admin-btn--primary" (click)="openCreateModal()">
+        <span class="material-symbols-outlined ms-size-20">add</span>
+        Neues Postfach
+      </button>
+    </div>
+
+    <!-- ═══════════ STATS ═══════════ -->
+    <div class="admin-stats-row" *ngIf="!loading && mailboxes.length > 0">
+      <div class="admin-stat-chip">
+        <span class="material-symbols-outlined ms-size-18">inbox</span>
+        <strong>{{ mailboxes.length }}</strong> Postfächer
+      </div>
+      <div class="admin-stat-chip admin-stat-chip--success">
+        <span class="material-symbols-outlined ms-size-18">check_circle</span>
+        <strong>{{ activeCount }}</strong> Aktiv
+      </div>
+      <div class="admin-stat-chip admin-stat-chip--warning" *ngIf="inactiveCount > 0">
+        <span class="material-symbols-outlined ms-size-18">pause_circle</span>
+        <strong>{{ inactiveCount }}</strong> Inaktiv
+      </div>
+    </div>
+
+    <!-- ═══════════ LOADING ═══════════ -->
+    <div class="admin-loading-state" *ngIf="loading">
+      <span class="admin-spinner"></span>
+      <span>Postfächer werden geladen...</span>
+    </div>
+
+    <!-- ═══════════ ERROR ═══════════ -->
+    <div class="admin-error-state" *ngIf="error && !loading">
+      <span class="material-symbols-outlined ms-size-40">error</span>
+      <h3>Fehler beim Laden</h3>
+      <p>{{ error }}</p>
+      <button class="admin-btn admin-btn--secondary" (click)="loadMailboxes()">
+        <span class="material-symbols-outlined ms-size-18">refresh</span>
+        Erneut versuchen
+      </button>
+    </div>
+
+    <!-- ═══════════ EMPTY STATE ═══════════ -->
+    <div class="admin-empty-state" *ngIf="!loading && !error && mailboxes.length === 0">
+      <span class="material-symbols-outlined ms-size-48 empty-icon">inbox</span>
+      <h3>Keine Postfächer vorhanden</h3>
+      <p>Erstelle dein erstes IMAP/SMTP-Postfach, um E-Mails empfangen und senden zu können.</p>
+      <button class="admin-btn admin-btn--primary" (click)="openCreateModal()">
+        <span class="material-symbols-outlined ms-size-20">add</span>
+        Erstes Postfach erstellen
+      </button>
+    </div>
+
+    <!-- ═══════════ MAILBOX CARDS ═══════════ -->
+    <div class="mailbox-grid" *ngIf="!loading && mailboxes.length > 0">
+      <div class="mailbox-card" *ngFor="let mb of mailboxes; let i = index"
+        [style.--accent]="mb.color || '#3b82f6'"
+        [style.animation-delay]="i * 0.04 + 's'"
+        [class.mailbox-card--inactive]="!mb.isActive">
+
+        <!-- Color accent bar -->
+        <div class="mailbox-card__accent" [style.background]="mb.color || '#3b82f6'"></div>
+
+        <div class="mailbox-card__content">
+          <!-- Header: Name + Status -->
+          <div class="mailbox-card__header">
+            <div class="mailbox-card__identity">
+              <div class="mailbox-card__icon" [style.background]="mb.color || '#3b82f6'">
+                <span class="material-symbols-outlined ms-fill ms-size-20">mail</span>
+              </div>
+              <div>
+                <h3 class="mailbox-card__name">{{ mb.name }}</h3>
+                <span class="mailbox-card__email">{{ mb.email }}</span>
+              </div>
+            </div>
+            <span class="admin-badge" [class.admin-badge--success]="mb.isActive" [class.admin-badge--error]="!mb.isActive">
+              <span class="admin-status-dot" [class.admin-status-dot--active]="mb.isActive" [class.admin-status-dot--error]="!mb.isActive"></span>
+              {{ mb.isActive ? 'Aktiv' : 'Inaktiv' }}
+            </span>
+          </div>
+
+          <!-- Info Grid -->
+          <div class="mailbox-card__info">
+            <div class="info-item">
+              <span class="material-symbols-outlined ms-size-16">download</span>
+              <span class="info-label">IMAP</span>
+              <span class="info-value">{{ mb.imapHost }}:{{ mb.imapPort }}</span>
+            </div>
+            <div class="info-item">
+              <span class="material-symbols-outlined ms-size-16">upload</span>
+              <span class="info-label">SMTP</span>
+              <span class="info-value">{{ mb.smtpHost }}:{{ mb.smtpPort }}</span>
+            </div>
+            <div class="info-item" *ngIf="mb.companyName">
+              <span class="material-symbols-outlined ms-size-16">business</span>
+              <span class="info-label">Firma</span>
+              <span class="info-value">{{ mb.companyName }}</span>
+            </div>
+            <div class="info-item">
+              <span class="material-symbols-outlined ms-size-16">folder</span>
+              <span class="info-label">Ordner</span>
+              <span class="info-value">{{ mb.imapSourceFolder || 'INBOX' }}</span>
+            </div>
+          </div>
+
+          <!-- Assigned Users Preview -->
+          <div class="mailbox-card__users" *ngIf="mailboxUserCounts[mb.id] !== undefined">
+            <span class="material-symbols-outlined ms-size-16">group</span>
+            <span>{{ mailboxUserCounts[mb.id] }} Benutzer zugewiesen</span>
+          </div>
+
+          <!-- Actions -->
+          <div class="mailbox-card__actions">
+            <button class="admin-btn admin-btn--ghost admin-btn--sm" (click)="openAssignModal(mb)" title="Benutzer zuweisen">
+              <span class="material-symbols-outlined ms-size-18">group_add</span>
+              Benutzer
+            </button>
+            <div class="mailbox-card__actions-right">
+              <button class="admin-btn admin-btn--icon admin-btn--sm" (click)="testConnectionForMailbox(mb)" title="Verbindung testen" [disabled]="testing">
+                <span class="material-symbols-outlined ms-size-18" [class.spin]="testing">{{ testing ? 'progress_activity' : 'cable' }}</span>
+              </button>
+              <button class="admin-btn admin-btn--icon admin-btn--sm" (click)="openEditModal(mb)" title="Bearbeiten">
+                <span class="material-symbols-outlined ms-size-18">edit</span>
+              </button>
+              <button class="admin-btn admin-btn--icon admin-btn--sm" (click)="toggleActive(mb)"
+                [title]="mb.isActive ? 'Deaktivieren' : 'Aktivieren'"
+                [class.toggle-active]="mb.isActive">
+                <span class="material-symbols-outlined ms-size-18">{{ mb.isActive ? 'toggle_on' : 'toggle_off' }}</span>
+              </button>
+              <button class="admin-btn admin-btn--icon admin-btn--sm btn-delete" (click)="deleteMailbox(mb)" title="Löschen">
+                <span class="material-symbols-outlined ms-size-18">delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CREATE / EDIT MODAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="admin-modal-overlay" *ngIf="showModal">
+    <div class="admin-modal admin-modal--lg">
+
+      <div class="admin-modal-header">
+        <h2>
+          <span class="material-symbols-outlined">{{ editingMailbox ? 'edit' : 'add_circle' }}</span>
+          {{ editingMailbox ? 'Postfach bearbeiten' : 'Neues Postfach erstellen' }}
+        </h2>
+        <button class="close-btn" (click)="closeModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="admin-modal-body">
+        <!-- Tab Navigation -->
+        <div class="form-tabs">
+          <button class="form-tab" [class.active]="activeFormTab === 'basic'" (click)="activeFormTab = 'basic'">
+            <span class="material-symbols-outlined ms-size-18">info</span>
+            Grunddaten
+          </button>
+          <button class="form-tab" [class.active]="activeFormTab === 'imap'" (click)="activeFormTab = 'imap'">
+            <span class="material-symbols-outlined ms-size-18">download</span>
+            IMAP
+          </button>
+          <button class="form-tab" [class.active]="activeFormTab === 'smtp'" (click)="activeFormTab = 'smtp'">
+            <span class="material-symbols-outlined ms-size-18">upload</span>
+            SMTP
+          </button>
+          <button class="form-tab" [class.active]="activeFormTab === 'company'" (click)="activeFormTab = 'company'">
+            <span class="material-symbols-outlined ms-size-18">business</span>
+            Firma
+          </button>
+          <button class="form-tab" [class.active]="activeFormTab === 'signature'" (click)="activeFormTab = 'signature'">
+            <span class="material-symbols-outlined ms-size-18">draw</span>
+            Signatur
+          </button>
+        </div>
+
+        <form class="mailbox-form" (ngSubmit)="saveMailbox()">
+
+          <!-- TAB: Basic Info -->
+          <div class="form-section" *ngIf="activeFormTab === 'basic'">
+            <div class="form-row two-col">
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Name <span class="required">*</span></label>
+                <input class="admin-input" type="text" [(ngModel)]="form.name" name="name"
+                  placeholder="z.B. Support Postfach" />
+                <span class="admin-form-group__hint">Anzeigename für dieses Postfach</span>
+              </div>
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">E-Mail-Adresse <span class="required">*</span></label>
+                <input class="admin-input" type="email" [(ngModel)]="form.email" name="email"
+                  placeholder="z.B. support@firma.de" />
+              </div>
+            </div>
+            <div class="form-row two-col">
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">
+                  {{ editingMailbox ? 'Neues Passwort' : 'Passwort' }}
+                  <span class="required" *ngIf="!editingMailbox">*</span>
+                </label>
+                <input class="admin-input" type="password" [(ngModel)]="form.password" name="password"
+                  placeholder="••••••••" />
+                <span class="admin-form-group__hint" *ngIf="editingMailbox">Leer lassen = Passwort bleibt unverändert</span>
+              </div>
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Erkennungsfarbe</label>
+                <div class="color-picker-row">
+                  <input type="color" class="color-input" [(ngModel)]="form.color" name="color" />
+                  <span class="color-hex">{{ form.color }}</span>
+                  <div class="color-presets">
+                    <button type="button" *ngFor="let c of colorPresets" class="color-dot"
+                      [style.background]="c" [class.active]="form.color === c"
+                      (click)="form.color = c" [title]="c"></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-row" *ngIf="editingMailbox">
+              <div class="admin-form-group">
+                <div class="switch-group">
+                  <label class="switch">
+                    <input type="checkbox" [(ngModel)]="form.isActive" name="isActive" />
+                    <span class="switch__slider"></span>
+                  </label>
+                  <span class="switch-group__label">Postfach aktiv</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: IMAP -->
+          <div class="form-section" *ngIf="activeFormTab === 'imap'">
+            <div class="section-info">
+              <span class="material-symbols-outlined">info</span>
+              IMAP wird zum Empfangen von E-Mails verwendet.
+            </div>
+            <div class="form-row three-col">
+              <div class="admin-form-group" style="flex: 2">
+                <label class="admin-form-group__label">IMAP Host <span class="required">*</span></label>
+                <input class="admin-input" type="text" [(ngModel)]="form.imapHost" name="imapHost"
+                  placeholder="z.B. imap.provider.de" />
+              </div>
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Port</label>
+                <input class="admin-input" type="number" [(ngModel)]="form.imapPort" name="imapPort" />
+              </div>
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Verschlüsselung</label>
+                <div class="switch-group" style="margin-top: 4px">
+                  <label class="switch">
+                    <input type="checkbox" [(ngModel)]="form.imapTls" name="imapTls" />
+                    <span class="switch__slider"></span>
+                  </label>
+                  <span class="switch-group__label">TLS</span>
+                </div>
+              </div>
+            </div>
+
+            <hr class="form-divider" />
+            <h4 class="form-section-title">IMAP-Ordner</h4>
+
+            <div class="form-row two-col">
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Quell-Ordner</label>
+                <input class="admin-input" type="text" [(ngModel)]="form.imapSourceFolder" name="imapSourceFolder"
+                  placeholder="INBOX" />
+                <span class="admin-form-group__hint">Ordner für eingehende E-Mails</span>
+              </div>
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Gesendet-Ordner</label>
+                <input class="admin-input" type="text" [(ngModel)]="form.imapSentFolder" name="imapSentFolder"
+                  placeholder="Sent" />
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: SMTP -->
+          <div class="form-section" *ngIf="activeFormTab === 'smtp'">
+            <div class="section-info">
+              <span class="material-symbols-outlined">info</span>
+              SMTP wird zum Versenden von E-Mails verwendet.
+            </div>
+            <div class="form-row three-col">
+              <div class="admin-form-group" style="flex: 2">
+                <label class="admin-form-group__label">SMTP Host <span class="required">*</span></label>
+                <input class="admin-input" type="text" [(ngModel)]="form.smtpHost" name="smtpHost"
+                  placeholder="z.B. smtp.provider.de" />
+              </div>
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Port</label>
+                <input class="admin-input" type="number" [(ngModel)]="form.smtpPort" name="smtpPort" />
+              </div>
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Verschlüsselung</label>
+                <div class="switch-group" style="margin-top: 4px">
+                  <label class="switch">
+                    <input type="checkbox" [(ngModel)]="form.smtpSecure" name="smtpSecure" />
+                    <span class="switch__slider"></span>
+                  </label>
+                  <span class="switch-group__label">SSL/TLS</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: Company -->
+          <div class="form-section" *ngIf="activeFormTab === 'company'">
+            <div class="section-info">
+              <span class="material-symbols-outlined">info</span>
+              Firmendaten werden als Platzhalter in der E-Mail-Signatur verwendet.
+            </div>
+            <div class="form-row two-col">
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Firmenname</label>
+                <input class="admin-input" type="text" [(ngModel)]="form.companyName" name="companyName"
+                  placeholder="z.B. Meine Firma GmbH" />
+              </div>
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Telefon</label>
+                <input class="admin-input" type="text" [(ngModel)]="form.companyPhone" name="companyPhone"
+                  placeholder="z.B. +49 123 456789" />
+              </div>
+            </div>
+            <div class="form-row two-col">
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Website</label>
+                <input class="admin-input" type="text" [(ngModel)]="form.companyWebsite" name="companyWebsite"
+                  placeholder="z.B. www.firma.de" />
+              </div>
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Adresse</label>
+                <input class="admin-input" type="text" [(ngModel)]="form.companyAddress" name="companyAddress"
+                  placeholder="z.B. Musterstr. 1, 12345 Stadt" />
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB: Signature -->
+          <div class="form-section" *ngIf="activeFormTab === 'signature'">
+            <div class="section-info">
+              <span class="material-symbols-outlined">info</span>
+              HTML-Signaturvorlage. Platzhalter werden beim Versenden automatisch ersetzt.
+            </div>
+
+            <div class="placeholder-chips">
+              <span class="placeholder-chip" *ngFor="let p of placeholders" (click)="insertPlaceholder(p.key)"
+                [title]="'Klicken zum Einfügen: ' + p.key">
+                <code>{{ p.key }}</code>
+                <span class="placeholder-desc">{{ p.label }}</span>
+              </span>
+            </div>
+
+            <div class="signature-toolbar">
+              <button type="button" class="admin-btn admin-btn--ghost admin-btn--sm" (click)="generateDefaultSignature()">
+                <span class="material-symbols-outlined ms-size-18">auto_awesome</span>
+                Standard generieren
+              </button>
+              <button type="button" class="admin-btn admin-btn--sm"
+                [class.admin-btn--primary]="showSignaturePreview"
+                [class.admin-btn--ghost]="!showSignaturePreview"
+                (click)="showSignaturePreview = !showSignaturePreview">
+                <span class="material-symbols-outlined ms-size-18">{{ showSignaturePreview ? 'code' : 'preview' }}</span>
+                {{ showSignaturePreview ? 'HTML bearbeiten' : 'Vorschau' }}
+              </button>
+            </div>
+
+            <textarea *ngIf="!showSignaturePreview" [(ngModel)]="form.signatureTemplate" name="signatureTemplate"
+              rows="14" class="admin-textarea code-editor"
+              placeholder="HTML-Signatur mit Platzhaltern eingeben..."></textarea>
+
+            <div *ngIf="showSignaturePreview" class="signature-preview">
+              <div class="signature-preview__label">Vorschau mit Beispieldaten</div>
+              <div class="signature-preview__content" [innerHTML]="signaturePreviewHtml"></div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="admin-modal-footer">
+        <div class="modal-footer-left">
+          <button type="button" class="admin-btn admin-btn--ghost admin-btn--sm" *ngIf="canGoPrev"
+            (click)="prevTab()">
+            <span class="material-symbols-outlined ms-size-18">arrow_back</span>
+            Zurück
+          </button>
+          <button type="button" class="admin-btn admin-btn--outline admin-btn--sm test-connection-btn"
+            (click)="testConnectionFromForm()" [disabled]="testing || !form.email || !form.imapHost || !form.smtpHost || (!form.password && !editingMailbox)">
+            <span class="material-symbols-outlined ms-size-18" [class.spin]="testing">{{ testing ? 'progress_activity' : 'cable' }}</span>
+            {{ testing ? 'Teste...' : 'Verbindung testen' }}
+          </button>
+        </div>
+
+        <!-- Connection Test Results (inline) -->
+        <div class="connection-test-results" *ngIf="testResult">
+          <span class="test-result-chip" [class.success]="testResult.imap.success" [class.error]="!testResult.imap.success"
+            [title]="testResult.imap.message">
+            <span class="material-symbols-outlined ms-size-16">{{ testResult.imap.success ? 'check_circle' : 'cancel' }}</span>
+            IMAP <span class="test-duration">{{ testResult.imap.durationMs }}ms</span>
+          </span>
+          <span class="test-result-chip" [class.success]="testResult.smtp.success" [class.error]="!testResult.smtp.success"
+            [title]="testResult.smtp.message">
+            <span class="material-symbols-outlined ms-size-16">{{ testResult.smtp.success ? 'check_circle' : 'cancel' }}</span>
+            SMTP <span class="test-duration">{{ testResult.smtp.durationMs }}ms</span>
+          </span>
+        </div>
+
+        <!-- Detailed error messages -->
+        <div class="test-error-details" *ngIf="testResult && (!testResult.imap.success || !testResult.smtp.success)">
+          <div class="test-error-line" *ngIf="!testResult.imap.success">
+            <strong>IMAP:</strong> {{ testResult.imap.message }}
+          </div>
+          <div class="test-error-line" *ngIf="!testResult.smtp.success">
+            <strong>SMTP:</strong> {{ testResult.smtp.message }}
+          </div>
+        </div>
+
+        <div class="modal-footer-right">
+          <button class="admin-btn admin-btn--ghost" (click)="closeModal()" [disabled]="saving">Abbrechen</button>
+          <button *ngIf="canGoNext" type="button" class="admin-btn admin-btn--secondary" (click)="nextTab()">
+            Weiter
+            <span class="material-symbols-outlined ms-size-18">arrow_forward</span>
+          </button>
+          <button class="admin-btn admin-btn--primary" (click)="saveMailbox()" [disabled]="saving || !formValid">
+            <span class="admin-spinner admin-spinner--sm" *ngIf="saving"></span>
+            {{ saving ? 'Speichern...' : (editingMailbox ? 'Speichern' : 'Postfach erstellen') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       USER ASSIGNMENT MODAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="admin-modal-overlay" *ngIf="showAssignModal">
+    <div class="admin-modal">
+
+      <div class="admin-modal-header">
+        <h2>
+          <span class="material-symbols-outlined">group_add</span>
+          Benutzer zuweisen
+        </h2>
+        <button class="close-btn" (click)="closeAssignModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="assign-mailbox-info" *ngIf="assignMailbox">
+        <div class="assign-mailbox-badge" [style.background]="assignMailbox.color || '#3b82f6'">
+          <span class="material-symbols-outlined ms-fill ms-size-18">mail</span>
+        </div>
+        <div>
+          <strong>{{ assignMailbox.name }}</strong>
+          <span class="assign-mailbox-email">{{ assignMailbox.email }}</span>
+        </div>
+      </div>
+
+      <div class="admin-modal-body">
+        <div class="admin-loading-state" *ngIf="loadingUsers">
+          <span class="admin-spinner"></span>
+          <span>Benutzer werden geladen...</span>
+        </div>
+
+        <div class="user-assign-list" *ngIf="!loadingUsers">
+          <div class="user-assign-count">
+            {{ assignedUserIds.length }} von {{ allUsers.length }} Benutzern zugewiesen
+          </div>
+
+          <label class="user-assign-row" *ngFor="let u of allUsers"
+            [class.assigned]="isUserAssigned(u.id)">
+            <input type="checkbox" [checked]="isUserAssigned(u.id)" (change)="toggleUserAssignment(u.id)" />
+            <div class="user-assign-row__avatar">
+              {{ u.name.charAt(0).toUpperCase() }}
+            </div>
+            <div class="user-assign-row__info">
+              <span class="user-assign-row__name">{{ u.name }}</span>
+              <span class="user-assign-row__email">{{ u.email }}</span>
+            </div>
+            <span class="admin-badge admin-badge--sm"
+              [class.admin-badge--warning]="u.role === 'admin'"
+              [class.admin-badge--primary]="u.role !== 'admin'">
+              {{ u.role }}
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="admin-modal-footer">
+        <button class="admin-btn admin-btn--ghost" (click)="closeAssignModal()" [disabled]="saving">Abbrechen</button>
+        <button class="admin-btn admin-btn--primary" (click)="saveAssignments()" [disabled]="saving || loadingUsers">
+          <span class="admin-spinner admin-spinner--sm" *ngIf="saving"></span>
+          {{ saving ? 'Speichern...' : 'Zuweisungen speichern' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+</app-admin-layout>

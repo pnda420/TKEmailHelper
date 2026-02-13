@@ -101,7 +101,7 @@ export class AuthService {
     async validateUser(userId: string): Promise<User | null> {
         return this.userRepo.findOne({
             where: { id: userId },
-            select: ['id', 'email', 'name', 'role', 'isVerified', 'isProfileComplete', 'createdAt', 'signatureName', 'signaturePosition', 'signatureCompany', 'signaturePhone', 'signatureWebsite', 'emailSignature']
+            select: ['id', 'email', 'name', 'role', 'isVerified', 'isProfileComplete', 'createdAt', 'signatureName', 'signaturePosition']
         });
     }
 
@@ -128,10 +128,6 @@ export class AuthService {
                 isProfileComplete: user.isProfileComplete,
                 signatureName: user.signatureName,
                 signaturePosition: user.signaturePosition,
-                signatureCompany: user.signatureCompany,
-                signaturePhone: user.signaturePhone,
-                signatureWebsite: user.signatureWebsite,
-                emailSignature: user.emailSignature,
             },
         };
     }

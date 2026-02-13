@@ -86,27 +86,6 @@
             </label>
             <input type="text" id="sigPosition" [(ngModel)]="editSignature.position" name="sigPosition" placeholder="z.B. Geschäftsführer" maxlength="100" />
           </div>
-          <div class="field">
-            <label for="sigCompany">
-              <span class="material-symbols-outlined ms-size-16">business</span>
-              Firma
-            </label>
-            <input type="text" id="sigCompany" [(ngModel)]="editSignature.company" name="sigCompany" placeholder="z.B. Muster GmbH" maxlength="100" />
-          </div>
-          <div class="field">
-            <label for="sigPhone">
-              <span class="material-symbols-outlined ms-size-16">phone</span>
-              Telefon
-            </label>
-            <input type="text" id="sigPhone" [(ngModel)]="editSignature.phone" name="sigPhone" placeholder="z.B. +49 123 456789" maxlength="50" />
-          </div>
-          <div class="field">
-            <label for="sigWebsite">
-              <span class="material-symbols-outlined ms-size-16">language</span>
-              Website
-            </label>
-            <input type="text" id="sigWebsite" [(ngModel)]="editSignature.website" name="sigWebsite" placeholder="z.B. www.muster.de" maxlength="100" />
-          </div>
           <button type="submit" class="btn btn--primary btn--block" [disabled]="signatureSaving">
             <span class="material-symbols-outlined ms-size-20" *ngIf="!signatureSaving">check</span>
             <span class="spinner-small" *ngIf="signatureSaving"></span>
@@ -115,224 +94,34 @@
         </form>
       </div>
 
-      <!-- RIGHT: E-Mail-Signatur -->
-      <div class="settings-card signature-card">
+      <!-- RIGHT: Zugewiesene Postfächer -->
+      <div class="settings-card">
         <div class="card-header">
           <div class="card-title">
-            <span class="material-symbols-outlined card-icon">draw</span>
-            <h2>E-Mail-Signatur</h2>
+            <span class="material-symbols-outlined card-icon">mail</span>
+            <h2>Zugewiesene Postfächer</h2>
           </div>
-          <span class="status-pill" [class.active]="hasRealSignature()">
-            {{ hasRealSignature() ? 'Konfiguriert' : 'Nicht konfiguriert' }}
+          <span class="status-pill" [class.active]="myMailboxes.length > 0">
+            {{ myMailboxes.length }} Postfächer
           </span>
         </div>
-        <p class="card-desc">Diese Signatur wird automatisch an alle ausgehenden E-Mails angehängt.</p>
+        <p class="card-desc">Die dir zugewiesenen Postfächer. Signaturen und Firmendaten werden pro Postfach vom Administrator konfiguriert.</p>
 
-        <!-- Preview Mode -->
-        <div class="sig-preview-area" *ngIf="!realSignatureEditMode">
-          <div class="sig-preview-box" *ngIf="hasRealSignature()">
-            <div class="sig-preview-content" [innerHTML]="getSafeHtml(user!.emailSignature || '')"></div>
+        <div class="mailbox-list" *ngIf="myMailboxes.length > 0">
+          <div class="mailbox-item" *ngFor="let um of myMailboxes" [style.border-left-color]="um.mailbox.color || '#1565c0'">
+            <div class="mailbox-item-header">
+              <span class="mailbox-name">{{ um.mailbox.name }}</span>
+              <span class="mailbox-active-badge" *ngIf="um.isActive">Aktiv</span>
+            </div>
+            <span class="mailbox-email">{{ um.mailbox.email }}</span>
+            <span class="mailbox-company" *ngIf="um.mailbox.companyName">{{ um.mailbox.companyName }}</span>
           </div>
-          <div class="sig-empty" *ngIf="!hasRealSignature()">
-            <span class="material-symbols-outlined">draw</span>
-            <p>Noch keine Signatur erstellt</p>
-          </div>
-          <button class="btn btn--primary" (click)="toggleRealSignatureEditMode()">
-            <span class="material-symbols-outlined ms-size-20">edit</span>
-            {{ hasRealSignature() ? 'Signatur bearbeiten' : 'Signatur erstellen' }}
-          </button>
         </div>
 
-        <!-- WYSIWYG Editor Mode -->
-        <div class="wysiwyg-container" *ngIf="realSignatureEditMode">
-
-          <!-- Toolbar Header -->
-          <div class="editor-toolbar-header">
-            <button type="button" class="btn btn--ghost btn--sm" (click)="generateDefaultSignature()" title="Signatur aus KI-Daten generieren">
-              <span class="material-symbols-outlined ms-size-18">auto_awesome</span>
-              Vorlage
-            </button>
-            <div class="view-toggle">
-              <button type="button" class="toggle-btn" [class.active]="editorView === 'wysiwyg'" (click)="editorView = 'wysiwyg'" title="Visueller Editor">
-                <span class="material-symbols-outlined ms-size-18">edit_note</span>
-              </button>
-              <button type="button" class="toggle-btn" [class.active]="editorView === 'code'" (click)="editorView = 'code'" title="HTML Code">
-                <span class="material-symbols-outlined ms-size-18">code</span>
-              </button>
-              <button type="button" class="toggle-btn" [class.active]="editorView === 'split'" (click)="editorView = 'split'" title="Split-Ansicht">
-                <span class="material-symbols-outlined ms-size-18">vertical_split</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Formatting Toolbar -->
-          <div class="formatting-toolbar" *ngIf="editorView !== 'code'">
-            <div class="toolbar-group">
-              <select class="toolbar-select toolbar-select--wide" (change)="execCommand('fontName', $any($event.target).value); $any($event.target).value = ''" title="Schriftart">
-                <option value="">Schriftart</option>
-                <option value="Arial, sans-serif">Arial</option>
-                <option value="Verdana, sans-serif">Verdana</option>
-                <option value="Helvetica, sans-serif">Helvetica</option>
-                <option value="Tahoma, sans-serif">Tahoma</option>
-                <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
-                <option value="Georgia, serif">Georgia</option>
-                <option value="Times New Roman, serif">Times New Roman</option>
-                <option value="Courier New, monospace">Courier New</option>
-                <option value="Segoe UI, sans-serif">Segoe UI</option>
-                <option value="Calibri, sans-serif">Calibri</option>
-              </select>
-            </div>
-            <div class="toolbar-divider"></div>
-            <div class="toolbar-group">
-              <select class="toolbar-select" (change)="execCommand('fontSize', $any($event.target).value); $any($event.target).value = ''" title="Schriftgröße">
-                <option value="">Größe</option>
-                <option value="1">Klein (8pt)</option>
-                <option value="2">Normal (10pt)</option>
-                <option value="3">Mittel (12pt)</option>
-                <option value="4">Groß (14pt)</option>
-                <option value="5">Sehr groß (18pt)</option>
-                <option value="6">Überschrift (24pt)</option>
-                <option value="7">Titel (36pt)</option>
-              </select>
-            </div>
-            <div class="toolbar-divider"></div>
-            <div class="toolbar-group">
-              <button type="button" class="toolbar-btn" (click)="execCommand('bold')" title="Fett (Strg+B)">
-                <span class="material-symbols-outlined">format_bold</span>
-              </button>
-              <button type="button" class="toolbar-btn" (click)="execCommand('italic')" title="Kursiv (Strg+I)">
-                <span class="material-symbols-outlined">format_italic</span>
-              </button>
-              <button type="button" class="toolbar-btn" (click)="execCommand('underline')" title="Unterstrichen (Strg+U)">
-                <span class="material-symbols-outlined">format_underlined</span>
-              </button>
-              <button type="button" class="toolbar-btn" (click)="execCommand('strikeThrough')" title="Durchgestrichen">
-                <span class="material-symbols-outlined">strikethrough_s</span>
-              </button>
-            </div>
-            <div class="toolbar-divider"></div>
-            <div class="toolbar-group">
-              <div class="color-picker-wrapper">
-                <button type="button" class="toolbar-btn" (click)="foreColorPicker.click()" title="Textfarbe">
-                  <span class="material-symbols-outlined">format_color_text</span>
-                  <span class="color-indicator" [style.background-color]="selectedTextColor"></span>
-                </button>
-                <input type="color" #foreColorPicker [value]="selectedTextColor" (input)="selectedTextColor = $any($event.target).value; execCommand('foreColor', $any($event.target).value)" class="hidden-color-picker">
-              </div>
-              <div class="color-picker-wrapper">
-                <button type="button" class="toolbar-btn" (click)="bgColorPicker.click()" title="Hintergrundfarbe">
-                  <span class="material-symbols-outlined">format_color_fill</span>
-                  <span class="color-indicator" [style.background-color]="selectedBgColor"></span>
-                </button>
-                <input type="color" #bgColorPicker [value]="selectedBgColor" (input)="selectedBgColor = $any($event.target).value; execCommand('hiliteColor', $any($event.target).value)" class="hidden-color-picker">
-              </div>
-            </div>
-            <div class="toolbar-divider"></div>
-            <div class="toolbar-group">
-              <button type="button" class="toolbar-btn" (click)="execCommand('justifyLeft')" title="Linksbündig">
-                <span class="material-symbols-outlined">format_align_left</span>
-              </button>
-              <button type="button" class="toolbar-btn" (click)="execCommand('justifyCenter')" title="Zentriert">
-                <span class="material-symbols-outlined">format_align_center</span>
-              </button>
-              <button type="button" class="toolbar-btn" (click)="execCommand('justifyRight')" title="Rechtsbündig">
-                <span class="material-symbols-outlined">format_align_right</span>
-              </button>
-            </div>
-            <div class="toolbar-divider"></div>
-            <div class="toolbar-group">
-              <button type="button" class="toolbar-btn" (click)="execCommand('insertUnorderedList')" title="Aufzählung">
-                <span class="material-symbols-outlined">format_list_bulleted</span>
-              </button>
-              <button type="button" class="toolbar-btn" (click)="execCommand('insertOrderedList')" title="Nummerierung">
-                <span class="material-symbols-outlined">format_list_numbered</span>
-              </button>
-            </div>
-            <div class="toolbar-divider"></div>
-            <div class="toolbar-group">
-              <button type="button" class="toolbar-btn" (click)="execCommand('insertHorizontalRule')" title="Horizontale Linie">
-                <span class="material-symbols-outlined">horizontal_rule</span>
-              </button>
-              <button type="button" class="toolbar-btn" (click)="insertLinkWysiwyg()" title="Link einfügen">
-                <span class="material-symbols-outlined">link</span>
-              </button>
-              <button type="button" class="toolbar-btn" (click)="triggerImageUpload()" title="Bild einfügen">
-                <span class="material-symbols-outlined">image</span>
-              </button>
-              <button type="button" class="toolbar-btn" (click)="insertTable()" title="Tabelle einfügen">
-                <span class="material-symbols-outlined">table</span>
-              </button>
-            </div>
-            <div class="toolbar-divider"></div>
-            <div class="toolbar-group">
-              <button type="button" class="toolbar-btn" (click)="execCommand('undo')" title="Rückgängig (Strg+Z)">
-                <span class="material-symbols-outlined">undo</span>
-              </button>
-              <button type="button" class="toolbar-btn" (click)="execCommand('redo')" title="Wiederholen (Strg+Y)">
-                <span class="material-symbols-outlined">redo</span>
-              </button>
-              <button type="button" class="toolbar-btn" (click)="execCommand('removeFormat')" title="Formatierung entfernen">
-                <span class="material-symbols-outlined">format_clear</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Hidden file input -->
-          <input type="file" #imageUpload accept="image/*" (change)="onImageSelected($event)" style="display:none" multiple>
-
-          <!-- Editor Body -->
-          <div class="editor-body" [class.split-view]="editorView === 'split'">
-            <div class="editor-pane wysiwyg-pane" *ngIf="editorView === 'wysiwyg' || editorView === 'split'">
-              <div class="pane-label" *ngIf="editorView === 'split'">
-                <span class="material-symbols-outlined ms-size-14">edit_note</span> Editor
-              </div>
-              <div
-                #wysiwygEditor
-                class="wysiwyg-editable"
-                contenteditable="true"
-                (input)="onWysiwygInput()"
-                (paste)="onWysiwygPaste($event)"
-                (drop)="onWysiwygDrop($event)"
-                (dragover)="$event.preventDefault()"
-                [innerHTML]="getSafeHtml(editEmailSignature)"
-                spellcheck="true"
-              ></div>
-            </div>
-            <div class="editor-pane code-pane" *ngIf="editorView === 'code' || editorView === 'split'">
-              <div class="pane-label">
-                <span class="material-symbols-outlined ms-size-14">code</span> HTML
-              </div>
-              <textarea
-                #htmlTextarea
-                [(ngModel)]="editEmailSignature"
-                name="emailSignature"
-                placeholder="HTML-Code hier eingeben..."
-                maxlength="500000"
-                class="code-textarea"
-                (keydown)="onTextareaKeydown($event)"
-                (input)="onCodeInput()"
-              ></textarea>
-              <div class="code-footer">
-                <small>{{ editEmailSignature.length | number }} Zeichen</small>
-              </div>
-            </div>
-          </div>
-
-          <!-- Upload status -->
-          <div class="upload-status" *ngIf="uploadingImage">
-            <div class="upload-spinner"></div>
-            <span>Bild wird verarbeitet...</span>
-          </div>
-
-          <!-- Editor Actions -->
-          <div class="editor-actions">
-            <button type="button" class="btn btn--ghost" (click)="cancelRealSignatureEdit()">Abbrechen</button>
-            <button type="button" class="btn btn--primary" (click)="saveRealSignature()" [disabled]="realSignatureSaving">
-              <span class="material-symbols-outlined ms-size-20" *ngIf="!realSignatureSaving">check</span>
-              <span class="spinner-small" *ngIf="realSignatureSaving"></span>
-              {{ realSignatureSaving ? 'Speichern...' : 'Signatur speichern' }}
-            </button>
-          </div>
+        <div class="sig-empty" *ngIf="myMailboxes.length === 0">
+          <span class="material-symbols-outlined">mail</span>
+          <p>Noch keine Postfächer zugewiesen</p>
+          <p class="card-desc">Ein Administrator muss dir Postfächer zuweisen.</p>
         </div>
       </div>
 

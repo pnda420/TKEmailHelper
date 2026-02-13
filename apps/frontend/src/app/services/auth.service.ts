@@ -18,22 +18,14 @@ export interface User {
   isProfileComplete?: boolean;
   createdAt: Date;
   updatedAt?: Date;
-  // AI context fields (for GPT to know who you are)
+  // User identity fields (name & position only, rest from mailbox)
   signatureName?: string | null;
   signaturePosition?: string | null;
-  signatureCompany?: string | null;
-  signaturePhone?: string | null;
-  signatureWebsite?: string | null;
-  // Real email signature (HTML, like Outlook)
-  emailSignature?: string | null;
 }
 
 export interface UserSignature {
   name?: string;
   position?: string;
-  company?: string;
-  phone?: string;
-  website?: string;
 }
 
 export interface LoginResponse {
