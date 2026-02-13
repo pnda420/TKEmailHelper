@@ -113,9 +113,16 @@ export class MailboxesService {
   async assignUsers(mailboxId: string, userIds: string[]): Promise<UserMailbox[]> {
     await this.findOne(mailboxId); // Ensure mailbox exists
 
+    // Remove users that are no longer assigned
+    const currentAssignments = await this.userMailboxRepo.find({ where: { mailboxId } });
+    const toRemove = currentAssignments.filter((a) => !userIds.includes(a.userId));
+    if (toRemove.length > 0) {
+      await this.userMailboxRepo.remove(toRemove);
+    }
+
+    // Upsert remaining/new assignments
     const results: UserMailbox[] = [];
     for (const userId of userIds) {
-      // Upsert: don't duplicate
       let existing = await this.userMailboxRepo.findOne({
         where: { userId, mailboxId },
       });

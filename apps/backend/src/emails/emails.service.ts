@@ -367,9 +367,12 @@ export class EmailsService {
     // Status filter (default: INBOX)
     qb.where('email.status = :status', { status: status || EmailStatus.INBOX });
 
-    // Mailbox filter
+    // Mailbox filter (also include legacy emails with mailboxId = NULL)
     if (mailboxIds && mailboxIds.length > 0) {
-      qb.andWhere('email.mailboxId IN (:...mailboxIds)', { mailboxIds });
+      qb.andWhere(new Brackets(sub => {
+        sub.where('email.mailboxId IN (:...mailboxIds)', { mailboxIds })
+           .orWhere('email.mailboxId IS NULL');
+      }));
     }
 
     // Full-text search across subject, fromAddress, fromName, preview, aiSummary

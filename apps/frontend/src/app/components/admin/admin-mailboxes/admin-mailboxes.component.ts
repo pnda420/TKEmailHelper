@@ -323,7 +323,7 @@ export class AdminMailboxesComponent implements OnInit {
         this.allUsers = users;
         this.api.getMailboxUsers(mailbox.id).subscribe({
           next: (assigned) => {
-            this.assignedUserIds = assigned.map((u: any) => u.id);
+            this.assignedUserIds = assigned.map((u: any) => u.userId);
             this.loadingUsers = false;
           },
           error: () => {
