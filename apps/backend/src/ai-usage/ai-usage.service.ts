@@ -6,11 +6,12 @@ import { AiUsage } from './ai-usage.entity';
 
 // ==================== PRICING (USD per 1M tokens) ====================
 // Keep updated when models change — https://openai.com/api/pricing
-const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+// Last updated: 2026-02-14
+const MODEL_PRICING: Record<string, { input: number; output: number; cachedInput?: number }> = {
   // GPT-5
-  'gpt-5':        { input: 10.00, output: 30.00 },
+  'gpt-5':        { input: 1.25,  output: 10.00, cachedInput: 0.125 },
   // GPT-5 mini
-  'gpt-5-mini':   { input: 1.50,  output: 6.00 },
+  'gpt-5-mini':   { input: 0.25,  output: 2.00,  cachedInput: 0.025 },
   // GPT-4.1 (fallbacks)
   'gpt-4.1':      { input: 2.00,  output: 8.00 },
   'gpt-4.1-mini': { input: 0.40,  output: 1.60 },
@@ -209,6 +210,27 @@ export class AiUsageService {
   }
 
   // ==================== OPENAI BALANCE ====================
+
+  /** Recalculate costUsd for ALL records using current MODEL_PRICING */
+  async recalculateAllCosts(): Promise<{ updated: number; skipped: number }> {
+    const all = await this.repo.find();
+    let updated = 0;
+    let skipped = 0;
+
+    for (const entry of all) {
+      const newCost = this.estimateCost(entry.model, entry.promptTokens, entry.completionTokens);
+      if (Math.abs(newCost - Number(entry.costUsd)) > 0.000001) {
+        entry.costUsd = newCost as any;
+        await this.repo.save(entry);
+        updated++;
+      } else {
+        skipped++;
+      }
+    }
+
+    this.logger.log(`Recalculated costs: ${updated} updated, ${skipped} unchanged`);
+    return { updated, skipped };
+  }
 
   /** Fetch current OpenAI organization billing / credit balance */
   async getOpenAiBalance(): Promise<{ available: number | null; used: number | null; error?: string }> {

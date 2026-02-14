@@ -20,11 +20,12 @@ import { AttachmentPreviewComponent, AttachmentInfo } from '../../shared/attachm
 import { ConfigService } from '../../services/config.service';
 import { AuthService } from '../../services/auth.service';
 import { ConfirmationService } from '../../shared/confirmation/confirmation.service';
+import { IdenticonPipe } from '../../shared/identicon.pipe';
 
 @Component({
   selector: 'app-email-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, PageTitleComponent, AttachmentPreviewComponent],
+  imports: [CommonModule, RouterModule, FormsModule, PageTitleComponent, AttachmentPreviewComponent, IdenticonPipe],
   templateUrl: './email-list.component.html',
   styleUrl: './email-list.component.scss',
   animations: [
@@ -68,8 +69,8 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   aiStatus: { total: number; processed: number; processing: number; pending: number } | null = null;
   
   // Email detail view toggle
-  showAiView = true;
-  activeDetailTab: 'email' | 'thread' | 'history' = 'email';
+  showAiView = false;
+  activeDetailTab: 'email' | 'attachments' = 'email';
   threadLoading = false;
   historyLoading = false;
   
@@ -1175,27 +1176,70 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   // ==================== CONVERSATION THREADING ====================
 
-  switchDetailTab(tab: 'email' | 'thread' | 'history'): void {
+  switchDetailTab(tab: 'email' | 'attachments'): void {
     this.activeDetailTab = tab;
-    if (tab === 'thread' && this.threadEmails.length === 0) {
-      this.loadThread();
-    } else if (tab === 'history' && this.customerHistory.length === 0) {
-      this.loadCustomerHistory();
+  }
+
+  /**
+   * Select an email from thread/history tabs without clearing the tab data.
+   * Switches to the email tab to show content but preserves thread/history.
+   */
+  selectThreadEmail(email: Email): void {
+    if (email.aiProcessing) return;
+    if (email.id === this.selectedEmail?.id) {
+      // Already viewing this email — just switch to email tab
+      this.activeDetailTab = 'email';
+      return;
+    }
+
+    // Unlock previously selected email
+    if (this.selectedEmail && this.selectedEmail.id !== email.id) {
+      this.api.unlockEmail(this.selectedEmail.id).subscribe();
+    }
+
+    this.selectedEmail = email;
+    this.activeDetailTab = 'email';
+    // Do NOT clear threadEmails / customerHistory
+
+    // Lock this email
+    this.api.lockEmail(email.id).subscribe({
+      next: (res) => {
+        if (!res.locked) {
+          this.toasts.info(`Wird bearbeitet von ${res.lockedByName || 'anderem Benutzer'}`);
+        }
+      },
+      error: () => {}
+    });
+
+    // Mark as read if needed, and load full email
+    if (!email.isRead) {
+      this.api.markEmailAsRead(email.id).subscribe({
+        next: (updated) => {
+          if (this.selectedEmail?.id === email.id) {
+            this.selectedEmail = updated;
+          }
+        },
+        error: (err) => console.error('Fehler beim Markieren:', err)
+      });
+    } else {
+      this.api.getEmailById(email.id).subscribe({
+        next: (full) => {
+          if (this.selectedEmail?.id === email.id) {
+            this.selectedEmail = full;
+          }
+        },
+        error: (err) => console.error('Fehler beim Laden:', err)
+      });
     }
   }
 
   loadThread(): void {
     if (!this.selectedEmail) return;
-    if (this.threadOpen) {
-      this.threadOpen = false;
-      return;
-    }
     this.threadLoading = true;
     this.api.getEmailThread(this.selectedEmail.id).subscribe({
       next: (res) => {
         this.threadEmails = res.thread;
         this.threadOpen = true;
-        this.customerHistoryOpen = false;
         this.threadLoading = false;
       },
       error: (err) => {
@@ -1207,16 +1251,11 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   loadCustomerHistory(): void {
     if (!this.selectedEmail) return;
-    if (this.customerHistoryOpen) {
-      this.customerHistoryOpen = false;
-      return;
-    }
     this.historyLoading = true;
     this.api.getCustomerHistory(this.selectedEmail.fromAddress).subscribe({
       next: (res) => {
         this.customerHistory = res.history;
         this.customerHistoryOpen = true;
-        this.threadOpen = false;
         this.historyLoading = false;
       },
       error: (err) => {

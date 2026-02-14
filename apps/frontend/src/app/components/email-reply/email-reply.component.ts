@@ -1173,6 +1173,15 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Auto-resize the revision textarea to fit content (up to max-height).
+   */
+  autoResizeRevisionInput(event: Event): void {
+    const textarea = event.target as HTMLTextAreaElement;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+  }
+
+  /**
    * Send revision request to AI with original, edited reply, and instructions
    */
   reviseReply(): void {

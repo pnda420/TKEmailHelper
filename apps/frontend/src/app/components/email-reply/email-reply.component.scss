@@ -2860,14 +2860,16 @@ textarea.text-input {
   .revision-input {
     width: 100%;
     min-height: 36px;
-    max-height: 80px;
+    max-height: 120px;
     resize: none;
     font-size: 0.8125rem;
     padding: 0.5rem 0.75rem;
     border: 1px solid $gray-200;
     border-radius: 8px;
     cursor: text !important;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition: border-color 0.15s, box-shadow 0.15s, height 0.15s ease;
+    overflow-y: auto;
+    line-height: 1.5;
 
     &:focus {
       outline: none;

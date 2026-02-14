@@ -142,7 +142,7 @@ export class EmailsController {
     
     try {
       const attachmentData = await this.emailsService.getAttachmentContent(
-        email.messageId,
+        email,
         index,
       );
 

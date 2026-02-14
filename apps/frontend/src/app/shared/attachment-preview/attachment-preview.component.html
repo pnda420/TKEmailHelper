@@ -3,75 +3,143 @@
      @modalAnimation
      (click)="onBackdropClick($event)"
      (keydown)="onKeydown($event)"
-     tabindex="0">
+     tabindex="0"
+     [class.fullscreen]="isFullscreen">
     
-    <div class="modal-content" @contentAnimation>
+    <div class="modal-content" @contentAnimation [class.fullscreen]="isFullscreen">
         <!-- Header -->
         <div class="modal-header">
             <div class="file-info">
-                <span class="material-symbols-outlined file-icon">{{ fileIcon }}</span>
+                <div class="file-icon-badge" [attr.data-ext]="fileExtension">
+                    <span class="material-symbols-outlined">{{ fileIcon }}</span>
+                </div>
                 <div class="file-details">
                     <span class="file-name">{{ attachment.filename }}</span>
-                    <span class="file-meta">{{ attachment.contentType }} • {{ formattedSize }}</span>
+                    <span class="file-meta">
+                        <span class="file-type">{{ fileExtension }}</span>
+                        <span class="dot">·</span>
+                        {{ formattedSize }}
+                        <ng-container *ngIf="canNavigate">
+                            <span class="dot">·</span>
+                            {{ currentIndex + 1 }} / {{ attachments.length }}
+                        </ng-container>
+                    </span>
                 </div>
             </div>
             <div class="header-actions">
+                <!-- Zoom controls (images only) -->
+                <div class="zoom-controls" *ngIf="isImage && !loading && !error">
+                    <button class="btn-action btn-sm" (click)="zoomOut()" title="Verkleinern (-)">
+                        <span class="material-symbols-outlined">remove</span>
+                    </button>
+                    <button class="zoom-label" (click)="zoomToFit()" title="Zurücksetzen (0)">
+                        {{ zoomPercent }}%
+                    </button>
+                    <button class="btn-action btn-sm" (click)="zoomIn()" title="Vergrößern (+)">
+                        <span class="material-symbols-outlined">add</span>
+                    </button>
+                </div>
+                <button class="btn-action" (click)="toggleFullscreen()" [title]="isFullscreen ? 'Verkleinern (F)' : 'Vollbild (F)'">
+                    <span class="material-symbols-outlined">{{ isFullscreen ? 'fullscreen_exit' : 'fullscreen' }}</span>
+                </button>
                 <button class="btn-action" (click)="onDownload()" title="Herunterladen">
                     <span class="material-symbols-outlined">download</span>
                 </button>
-                <button class="btn-action btn-close" (click)="onClose()" title="Schließen">
+                <button class="btn-action btn-close-x" (click)="onClose()" title="Schließen (Esc)">
                     <span class="material-symbols-outlined">close</span>
                 </button>
             </div>
         </div>
 
-        <!-- Navigation Counter -->
-        <div class="nav-counter" *ngIf="canNavigate">
-            {{ currentIndex + 1 }} / {{ attachments.length }}
-        </div>
-
         <!-- Preview Area -->
-        <div class="preview-area">
+        <div class="preview-area"
+             #zoomContainer
+             (wheel)="onWheel($event)"
+             (mousedown)="onPanStart($event)"
+             (dblclick)="onDoubleClick($event)"
+             (touchstart)="onTouchStart($event)"
+             (touchmove)="onTouchMove($event)"
+             (touchend)="onTouchEnd($event)"
+             [class.grabbing]="isPanning"
+             [class.zoomable]="isImage && zoom <= 1"
+             [class.zoomed]="isImage && zoom > 1">
+
             <!-- Loading -->
             <div class="preview-loading" *ngIf="loading">
-                <span class="material-symbols-outlined spinning">hourglass_empty</span>
-                <span>Lade Vorschau...</span>
+                <div class="spinner"></div>
+                <span>Lade Vorschau…</span>
             </div>
 
             <!-- Error -->
             <div class="preview-error" *ngIf="error && !loading">
-                <span class="material-symbols-outlined">error</span>
-                <span>Vorschau konnte nicht geladen werden</span>
-                <button class="btn-retry" (click)="loadPreview()">
+                <span class="material-symbols-outlined error-icon">cloud_off</span>
+                <span class="error-title">Vorschau nicht verfügbar</span>
+                <span class="error-sub">Datei konnte nicht geladen werden</span>
+                <button class="btn-pill" (click)="loadPreview()">
                     <span class="material-symbols-outlined">refresh</span>
                     Erneut versuchen
                 </button>
             </div>
 
-            <!-- Image Preview -->
-            <div class="preview-image" *ngIf="isImage && !loading && !error">
+            <!-- Image Preview (zoomable) — rendered once blob URL ready so img can fire load/error -->
+            <div class="preview-image" *ngIf="isImage && !error && previewUrl"
+                 [class.loaded]="!loading" @fadeIn>
                 <img [src]="previewUrl" 
                      [alt]="attachment.filename"
+                     [style.transform]="imageTransform"
+                     [class.smooth]="!isPanning"
                      (load)="onImageLoad()"
-                     (error)="onImageError()">
+                     (error)="onImageError()"
+                     draggable="false">
             </div>
 
             <!-- PDF Preview -->
-            <div class="preview-pdf" *ngIf="isPdf && !loading && !error">
+            <div class="preview-pdf" *ngIf="isPdf && !loading && !error" @fadeIn>
                 <iframe [src]="previewUrl" 
                         [title]="attachment.filename"
                         type="application/pdf">
                 </iframe>
             </div>
 
+            <!-- Video Preview -->
+            <div class="preview-video" *ngIf="isVideo && !loading && !error" @fadeIn>
+                <video controls [src]="previewUrl" [title]="attachment.filename"
+                       controlsList="nodownload" preload="metadata">
+                    Dein Browser unterstützt kein Video-Playback.
+                </video>
+            </div>
+
+            <!-- Audio Preview -->
+            <div class="preview-audio" *ngIf="isAudio && !loading && !error" @fadeIn>
+                <div class="audio-card">
+                    <span class="material-symbols-outlined audio-icon">graphic_eq</span>
+                    <span class="audio-name">{{ attachment.filename }}</span>
+                    <audio controls [src]="previewUrl" preload="metadata"
+                           controlsList="nodownload">
+                        Dein Browser unterstützt kein Audio-Playback.
+                    </audio>
+                </div>
+            </div>
+
+            <!-- Text Preview -->
+            <div class="preview-text" *ngIf="isText && textContent !== null && !loading && !error" @fadeIn>
+                <pre><code>{{ textContent }}</code></pre>
+            </div>
+
             <!-- Non-previewable File -->
-            <div class="preview-fallback" *ngIf="!isPreviewable && !loading && !error">
-                <span class="material-symbols-outlined large-icon">{{ fileIcon }}</span>
-                <span class="fallback-text">Vorschau für diesen Dateityp nicht verfügbar</span>
-                <button class="btn-download" (click)="onDownload()">
-                    <span class="material-symbols-outlined">download</span>
-                    Datei herunterladen
-                </button>
+            <div class="preview-fallback" *ngIf="!isPreviewable && !loading && !error" @fadeIn>
+                <div class="fallback-card">
+                    <div class="fallback-icon-wrap">
+                        <span class="material-symbols-outlined">{{ fileIcon }}</span>
+                    </div>
+                    <span class="fallback-name">{{ attachment.filename }}</span>
+                    <span class="fallback-meta">{{ fileExtension }} · {{ formattedSize }}</span>
+                    <span class="fallback-hint">Vorschau für diesen Dateityp nicht verfügbar</span>
+                    <button class="btn-pill primary" (click)="onDownload()">
+                        <span class="material-symbols-outlined">download</span>
+                        Herunterladen
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -79,13 +147,13 @@
         <button class="nav-arrow nav-prev" 
                 *ngIf="canNavigate && hasPrevious" 
                 (click)="navigatePrevious()"
-                title="Vorherige">
+                title="Vorherige (←)">
             <span class="material-symbols-outlined">chevron_left</span>
         </button>
         <button class="nav-arrow nav-next" 
                 *ngIf="canNavigate && hasNext" 
                 (click)="navigateNext()"
-                title="Nächste">
+                title="Nächste (→)">
             <span class="material-symbols-outlined">chevron_right</span>
         </button>
     </div>

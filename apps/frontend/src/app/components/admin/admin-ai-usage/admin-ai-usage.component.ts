@@ -38,6 +38,7 @@ export class AdminAiUsageComponent implements OnInit, OnDestroy {
   loading = true;
   statsLoading = true;
   balanceLoading = true;
+  recalculating = false;
 
   // Auto-refresh
   private refreshInterval: any;
@@ -115,6 +116,24 @@ export class AdminAiUsageComponent implements OnInit, OnDestroy {
 
   get hasActiveFilters(): boolean {
     return !!(this.featureFilter || this.modelFilter || this.userFilter || this.dateFrom || this.dateTo);
+  }
+
+  // ==================== RECALCULATE ====================
+
+  recalculateCosts(): void {
+    if (this.recalculating) return;
+    this.recalculating = true;
+    this.api.recalculateAiCosts().subscribe({
+      next: (result) => {
+        this.recalculating = false;
+        this.loadAll();
+        alert(`Kosten neu berechnet: ${result.updated} aktualisiert, ${result.skipped} unverändert`);
+      },
+      error: () => {
+        this.recalculating = false;
+        alert('Fehler beim Neuberechnen der Kosten');
+      },
+    });
   }
 
   // ==================== PAGINATION ====================

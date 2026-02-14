@@ -15,6 +15,9 @@
       <button class="time-chip" [class.active]="statsDays === 365" (click)="statsDays = 365; loadStats()">1y</button>
     </div>
     <div class="header-actions">
+      <button class="btn-icon btn-recalc" (click)="recalculateCosts()" [disabled]="recalculating" title="Kosten mit aktuellen Preisen neu berechnen">
+        <span class="material-symbols-outlined" [class.spinning]="recalculating">currency_exchange</span>
+      </button>
       <button class="btn-icon" (click)="loadAll()" [disabled]="loading" title="Aktualisieren">
         <span class="material-symbols-outlined" [class.spinning]="loading">refresh</span>
       </button>
@@ -47,6 +50,28 @@
       <span class="material-symbols-outlined">error</span>
       <strong>{{ stats.totalErrors }}</strong>
       <span>Fehler</span>
+    </div>
+  </div>
+
+  <!-- Pricing Reference -->
+  <div class="pricing-strip" *ngIf="stats && !statsLoading">
+    <span class="pricing-label">
+      <span class="material-symbols-outlined">sell</span>
+      Preise (pro 1M Tokens)
+    </span>
+    <div class="pricing-models">
+      <div class="pricing-model">
+        <span class="pricing-model-name">GPT-5</span>
+        <span class="pricing-tag input">Input $1.25</span>
+        <span class="pricing-tag cached">Cached $0.125</span>
+        <span class="pricing-tag output">Output $10.00</span>
+      </div>
+      <div class="pricing-model">
+        <span class="pricing-model-name">GPT-5 mini</span>
+        <span class="pricing-tag input">Input $0.25</span>
+        <span class="pricing-tag cached">Cached $0.025</span>
+        <span class="pricing-tag output">Output $2.00</span>
+      </div>
     </div>
   </div>
 

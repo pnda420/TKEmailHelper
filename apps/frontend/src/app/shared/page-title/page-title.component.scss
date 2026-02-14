@@ -1,10 +1,14 @@
 @import '../../utils/shared-styles.scss';
 
+:host {
+  display: block;
+}
+
 .page-header {
   text-align: center;
-  margin-top: 2rem;
-  animation: fadeSlideIn 0.6s ease-out;
-  margin-bottom: 1rem;
+  padding: 0.75rem 0 0.5rem;
+  animation: fadeSlideIn 0.5s ease-out;
+  margin-top: 10px;
 }
 
 .page-title {
@@ -12,69 +16,49 @@
   display: inline-block;
   margin: 0;
   padding: 0;
-  font-size: clamp(1.75rem, 4vw + 1rem, 2.5rem);
+  font-size: clamp(1.35rem, 3vw + 0.5rem, 1.75rem);
   font-weight: 900;
   color: $color-text-primary;
   letter-spacing: -0.02em;
-  line-height: 1.2;
+  line-height: 1.25;
 
   .title-accent {
     position: absolute;
     bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
-    width: 60px;
-    height: 4px;
+    width: 120px;
+    height: 3px;
     background: $gradient-primary;
     border-radius: $radius-full;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
-    animation: scaleIn 0.4s ease-out 0.3s both;
+    box-shadow: 0 1px 6px rgba(37, 99, 235, 0.25);
+    animation: scaleIn 0.35s ease-out 0.25s both;
   }
 }
 
 .page-subtitle {
-  margin: 1rem auto 0;
+  margin: 0.5rem auto 0;
   max-width: 600px;
-  font-size: clamp(1rem, 1.5vw + 0.5rem, 1.125rem);
+  font-size: 0.875rem;
   color: $color-text-secondary;
-  line-height: 1.6;
-  animation: fadeIn 0.5s ease-out 0.2s both;
+  line-height: 1.5;
+  animation: fadeIn 0.4s ease-out 0.15s both;
 }
 
-/* ===== ANIMATIONS ===== */
-
 @keyframes fadeSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes scaleIn {
-  from {
-    transform: translateX(-50%) scaleX(0);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(-50%) scaleX(1);
-    opacity: 1;
-  }
+  from { transform: translateX(-50%) scaleX(0); opacity: 0; }
+  to   { transform: translateX(-50%) scaleX(1); opacity: 1; }
 }
-
-/* ===== MOTION PREFERENCES ===== */
 
 @media (prefers-reduced-motion: reduce) {
   .page-header,

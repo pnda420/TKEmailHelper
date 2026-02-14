@@ -73,8 +73,11 @@
 
 .site-main {
   position: relative;
-  z-index: 1;
-  padding-top: 57px; // Header Height Offset
+  padding-top: 57px; // Header Height Offset (mobile)
+
+  @media (min-width: 900px) {
+    padding-top: 73px; // Header Height Offset (desktop: 72px + 1px border)
+  }
   
   .main-content {
     position: relative;

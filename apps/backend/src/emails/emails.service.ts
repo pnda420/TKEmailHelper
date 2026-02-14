@@ -1110,22 +1110,31 @@ export class EmailsService {
   }
 
   /**
-   * Get attachment content from IMAP server
+   * Get attachment content from IMAP server.
+   * Looks up the email's mailbox for proper IMAP credentials & folder names.
    */
-  async getAttachmentContent(messageId: string, attachmentIndex: number): Promise<Buffer | null> {
+  async getAttachmentContent(email: Email, attachmentIndex: number): Promise<Buffer | null> {
+    // Look up the mailbox to use correct IMAP credentials & folders
+    let mailbox: Mailbox | null = null;
+    if (email.mailboxId) {
+      mailbox = await this.getMailbox(email.mailboxId);
+    }
+
+    const sourceFolder = mailbox?.imapSourceFolder || this.SOURCE_FOLDER;
+    const doneFolder = mailbox?.imapDoneFolder || this.DONE_FOLDER;
+    const trashFolder = mailbox?.imapTrashFolder || this.TRASH_FOLDER;
+
     // Try source folder first
-    let result = await this.fetchAttachmentWithNewConnection(this.SOURCE_FOLDER, messageId, attachmentIndex);
+    let result = await this.fetchAttachmentWithNewConnection(sourceFolder, email.messageId, attachmentIndex, mailbox);
     
     if (!result) {
-      // Try done folder if not found in source
-      this.logger.log(`Attachment not found in ${this.SOURCE_FOLDER}, trying ${this.DONE_FOLDER}`);
-      result = await this.fetchAttachmentWithNewConnection(this.DONE_FOLDER, messageId, attachmentIndex);
+      this.logger.log(`Attachment not found in ${sourceFolder}, trying ${doneFolder}`);
+      result = await this.fetchAttachmentWithNewConnection(doneFolder, email.messageId, attachmentIndex, mailbox);
     }
 
     if (!result) {
-      // Try trash folder
-      this.logger.log(`Attachment not found in ${this.DONE_FOLDER}, trying ${this.TRASH_FOLDER}`);
-      result = await this.fetchAttachmentWithNewConnection(this.TRASH_FOLDER, messageId, attachmentIndex);
+      this.logger.log(`Attachment not found in ${doneFolder}, trying ${trashFolder}`);
+      result = await this.fetchAttachmentWithNewConnection(trashFolder, email.messageId, attachmentIndex, mailbox);
     }
     
     return result;
@@ -1138,26 +1147,16 @@ export class EmailsService {
     folder: string,
     messageId: string,
     attachmentIndex: number,
+    mailbox?: Mailbox | null,
   ): Promise<Buffer | null> {
     return new Promise((resolve) => {
-      // Create a fresh IMAP connection for this request
-      const user = this.configService.get<string>('MAIL');
-      const password = this.configService.get<string>('MAIL_PASS');
-      const host = this.configService.get<string>('MAIL_EINGANG');
-
-      const imapConnection = new Imap({
-        user: user,
-        password: password,
-        host: host,
-        port: 993,
-        tls: true,
-        tlsOptions: { rejectUnauthorized: false, servername: host },
-        authTimeout: 10000,
-        connTimeout: 10000,
-      });
-
-      // Force LOGIN auth instead of AUTHENTICATE PLAIN
-      this.forceImapLogin(imapConnection);
+      // Use mailbox-specific credentials if available, otherwise fall back to env vars
+      let imapConnection: Imap;
+      if (mailbox) {
+        imapConnection = this.createImapConnectionForMailbox(mailbox);
+      } else {
+        imapConnection = this.createImapConnection();
+      }
 
       let resolved = false;
       const cleanup = () => {

@@ -323,7 +323,7 @@ ${revisionInstructions}
     try {
       const callStart = Date.now();
       const response = await this.openai.chat.completions.create({
-        model: AI_MODELS.powerful,
+        model: AI_MODELS.fast,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -335,7 +335,7 @@ ${revisionInstructions}
       if (usage) {
         this.aiUsageService.track({
           feature: 'revise-email',
-          model: AI_MODELS.powerful,
+          model: AI_MODELS.fast,
           userId: user?.id,
           userEmail: user?.email,
           promptTokens: usage.prompt_tokens || 0,

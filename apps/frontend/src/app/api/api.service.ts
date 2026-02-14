@@ -1465,6 +1465,15 @@ getAiBalance(): Observable<AiBalance> {
   });
 }
 
+/**
+ * Recalculate all historical AI usage costs with current pricing (Admin only)
+ */
+recalculateAiCosts(): Observable<{ updated: number; skipped: number }> {
+  return this.http.post<{ updated: number; skipped: number }>(`${this.apiUrl}/api/ai-usage/recalculate`, {}, {
+    headers: this.getHeaders(),
+  });
+}
+
 // ==================== SYSTEM HEALTH ====================
 
 /**

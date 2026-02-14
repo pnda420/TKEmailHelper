@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Query, UseGuards, ParseIntPipe, DefaultValuePipe,
+  Controller, Get, Post, Query, UseGuards, ParseIntPipe, DefaultValuePipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
@@ -43,5 +43,14 @@ export class AiUsageController {
   @Get('balance')
   async getBalance() {
     return this.usageService.getOpenAiBalance();
+  }
+
+  /**
+   * POST /api/ai-usage/recalculate — Recalculate all historical costs with current pricing (Admin only)
+   */
+  @UseGuards(AdminGuard)
+  @Post('recalculate')
+  async recalculateCosts() {
+    return this.usageService.recalculateAllCosts();
   }
 }

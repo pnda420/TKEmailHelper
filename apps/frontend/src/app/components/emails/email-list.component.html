@@ -26,57 +26,29 @@
         </div>
     </div>
 
-    <!-- Toolbar -->
+    <!-- Compact Toolbar -->
     <header class="inbox-header">
         <div class="header-left">
-            <h2 class="inbox-title">
-                <span class="count-badge">{{ totalEmails }}</span>
-                E-Mails
-            </h2>
-            <!-- IMAP IDLE status indicator -->
+            <span class="count-badge">{{ totalEmails }}</span>
             <span class="idle-status" [class.connected]="idleConnected"
                   [title]="idleConnected ? 'IMAP IDLE aktiv — neue Mails werden automatisch erkannt' : 'IMAP IDLE nicht verbunden'">
                 <span class="idle-dot"></span>
                 <span class="idle-label">{{ idleConnected ? 'Live' : 'Offline' }}</span>
             </span>
         </div>
-        <div class="header-actions">
-            <button class="action-btn accent"
-                *ngIf="!aiProcessing && aiStatus && aiStatus.pending > 0"
-                (click)="processWithAi()">
-                <span class="material-symbols-outlined">bolt</span>
-                {{ aiStatus.pending }} analysieren
-            </button>
-            <button class="action-btn"
-                *ngIf="isAdmin"
-                (click)="recalculateAi()"
-                [disabled]="aiProcessing || refreshing"
-                title="Alle E-Mails neu analysieren">
-                Alle neu analysieren  <strong>Achtung!</strong>
-                <span class="material-symbols-outlined" [class.spin]="aiProcessing">auto_awesome</span>
-            </button>
-            <button class="action-btn primary"
-                (click)="refreshEmails()"
-                [disabled]="refreshing">
-                <span class="material-symbols-outlined" [class.spin]="refreshing">sync</span>
-                Abrufen
-            </button>
-        </div>
-    </header>
 
-    <!-- Search & Filter Bar -->
-    <div class="search-filter-bar">
         <div class="search-box">
             <span class="material-symbols-outlined search-icon">search</span>
             <input type="text"
                    [(ngModel)]="searchQuery"
                    (input)="onSearchInput()"
-                   placeholder="Suche nach Betreff, Absender, Inhalt..."
+                   placeholder="Suche…"
                    class="search-input" />
             <button class="search-clear" *ngIf="searchQuery" (click)="clearSearch()">
                 <span class="material-symbols-outlined">close</span>
             </button>
         </div>
+
         <div class="filter-group">
             <select class="filter-select" [(ngModel)]="filterTag" (change)="onFilterTagChange()">
                 <option value="">Alle Tags</option>
@@ -92,7 +64,24 @@
                 <span class="material-symbols-outlined">filter_list_off</span>
             </button>
         </div>
-    </div>
+
+        <div class="header-actions">
+            <button class="action-btn accent"
+                *ngIf="!aiProcessing && aiStatus && aiStatus.pending > 0"
+                (click)="processWithAi()">
+                <span class="material-symbols-outlined">bolt</span>
+                {{ aiStatus.pending }} analysieren
+            </button>
+            <button class="action-btn"
+                *ngIf="isAdmin"
+                (click)="recalculateAi()"
+                [disabled]="aiProcessing || refreshing"
+                title="Alle E-Mails neu analysieren">
+                Alle neu analysieren
+                <span class="material-symbols-outlined" [class.spin]="aiProcessing">auto_awesome</span>
+            </button>
+        </div>
+    </header>
 
     <!-- Loading -->
     <div class="inbox-loading" *ngIf="loading">
@@ -122,20 +111,23 @@
                 [class.analyzing]="email.aiProcessing && !email.aiProcessedAt"
                 (click)="selectEmail(email)">
 
-                <div class="mail-avatar" [class.unread]="!email.isRead" [class.ai-pulse]="email.aiProcessing && !email.aiProcessedAt">
+                <div class="mail-avatar" 
+                     [class.ai-pulse]="email.aiProcessing && !email.aiProcessedAt"
+                     [style.background-image]="email.fromAddress | identicon">
                     <span class="material-symbols-outlined ai-avatar-icon" *ngIf="email.aiProcessing && !email.aiProcessedAt">auto_awesome</span>
-                    <span *ngIf="!email.aiProcessing || email.aiProcessedAt">{{ getSenderInitials(email) }}</span>
                 </div>
 
                 <div class="mail-content">
                     <div class="mail-top">
                         <span class="mail-sender">{{ getSenderName(email) }}</span>
-                        <span class="mailbox-badge" *ngIf="email.mailboxId && getMailboxName(email.mailboxId)"
+                        <span class="mail-time">{{ formatDate(email.receivedAt) }}</span>
+                    </div>
+                    <div class="mail-mailbox-row" *ngIf="email.mailboxId && getMailboxName(email.mailboxId)">
+                        <span class="mailbox-badge"
                           [style.background-color]="getMailboxColor(email.mailboxId)"
                           [title]="getMailboxName(email.mailboxId)">
                           {{ getMailboxName(email.mailboxId) }}
                         </span>
-                        <span class="mail-time">{{ formatDate(email.receivedAt) }}</span>
                     </div>
                     <div class="mail-subject">{{ email.subject }}</div>
                     <div class="mail-snippet"
@@ -181,78 +173,93 @@
 
         <!-- Detail pane -->
         <main class="detail-pane" *ngIf="selectedEmail" @slideIn>
-            <!-- Compact top bar -->
-            <div class="detail-topbar">
-                <button class="topbar-back" (click)="closeDetail()">
-                    <span class="material-symbols-outlined">arrow_back</span>
-                </button>
-                <div class="topbar-spacer"></div>
-                <button class="topbar-icon-btn" *ngIf="isAdmin" (click)="recalculateSingleEmail(selectedEmail)" title="Neu analysieren">
-                    <span class="material-symbols-outlined">refresh</span>
-                </button>
-                <button class="topbar-icon-btn danger" (click)="moveToTrash()" title="Löschen">
-                    <span class="material-symbols-outlined">delete_outline</span>
-                </button>
-                <button class="topbar-reply-btn" (click)="openReplyPage()">
-                    <span class="material-symbols-outlined">reply</span>
-                    Antworten
-                </button>
-            </div>
 
-            <!-- Sender card -->
-            <div class="sender-card">
-                <div class="sender-avatar">{{ getSenderInitials(selectedEmail) }}</div>
-                <div class="sender-info">
-                    <div class="sender-name">{{ selectedEmail.fromName || selectedEmail.fromAddress }}</div>
-                    <div class="sender-email" *ngIf="selectedEmail.fromName">{{ selectedEmail.fromAddress }}</div>
+            <!-- ── Hero Header ── -->
+            <div class="detail-hero">
+                <div class="hero-row">
+                    <button class="hero-back" (click)="closeDetail()">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                    </button>
+
+                    <div class="hero-sender">
+                        <div class="hero-avatar" 
+                             [style.background-image]="selectedEmail.fromAddress | identicon">
+                        </div>
+                        <div class="hero-sender-info">
+                            <span class="hero-sender-name">{{ selectedEmail.fromName || selectedEmail.fromAddress }}</span>
+                            <span class="hero-sender-meta">
+                                <span *ngIf="selectedEmail.fromName" class="hero-email">{{ selectedEmail.fromAddress }}</span>
+                                <span class="hero-date">{{ selectedEmail.receivedAt | date:'dd.MM.yy, HH:mm' }}</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="hero-actions">
+                        <button class="hero-icon-btn" *ngIf="isAdmin" (click)="recalculateSingleEmail(selectedEmail)" title="Neu analysieren">
+                            <span class="material-symbols-outlined">refresh</span>
+                        </button>
+                        <button class="hero-icon-btn danger" (click)="moveToTrash()" title="Löschen">
+                            <span class="material-symbols-outlined">delete_outline</span>
+                        </button>
+                        <button class="hero-view-toggle"
+                            *ngIf="selectedEmail.aiProcessedAt && selectedEmail.aiSummary"
+                            (click)="showAiView = !showAiView"
+                            [class.ai-active]="showAiView">
+                            <span class="material-symbols-outlined">{{ showAiView ? 'auto_awesome' : 'mail' }}</span>
+                            <span class="toggle-label">{{ showAiView ? 'KI-Ansicht' : 'Original' }}</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="sender-date">{{ selectedEmail.receivedAt | date:'dd.MM.yy, HH:mm' }}</div>
-            </div>
 
-            <!-- Subject -->
-            <div class="detail-subject-bar">
-                <h2 class="detail-subject">{{ selectedEmail.subject }}</h2>
-                <div class="detail-to">
+                <h2 class="hero-subject">{{ selectedEmail.subject }}</h2>
+
+                <div class="hero-to">
                     <span class="material-symbols-outlined">arrow_forward</span>
                     {{ selectedEmail.toAddresses[0] }}
+                    <span class="mailbox-badge-detail" 
+                          *ngIf="selectedEmail.mailboxId && getMailboxName(selectedEmail.mailboxId)"
+                          [style.background-color]="getMailboxColor(selectedEmail.mailboxId)">
+                        {{ getMailboxName(selectedEmail.mailboxId) }}
+                    </span>
                 </div>
             </div>
 
-            <!-- Tab bar -->
+            <!-- ── Floating Reply FAB ── -->
+            <button class="reply-fab" (click)="openReplyPage()" title="Antworten" @slideIn>
+                <span class="reply-fab__shine"></span>
+                <span class="reply-fab__label">Antworten</span>
+                <span class="material-symbols-outlined reply-fab__icon">send</span>
+            </button>
+
+            <!-- ── Tab bar ── -->
             <nav class="detail-tabs">
                 <button class="detail-tab" [class.active]="activeDetailTab === 'email'"
                     (click)="switchDetailTab('email')">
                     <span class="material-symbols-outlined">mail</span>
                     E-Mail
                 </button>
-                <button class="detail-tab" [class.active]="activeDetailTab === 'thread'"
-                    (click)="switchDetailTab('thread')">
-                    <span class="material-symbols-outlined">forum</span>
-                    Konversation
-                    <span class="tab-count" *ngIf="threadEmails.length > 0">{{ threadEmails.length }}</span>
-                </button>
-                <button class="detail-tab" [class.active]="activeDetailTab === 'history'"
-                    (click)="switchDetailTab('history')">
-                    <span class="material-symbols-outlined">history</span>
-                    Verlauf
-                    <span class="tab-count" *ngIf="customerHistory.length > 0">{{ customerHistory.length }}</span>
+                <button class="detail-tab" [class.active]="activeDetailTab === 'attachments'"
+                    (click)="switchDetailTab('attachments')"
+                    *ngIf="selectedEmail.attachments?.length">
+                    <span class="material-symbols-outlined">attach_file</span>
+                    Anhänge
+                    <span class="tab-count">{{ selectedEmail.attachments!.length }}</span>
                 </button>
             </nav>
 
             <!-- ═══ TAB: E-Mail ═══ -->
             <div class="detail-content" *ngIf="activeDetailTab === 'email'">
+
                 <!-- AI summary card -->
-                <div class="ai-summary-card" *ngIf="selectedEmail.aiProcessedAt && selectedEmail.aiSummary">
-                    <div class="ai-summary-card__header">
+                <div class="ai-card" *ngIf="selectedEmail.aiProcessedAt && selectedEmail.aiSummary">
+                    <div class="ai-card__sparkle">
                         <span class="material-symbols-outlined">auto_awesome</span>
-                        KI-Zusammenfassung
-                        <button class="ai-toggle-btn" (click)="showAiView = !showAiView">
-                            {{ showAiView ? 'Original zeigen' : 'Zusammenfassung zeigen' }}
-                        </button>
                     </div>
-                    <p class="ai-summary-card__text" *ngIf="showAiView">{{ selectedEmail.aiSummary }}</p>
-                    <div class="ai-summary-card__tags" *ngIf="showAiView && selectedEmail.aiTags?.length">
-                        <span class="tag" *ngFor="let tag of selectedEmail.aiTags">{{ tag }}</span>
+                    <div class="ai-card__body">
+                        <p class="ai-card__text">{{ selectedEmail.aiSummary }}</p>
+                        <div class="ai-card__tags" *ngIf="selectedEmail.aiTags?.length">
+                            <span class="tag" *ngFor="let tag of selectedEmail.aiTags">{{ tag }}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -269,93 +276,22 @@
                     </div>
                 </div>
 
-                <!-- Attachments inline -->
-                <div class="attachments-section" *ngIf="selectedEmail.attachments?.length">
-                    <div class="attachments-label">
-                        <span class="material-symbols-outlined">attach_file</span>
-                        {{ selectedEmail.attachments!.length }} Anhäng{{ selectedEmail.attachments!.length === 1 ? '' : 'e' }}
-                    </div>
-                    <div class="attachments-list">
-                        <button class="att-chip" *ngFor="let att of selectedEmail.attachments; let i = index"
-                            (click)="openAttachmentPreview(att, i)">
+            </div>
+
+            <!-- ═══ TAB: Anhänge ═══ -->
+            <div class="detail-content" *ngIf="activeDetailTab === 'attachments'">
+                <div class="attachments-grid">
+                    <button class="att-card" *ngFor="let att of selectedEmail.attachments; let i = index"
+                        (click)="openAttachmentPreview(att, i)">
+                        <div class="att-card__icon">
                             <span class="material-symbols-outlined">{{ getAttachmentIcon(att.contentType) }}</span>
-                            <span class="att-name">{{ att.filename }}</span>
-                            <span class="att-size">{{ formatFileSize(att.size) }}</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ═══ TAB: Konversation ═══ -->
-            <div class="detail-content" *ngIf="activeDetailTab === 'thread'">
-                <div class="tab-loading" *ngIf="threadLoading">
-                    <div class="loading-spinner"></div>
-                    <span>Konversation wird geladen…</span>
-                </div>
-                <div class="tab-empty" *ngIf="!threadLoading && threadEmails.length === 0">
-                    <span class="material-symbols-outlined">forum</span>
-                    <p>Keine weiteren Nachrichten in dieser Konversation</p>
-                </div>
-                <div class="thread-list" *ngIf="threadEmails.length > 0">
-                    <div class="thread-card" *ngFor="let te of threadEmails"
-                         [class.current]="te.id === selectedEmail.id"
-                         [class.sent]="te.status === 'sent'"
-                         (click)="selectEmail(te)">
-                        <div class="thread-card__left">
-                            <div class="thread-card__avatar" [class.sent]="te.status === 'sent'">
-                                {{ getSenderInitials(te) }}
-                            </div>
-                            <div class="thread-card__line" *ngIf="te !== threadEmails[threadEmails.length - 1]"></div>
                         </div>
-                        <div class="thread-card__body">
-                            <div class="thread-card__top">
-                                <span class="thread-card__sender">{{ te.fromName || te.fromAddress }}</span>
-                                <span class="thread-card__badge sent" *ngIf="te.status === 'sent'">Gesendet</span>
-                                <span class="thread-card__date">{{ formatDate(te.receivedAt) }}</span>
-                            </div>
-                            <div class="thread-card__subject" *ngIf="te.subject !== selectedEmail.subject">{{ te.subject }}</div>
-                            <div class="thread-card__preview">{{ te.aiSummary || te.preview || '(Kein Inhalt)' }}</div>
+                        <div class="att-card__info">
+                            <span class="att-card__name">{{ att.filename }}</span>
+                            <span class="att-card__size">{{ formatFileSize(att.size) }}</span>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ═══ TAB: Kundenhistorie ═══ -->
-            <div class="detail-content" *ngIf="activeDetailTab === 'history'">
-                <div class="tab-loading" *ngIf="historyLoading">
-                    <div class="loading-spinner"></div>
-                    <span>Verlauf wird geladen…</span>
-                </div>
-                <div class="tab-empty" *ngIf="!historyLoading && customerHistory.length === 0">
-                    <span class="material-symbols-outlined">history</span>
-                    <p>Kein bisheriger Verlauf mit diesem Kontakt</p>
-                </div>
-                <div class="thread-list" *ngIf="customerHistory.length > 0">
-                    <div class="thread-card" *ngFor="let ce of customerHistory"
-                         [class.current]="ce.id === selectedEmail.id"
-                         [class.sent]="ce.status === 'sent'"
-                         [class.trash]="ce.status === 'trash'"
-                         (click)="selectEmail(ce)">
-                        <div class="thread-card__left">
-                            <div class="thread-card__avatar" [class.sent]="ce.status === 'sent'">
-                                {{ getSenderInitials(ce) }}
-                            </div>
-                            <div class="thread-card__line" *ngIf="ce !== customerHistory[customerHistory.length - 1]"></div>
-                        </div>
-                        <div class="thread-card__body">
-                            <div class="thread-card__top">
-                                <span class="thread-card__sender">{{ ce.fromName || ce.fromAddress }}</span>
-                                <span class="thread-card__badge sent" *ngIf="ce.status === 'sent'">Gesendet</span>
-                                <span class="thread-card__badge trash" *ngIf="ce.status === 'trash'">Papierkorb</span>
-                                <span class="thread-card__date">{{ formatDate(ce.receivedAt) }}</span>
-                            </div>
-                            <div class="thread-card__subject">{{ ce.subject }}</div>
-                            <div class="thread-card__preview">{{ ce.aiSummary || ce.preview || '(Kein Inhalt)' }}</div>
-                            <div class="thread-card__tags" *ngIf="ce.aiTags?.length">
-                                <span class="tag mini" *ngFor="let tag of ce.aiTags">{{ tag }}</span>
-                            </div>
-                        </div>
-                    </div>
+                        <span class="material-symbols-outlined att-card__action">visibility</span>
+                    </button>
                 </div>
             </div>
         </main>

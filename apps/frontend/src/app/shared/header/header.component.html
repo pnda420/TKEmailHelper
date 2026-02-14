@@ -131,9 +131,10 @@
         </ng-container>
 
         <ng-container *ngIf="user">
-          <a routerLink="/profile" routerLinkActive="active" class="nav-link--icon" title="Profil"
+          <a routerLink="/profile" routerLinkActive="active" class="nav-link--profile" title="Profil"
             (click)="servicesDropdownOpen = false; closeMenu()">
             <span class="material-symbols-outlined ms-size-22 ms-fill">account_circle</span>
+            <span class="nav-profile-name">{{ user.name.split(' ')[0] }}</span>
           </a>
 
           <button class="nav-link--icon nav-link--logout" type="button" (click)="servicesDropdownOpen = false; logout()"
