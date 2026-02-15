@@ -54,9 +54,8 @@
               <div class="connection-row">
                 <span class="connection-row__dot" [class.ok]="connectionStatus.vpn"
                   [class.fail]="!connectionStatus.vpn"></span>
-                <span class="connection-row__label">VPN</span>
-                <span class="connection-row__value" *ngIf="connectionStatus.vpn">{{ connectionStatus.vpnLatency
-                  }}ms</span>
+                <span class="connection-row__label">VPN ({{ connectionStatus.vpnLatency}}ms)</span>
+                <span class="connection-row__value" *ngIf="connectionStatus.vpn">Online</span>
                 <span class="connection-row__value fail" *ngIf="!connectionStatus.vpn">Offline</span>
               </div>
               <div class="connection-row">
@@ -77,8 +76,8 @@
                 <span class="connection-row__dot" [class.ok]="connectionStatus.imap"
                   [class.fail]="!connectionStatus.imap"></span>
                 <span class="connection-row__label">Mail Service</span>
-                <span class="connection-row__value" *ngIf="connectionStatus.imap">Verbunden</span>
-                <span class="connection-row__value fail" *ngIf="!connectionStatus.imap">Getrennt</span>
+                <span class="connection-row__value" *ngIf="connectionStatus.imap">Online</span>
+                <span class="connection-row__value fail" *ngIf="!connectionStatus.imap">Offline</span>
               </div>
             </div>
             <div class="connection-popup__body" *ngIf="!connectionStatus">
@@ -100,7 +99,8 @@
         <div class="mailbox-selector-container" *ngIf="user && myMailboxes.length > 0">
           <button class="mailbox-selector-btn" (click)="toggleMailboxDropdown($event)" title="Postfächer">
             <span class="material-symbols-outlined ms-size-20">inbox</span>
-            <span class="mailbox-count" *ngIf="hasMultipleMailboxes">{{ activeMailboxCount }}/{{ myMailboxes.length }}</span>
+            <span class="mailbox-count" *ngIf="hasMultipleMailboxes">{{ activeMailboxCount }}/{{ myMailboxes.length
+              }}</span>
           </button>
 
           <div class="mailbox-dropdown" *ngIf="mailboxDropdownOpen">
@@ -109,8 +109,7 @@
               <span>Postfächer</span>
             </div>
             <div class="mailbox-dropdown__body">
-              <label class="mailbox-option" *ngFor="let um of myMailboxes"
-                [class.active]="um.isActive"
+              <label class="mailbox-option" *ngFor="let um of myMailboxes" [class.active]="um.isActive"
                 [style.border-left-color]="um.mailbox.color || '#1565c0'">
                 <input type="checkbox" [checked]="um.isActive" (change)="toggleMailboxActive(um, $event)" />
                 <div class="mailbox-option__info">
