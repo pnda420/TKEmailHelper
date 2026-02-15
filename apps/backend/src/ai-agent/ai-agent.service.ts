@@ -180,9 +180,9 @@ export class AiAgentService {
 
         let toolResult: any;
         try {
-          toolResult = await this.jtlTools.executeTool(toolName, args);
+          toolResult = await this.executeToolWithRetry(toolName, args, onStep);
         } catch (error) {
-          this.logger.error(`Tool ${toolName} failed: ${error.message}`);
+          this.logger.error(`Tool ${toolName} failed after retries: ${error.message}`);
           toolResult = { error: error.message };
         }
 
@@ -267,6 +267,88 @@ WICHTIG: Deine Antwort MUSS am Ende einen \`\`\`json Block enthalten mit dem str
       status: 'error',
     });
     return 'Analyse abgebrochen: zu viele Schritte.';
+  }
+
+  // ==================== JTL TOOL RETRY (VPN/Connection drops) ====================
+
+  private readonly TOOL_MAX_RETRIES = 3;
+  private readonly TOOL_BASE_DELAY_MS = 2000; // 2s, 4s, 8s
+
+  /**
+   * Execute a JTL tool with automatic retry on connection/network errors.
+   * Handles short VPN drops gracefully by waiting and retrying.
+   */
+  private async executeToolWithRetry(
+    toolName: string,
+    args: Record<string, any>,
+    onStep: (step: AnalysisStep) => void,
+  ): Promise<any> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= this.TOOL_MAX_RETRIES; attempt++) {
+      try {
+        return await this.jtlTools.executeTool(toolName, args);
+      } catch (error) {
+        lastError = error;
+
+        if (!this.isRetryableError(error) || attempt === this.TOOL_MAX_RETRIES) {
+          throw error;
+        }
+
+        const delayMs = this.TOOL_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        this.logger.warn(
+          `Tool ${toolName} failed (attempt ${attempt}/${this.TOOL_MAX_RETRIES}): ${error.message} — retrying in ${delayMs}ms`,
+        );
+        onStep({
+          type: 'tool_result',
+          tool: toolName,
+          summary: `Verbindungsfehler — Retry ${attempt}/${this.TOOL_MAX_RETRIES} in ${delayMs / 1000}s…`,
+          status: 'running',
+        });
+
+        await this.sleep(delayMs);
+      }
+    }
+
+    throw lastError!;
+  }
+
+  /**
+   * Checks if an error is a transient connection/network error worth retrying.
+   * Covers: VPN drops, TCP resets, MSSQL timeouts, pool connection errors.
+   */
+  private isRetryableError(error: any): boolean {
+    const msg = (error?.message || '').toLowerCase();
+    const code = error?.code || '';
+
+    // TCP/Network errors
+    if (['ESOCKET', 'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EPIPE', 'ENETUNREACH', 'EHOSTUNREACH'].includes(code)) {
+      return true;
+    }
+
+    // MSSQL-specific connection errors
+    if (msg.includes('connection is closed') ||
+        msg.includes('not connected') ||
+        msg.includes('connection lost') ||
+        msg.includes('failed to connect') ||
+        msg.includes('socket hang up') ||
+        msg.includes('network error') ||
+        msg.includes('timeout') ||
+        msg.includes('pool is draining') ||
+        msg.includes('resource request timed out') ||
+        msg.includes('connection pool') ||
+        msg.includes('aborted') ||
+        msg.includes('econnreset') ||
+        msg.includes('econnrefused') ||
+        msg.includes('esocket')) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**

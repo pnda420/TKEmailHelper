@@ -8,6 +8,8 @@ import { AiUsage } from './ai-usage.entity';
 // Keep updated when models change — https://openai.com/api/pricing
 // Last updated: 2026-02-14
 const MODEL_PRICING: Record<string, { input: number; output: number; cachedInput?: number }> = {
+  // GPT-5.2 (flagship — coding & agentic, 400k ctx, reasoning)
+  'gpt-5.2':      { input: 1.75,  output: 14.00, cachedInput: 0.175 },
   // GPT-5
   'gpt-5':        { input: 1.25,  output: 10.00, cachedInput: 0.125 },
   // GPT-5 mini

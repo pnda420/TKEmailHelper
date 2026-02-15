@@ -37,6 +37,14 @@ export class JtlToolsService {
         return this.getProductStock(args.artNrOrId);
       case 'get_customer_bought_products':
         return this.getCustomerBoughtProducts(args.kKunde, args.limit);
+      case 'get_customer_notes':
+        return this.getCustomerNotes(args.kKunde);
+      case 'get_product_variants':
+        return this.getProductVariants(args.kArtikel);
+      case 'get_customer_returns':
+        return this.getCustomerReturns(args.kKunde);
+      case 'get_order_payments':
+        return this.getOrderPayments(args.auftragsNr);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -357,6 +365,164 @@ export class JtlToolsService {
         kKunde: { type: sql.Int, value: kKunde },
         limit: { type: sql.Int, value: Math.min(limit, 100) },
       },
+    );
+    return result.recordset;
+  }
+
+  // ==================== TOOL 13: get_customer_notes ====================
+
+  async getCustomerNotes(kKunde: number): Promise<any[]> {
+    const result = await this.db.queryWithParams(
+      `SELECT
+        n.kNotiz,
+        n.cNotiz,
+        n.nTyp,
+        n.dErstellt,
+        n.kAuftrag,
+        CASE n.nTyp
+          WHEN 0 THEN 'Allgemein'
+          WHEN 1 THEN 'Intern'
+          WHEN 2 THEN 'Mahnung'
+          ELSE CAST(n.nTyp AS NVARCHAR(10))
+        END AS NotizTyp
+      FROM Kunde.tNotiz n
+      WHERE n.kKunde = @kKunde
+      ORDER BY n.dErstellt DESC`,
+      { kKunde: { type: sql.Int, value: kKunde } },
+    );
+    return result.recordset;
+  }
+
+  // ==================== TOOL 14: get_product_variants ====================
+
+  async getProductVariants(kArtikel: number): Promise<any> {
+    // Prüfe ob es ein Vaterartikel ist, sonst den Vater holen
+    const artikelResult = await this.db.queryWithParams(
+      `SELECT kArtikel, kVaterArtikel, nIstVater FROM dbo.tArtikel WHERE kArtikel = @kArtikel`,
+      { kArtikel: { type: sql.Int, value: kArtikel } },
+    );
+    const artikel = artikelResult.recordset[0];
+    if (!artikel) return null;
+
+    const vaterId = artikel.nIstVater === 1 ? artikel.kArtikel : artikel.kVaterArtikel;
+    if (!vaterId || vaterId === 0) {
+      return { message: 'Artikel hat keine Varianten', kArtikel };
+    }
+
+    // Eigenschaften (z.B. "Farbe", "Größe")
+    const eigenschaftenResult = await this.db.queryWithParams(
+      `SELECT
+        e.kEigenschaft,
+        es.cName AS EigenschaftName,
+        e.cTyp
+      FROM dbo.teigenschaft e
+      LEFT JOIN dbo.tEigenschaftSprache es ON es.kEigenschaft = e.kEigenschaft AND es.kSprache = 1
+      WHERE e.kArtikel = @vaterId AND e.cAktiv = 'Y'
+      ORDER BY e.nSort`,
+      { vaterId: { type: sql.Int, value: vaterId } },
+    );
+
+    // Eigenschaftswerte (z.B. "Rot", "Blau", "XL")
+    const werteResult = await this.db.queryWithParams(
+      `SELECT
+        ew.kEigenschaftWert,
+        ew.kEigenschaft,
+        ews.cName AS WertName,
+        ew.fAufpreis,
+        ew.fLagerbestand,
+        ew.cArtNr,
+        ew.cBarcode,
+        ew.cAktiv
+      FROM dbo.teigenschaftwert ew
+      LEFT JOIN dbo.tEigenschaftWertSprache ews ON ews.kEigenschaftWert = ew.kEigenschaftWert AND ews.kSprache = 1
+      JOIN dbo.teigenschaft e ON e.kEigenschaft = ew.kEigenschaft
+      WHERE e.kArtikel = @vaterId AND ew.cAktiv = 'Y'
+      ORDER BY e.nSort, ew.nSort`,
+      { vaterId: { type: sql.Int, value: vaterId } },
+    );
+
+    // Kindartikel (die eigentlichen Varianten-Kombinationen)
+    const kinderResult = await this.db.queryWithParams(
+      `SELECT
+        ar.kArtikel, ar.cArtNr, ar.cBarcode,
+        ab.cName,
+        ar.fVKNetto,
+        ar.nLagerbestand,
+        ar.cAktiv,
+        lb.fVerfuegbar
+      FROM dbo.tArtikel ar
+      LEFT JOIN dbo.tArtikelBeschreibung ab ON ab.kArtikel = ar.kArtikel AND ab.kSprache = 1 AND ab.kPlattform = 1
+      LEFT JOIN dbo.tlagerbestand lb ON lb.kArtikel = ar.kArtikel
+      WHERE ar.kVaterArtikel = @vaterId AND ar.nDelete = 0
+      ORDER BY ar.cArtNr`,
+      { vaterId: { type: sql.Int, value: vaterId } },
+    );
+
+    return {
+      vaterArtikel: vaterId,
+      eigenschaften: eigenschaftenResult.recordset,
+      werte: werteResult.recordset,
+      varianten: kinderResult.recordset,
+    };
+  }
+
+  // ==================== TOOL 15: get_customer_returns ====================
+
+  async getCustomerReturns(kKunde: number): Promise<any[]> {
+    const result = await this.db.queryWithParams(
+      `SELECT
+        r.kRMRetoure,
+        r.cRetoureNr,
+        r.dErstellt,
+        r.cKommentarExtern,
+        r.cKommentarIntern,
+        r.fKorrekturBetrag,
+        r.cKorrekturBetragKommentar,
+        r.nVersandkostenErstatten,
+        -- Gutschrift-Info
+        g.cGutschriftNr,
+        g.fPreis AS GutschriftBetrag,
+        g.cWaehrung AS GutschriftWaehrung,
+        g.cStatus AS GutschriftStatus,
+        -- Positionen als Subquery
+        (SELECT COUNT(*) FROM dbo.tRMRetourePos rp WHERE rp.kRMRetoure = r.kRMRetoure) AS AnzahlPositionen
+      FROM dbo.tRMRetoure r
+      LEFT JOIN dbo.tgutschrift g ON g.kGutschrift = r.kGutschrift
+      WHERE r.kKunde = @kKunde
+      ORDER BY r.dErstellt DESC`,
+      { kKunde: { type: sql.Int, value: kKunde } },
+    );
+    return result.recordset;
+  }
+
+  // ==================== TOOL 16: get_order_payments ====================
+
+  async getOrderPayments(auftragsNr: string): Promise<any[]> {
+    const result = await this.db.queryWithParams(
+      `SELECT
+        z.kZahlung,
+        z.cName AS Zahlungsart,
+        z.fBetrag,
+        z.dDatum,
+        z.cHinweis,
+        z.nAnzahlung,
+        z.cExternalTransactionId,
+        CASE z.nZahlungstyp
+          WHEN 0 THEN 'Normal'
+          WHEN 1 THEN 'Anzahlung'
+          WHEN 2 THEN 'Restzahlung'
+          ELSE CAST(z.nZahlungstyp AS NVARCHAR(10))
+        END AS Zahlungstyp,
+        -- Auftragsdaten
+        a.cAuftragsNr,
+        ek.fWertBrutto,
+        ek.fOffenerWert
+      FROM dbo.tZahlung z
+      JOIN Verkauf.tAuftrag a ON a.kAuftrag = z.kBestellung
+      LEFT JOIN Verkauf.tAuftragEckdaten ek ON ek.kAuftrag = a.kAuftrag
+      WHERE a.cAuftragsNr = @auftragsNr
+      ORDER BY z.dDatum DESC`,
+      { auftragsNr: { type: sql.NVarChar(50), value: auftragsNr } },
     );
     return result.recordset;
   }

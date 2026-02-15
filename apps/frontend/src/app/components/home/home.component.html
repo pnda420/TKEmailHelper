@@ -1,69 +1,149 @@
-<div class="landing" *ngIf="!loading" @fadeIn>
+<div class="dashboard" *ngIf="!loading" @fadeIn>
 
-  <!-- Animated background orbs -->
+  <!-- Animated background -->
   <div class="bg-orbs">
     <div class="orb orb--1"></div>
     <div class="orb orb--2"></div>
     <div class="orb orb--3"></div>
   </div>
 
-  <!-- Hero -->
-  <div class="hero" @fadeUp>
-    <img class="hero__logo" src="assets/logos/lm_s.png" alt="MailFlow" />
-    <h1 class="hero__title">MailFlow</h1>
-    <p class="hero__greeting">{{ getGreeting() }} &mdash; {{ formattedDate }}</p>
-  </div>
+  <div class="dashboard__content">
 
-  <!-- Stats 4×2 -->
-  <div class="stats" @staggerCards>
-    <button class="stat-card" (click)="router.navigate(['/emails'])">
-      <span class="stat-card__icon"><span class="material-symbols-outlined">inbox</span></span>
-      <span class="stat-card__val">{{ emailStats.inbox }}</span>
-      <span class="stat-card__lbl">Posteingang</span>
-    </button>
-    <button class="stat-card" (click)="router.navigate(['/emails'])">
-      <span class="stat-card__icon unread"><span class="material-symbols-outlined">mark_email_unread</span></span>
-      <span class="stat-card__val">{{ emailStats.unread }}</span>
-      <span class="stat-card__lbl">Ungelesen</span>
-    </button>
-    <button class="stat-card" (click)="router.navigate(['/history'])">
-      <span class="stat-card__icon sent"><span class="material-symbols-outlined">send</span></span>
-      <span class="stat-card__val">{{ emailStats.sent }}</span>
-      <span class="stat-card__lbl">Gesendet</span>
-    </button>
-    <button class="stat-card" (click)="router.navigate(['/history'])">
-      <span class="stat-card__icon trash"><span class="material-symbols-outlined">delete</span></span>
-      <span class="stat-card__val">{{ emailStats.trash }}</span>
-      <span class="stat-card__lbl">Papierkorb</span>
-    </button>
-    <button class="stat-card" (click)="router.navigate(['/templates'])">
-      <span class="stat-card__icon tmpl"><span class="material-symbols-outlined">description</span></span>
-      <span class="stat-card__val">{{ templateCount }}</span>
-      <span class="stat-card__lbl">Vorlagen</span>
-    </button>
-    <button class="stat-card" (click)="isAdmin && router.navigate(['/admin'])" [class.clickable]="isAdmin">
-      <span class="stat-card__icon ai"><span class="material-symbols-outlined">auto_awesome</span></span>
-      <span class="stat-card__val">{{ aiStats?.totalRequests ?? 0 }}</span>
-      <span class="stat-card__lbl">KI-Anfragen</span>
-    </button>
-    <button class="stat-card" (click)="isAdmin && router.navigate(['/admin'])" [class.clickable]="isAdmin">
-      <span class="stat-card__icon tokens"><span class="material-symbols-outlined">token</span></span>
-      <span class="stat-card__val">{{ formatTokens(aiStats?.totalTokens ?? 0) }}</span>
-      <span class="stat-card__lbl">Tokens</span>
-    </button>
-    <button class="stat-card" (click)="isAdmin && router.navigate(['/admin'])" [class.clickable]="isAdmin">
-      <span class="stat-card__icon cost"><span class="material-symbols-outlined">payments</span></span>
-      <span class="stat-card__val">{{ formatCost(aiStats?.totalCostUsd ?? 0) }}</span>
-      <span class="stat-card__lbl">KI-Kosten</span>
-    </button>
-  </div>
+    <!-- ── GREETING ── -->
+    <header class="greeting" @fadeUp>
+      <div class="greeting__icon">
+        <span class="material-symbols-outlined">{{ getGreetingIcon() }}</span>
+      </div>
+      <div class="greeting__text">
+        <h1 class="greeting__hello">{{ getGreeting() }}<span class="greeting__name" *ngIf="firstName"> {{ firstName }}</span></h1>
+        <p class="greeting__date">{{ formattedDate }} &middot; {{ formattedTime }} Uhr</p>
+      </div>
+    </header>
 
-  <!-- CTA -->
-  <div class="cta" @fadeUp>
-    <button class="cta__btn" (click)="router.navigate(['/emails'])">
-      <span class="material-symbols-outlined">arrow_forward</span>
-      Zum Posteingang
-    </button>
+    <!-- ── MAILBOXES ── -->
+    <section class="section mailboxes" @staggerCards *ngIf="mailboxes.length > 0">
+      <div class="section__header">
+        <span class="material-symbols-outlined section__icon">mail</span>
+        <h2 class="section__title">Deine Postfächer</h2>
+        <span class="section__badge">{{ mailboxes.length }}</span>
+      </div>
+      <div class="mailbox-grid">
+        <button class="mailbox-card anim-item" *ngFor="let um of mailboxes"
+                [class.inactive]="!um.isActive"
+                (click)="router.navigate(['/emails'])">
+          <div class="mailbox-card__indicator" [style.background]="um.mailbox.color"></div>
+          <div class="mailbox-card__body">
+            <span class="mailbox-card__name">{{ um.mailbox.name }}</span>
+            <span class="mailbox-card__email">{{ um.mailbox.email }}</span>
+          </div>
+          <div class="mailbox-card__status">
+            <span class="mailbox-card__dot" [class.active]="um.isActive"></span>
+            <span class="mailbox-card__status-text">{{ um.isActive ? 'Aktiv' : 'Inaktiv' }}</span>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <!-- ── GLOBAL STATS ── -->
+    <section class="section stats" @staggerCards>
+      <div class="section__header">
+        <span class="material-symbols-outlined section__icon">analytics</span>
+        <h2 class="section__title">Übersicht</h2>
+      </div>
+      <div class="stat-grid">
+        <button class="stat-card anim-item" (click)="router.navigate(['/emails'])">
+          <span class="stat-card__icon"><span class="material-symbols-outlined">inbox</span></span>
+          <div class="stat-card__data">
+            <span class="stat-card__val">{{ emailStats.inbox }}</span>
+            <span class="stat-card__lbl">Posteingang</span>
+          </div>
+        </button>
+        <button class="stat-card anim-item highlight" (click)="router.navigate(['/emails'])">
+          <span class="stat-card__icon unread"><span class="material-symbols-outlined">mark_email_unread</span></span>
+          <div class="stat-card__data">
+            <span class="stat-card__val">{{ emailStats.unread }}</span>
+            <span class="stat-card__lbl">Ungelesen</span>
+          </div>
+        </button>
+        <button class="stat-card anim-item" (click)="router.navigate(['/history'])">
+          <span class="stat-card__icon sent"><span class="material-symbols-outlined">send</span></span>
+          <div class="stat-card__data">
+            <span class="stat-card__val">{{ emailStats.sent }}</span>
+            <span class="stat-card__lbl">Gesendet</span>
+          </div>
+        </button>
+        <button class="stat-card anim-item" (click)="router.navigate(['/history'])">
+          <span class="stat-card__icon trash"><span class="material-symbols-outlined">delete</span></span>
+          <div class="stat-card__data">
+            <span class="stat-card__val">{{ emailStats.trash }}</span>
+            <span class="stat-card__lbl">Papierkorb</span>
+          </div>
+        </button>
+        <button class="stat-card anim-item" (click)="router.navigate(['/templates'])">
+          <span class="stat-card__icon tmpl"><span class="material-symbols-outlined">description</span></span>
+          <div class="stat-card__data">
+            <span class="stat-card__val">{{ templateCount }}</span>
+            <span class="stat-card__lbl">Vorlagen</span>
+          </div>
+        </button>
+        <button class="stat-card anim-item" *ngIf="isAdmin" (click)="router.navigate(['/admin/ai-usage'])">
+          <span class="stat-card__icon ai"><span class="material-symbols-outlined">auto_awesome</span></span>
+          <div class="stat-card__data">
+            <span class="stat-card__val">{{ aiStats?.totalRequests ?? 0 }}</span>
+            <span class="stat-card__lbl">KI-Anfragen</span>
+          </div>
+        </button>
+        <button class="stat-card anim-item" *ngIf="isAdmin" (click)="router.navigate(['/admin/ai-usage'])">
+          <span class="stat-card__icon tokens"><span class="material-symbols-outlined">token</span></span>
+          <div class="stat-card__data">
+            <span class="stat-card__val">{{ formatTokens(aiStats?.totalTokens ?? 0) }}</span>
+            <span class="stat-card__lbl">Tokens (30d)</span>
+          </div>
+        </button>
+        <button class="stat-card anim-item" *ngIf="isAdmin" (click)="router.navigate(['/admin/ai-usage'])">
+          <span class="stat-card__icon cost"><span class="material-symbols-outlined">payments</span></span>
+          <div class="stat-card__data">
+            <span class="stat-card__val">{{ formatCost(aiStats?.totalCostUsd ?? 0) }}</span>
+            <span class="stat-card__lbl">KI-Kosten (30d)</span>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <!-- ── QUICK ACCESS ── -->
+    <section class="section quick-access" @fadeUp>
+      <div class="section__header">
+        <span class="material-symbols-outlined section__icon">bolt</span>
+        <h2 class="section__title">Schnellzugriff</h2>
+      </div>
+      <div class="quick-grid">
+        <button class="quick-btn primary" (click)="router.navigate(['/emails'])">
+          <span class="material-symbols-outlined">inbox</span>
+          Posteingang
+        </button>
+        <button class="quick-btn" (click)="router.navigate(['/history'])">
+          <span class="material-symbols-outlined">history</span>
+          Verlauf
+        </button>
+        <button class="quick-btn" (click)="router.navigate(['/templates'])">
+          <span class="material-symbols-outlined">description</span>
+          Vorlagen
+        </button>
+        <button class="quick-btn" *ngIf="isAdmin" (click)="router.navigate(['/admin'])">
+          <span class="material-symbols-outlined">admin_panel_settings</span>
+          Admin
+        </button>
+        <button class="quick-btn" *ngIf="isAdmin" (click)="router.navigate(['/admin/health'])">
+          <span class="material-symbols-outlined">monitor_heart</span>
+          System
+        </button>
+        <button class="quick-btn" *ngIf="isAdmin" (click)="router.navigate(['/admin/logs'])">
+          <span class="material-symbols-outlined">terminal</span>
+          Logs
+        </button>
+      </div>
+    </section>
+
   </div>
 </div>
 

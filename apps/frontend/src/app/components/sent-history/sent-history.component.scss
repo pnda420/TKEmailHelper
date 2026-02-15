@@ -3,7 +3,7 @@
 // ==================== HOST - ONE PAGE LAYOUT ====================
 :host {
   display: block;
-  height: calc(100vh - 57px); // 57px = fixed header
+  height: calc(100vh - $global-header-height); // 57px = fixed header
   overflow: hidden;
 }
 

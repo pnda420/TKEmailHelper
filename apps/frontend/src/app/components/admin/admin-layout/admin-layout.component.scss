@@ -8,7 +8,7 @@ $transition-sidebar: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 // ===== BASE LAYOUT =====
 .admin-layout {
     display: flex;
-    height: calc(100vh - 57px);
+    height: calc(100vh - $global-header-height);
     background: $gradient-bg;
     overflow: hidden;
 }

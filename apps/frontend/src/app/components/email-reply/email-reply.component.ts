@@ -134,6 +134,10 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   analysisKeyFacts: { icon: string; label: string; value: string }[] = [];
   analysisFactSections: { title: string; icon: string; facts: { icon: string; label: string; value: string; copyable?: boolean; link?: string }[] }[] = [];
   customerPhone = '';
+
+  get totalFactCount(): number {
+    return this.analysisFactSections.reduce((sum, s) => sum + s.facts.length, 0);
+  }
   
   // Pre-computed draft state
   hasDraft = false;       // true when a pre-computed reply was loaded
@@ -1517,6 +1521,103 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
       this.analysisKeyFacts.push({ icon: 'recommend', label: 'Empfehlung', value: ev });
     }
 
+    // --- Retouren & Gutschriften ---
+    const retourenMatch = content.match(/(?:Retour(?:en?)?[:\s]+|Retouren-?Nr\.?[:\s]+)([^\n]{3,60})/i);
+    if (retourenMatch) {
+      const rv = retourenMatch[1].trim().replace(/\*\*/g, '');
+      if (!this.looksLikeSentenceFragment(rv)) {
+        this.analysisKeyFacts.push({ icon: 'assignment_return', label: 'Retoure', value: rv });
+      }
+    }
+
+    const gutschriftMatch = content.match(/(?:Gutschrift(?:s?-?Nr\.?)?)[:\s]+([^\n]{3,40})/i);
+    if (gutschriftMatch) {
+      this.analysisKeyFacts.push({ icon: 'receipt_long', label: 'Gutschrift', value: gutschriftMatch[1].trim() });
+    }
+
+    const stornoMatch = content.match(/(?:Storn(?:o|ierung))[:\s]+([^\n]{3,60})/i);
+    if (stornoMatch) {
+      const sv = stornoMatch[1].trim().replace(/\*\*/g, '');
+      if (!this.looksLikeSentenceFragment(sv)) {
+        this.analysisKeyFacts.push({ icon: 'cancel', label: 'Storno', value: sv });
+      }
+    }
+
+    // --- Rabatt / Gutschein / Coupon ---
+    const rabattMatch = content.match(/(?:Rabatt|Gutschein(?:code)?|Coupon)[:\s]+([^\n]{3,40})/i);
+    if (rabattMatch) {
+      const rabV = rabattMatch[1].trim().replace(/\*\*/g, '');
+      if (!this.looksLikeSentenceFragment(rabV)) {
+        this.analysisKeyFacts.push({ icon: 'sell', label: 'Rabatt/Gutschein', value: rabV });
+      }
+    }
+
+    // --- Kundengruppe ---
+    const gruppeMatch = content.match(/(?:Kundengruppe|Kundenkategorie)[:\s]+([^\n]{2,40})/i);
+    if (gruppeMatch) {
+      const gv = gruppeMatch[1].trim().replace(/\*\*/g, '');
+      if (!this.looksLikeSentenceFragment(gv)) {
+        this.analysisKeyFacts.push({ icon: 'groups', label: 'Kundengruppe', value: gv });
+      }
+    }
+
+    // --- Sperre / Gesperrt ---
+    const sperreMatch = content.match(/(?:Gesperrt|Sperre|Kontosperre)[:\s]+([^\n]{2,40})/i);
+    if (sperreMatch) {
+      const spv = sperreMatch[1].trim().replace(/\*\*/g, '');
+      if (!this.looksLikeSentenceFragment(spv) && spv.toLowerCase() !== 'nein') {
+        this.analysisKeyFacts.push({ icon: 'block', label: 'Sperre', value: spv });
+      }
+    }
+
+    // --- Notizen ---
+    const notizenMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?(?:Notiz(?:en)?|Kundennotiz(?:en)?)\*?\*?[:\s]+([^\n]{5,120})/im);
+    if (notizenMatch) {
+      let nv = notizenMatch[1].trim().replace(/\*\*/g, '').replace(/^-\s*/, '');
+      if (nv.length > 80) nv = nv.substring(0, 80) + '…';
+      this.analysisKeyFacts.push({ icon: 'sticky_note_2', label: 'Notiz', value: nv });
+    }
+
+    // --- Bestellter Artikel / Produkt ---
+    const artikelMatch = content.match(/(?:^|\n)\s*[-*]*\s*\*?\*?(?:Bestellte[rs]?\s*Artikel|Artikel(?:name)?|Produkt(?:name)?)\*?\*?[:\s]+([^\n]{3,80})/im);
+    if (artikelMatch && !this.analysisKeyFacts.some(f => f.label === 'Artikel')) {
+      let av = artikelMatch[1].trim().replace(/\*\*/g, '').replace(/^-\s*/, '');
+      if (av.length > 60) av = av.substring(0, 60) + '…';
+      if (!this.looksLikeSentenceFragment(av)) {
+        this.analysisKeyFacts.push({ icon: 'inventory_2', label: 'Artikel', value: av });
+      }
+    }
+
+    // --- Artikelnummer ---
+    const artNrMatch = content.match(/(?:Artikel(?:nummer|Nr\.?)|SKU|EAN)[:\s]+([A-Za-z0-9\-._]{3,30})/i);
+    if (artNrMatch) {
+      this.analysisKeyFacts.push({ icon: 'qr_code', label: 'Artikelnr.', value: artNrMatch[1].trim() });
+    }
+
+    // --- Lagerbestand ---
+    const lagerMatch = content.match(/(?:Lagerbestand|Verfügbar(?:keit)?|Bestand)[:\s]+(\d+[^\n]{0,20})/i);
+    if (lagerMatch) {
+      this.analysisKeyFacts.push({ icon: 'warehouse', label: 'Lagerbestand', value: lagerMatch[1].trim() });
+    }
+
+    // --- Offener Betrag ---
+    const offenMatch = content.match(/(?:Offener?\s*(?:Betrag|Wert|Saldo))[:\s]*[€]?\s*([\d.,]+\s*€?)/i);
+    if (offenMatch) {
+      const ov = offenMatch[1].trim().replace(/€$/, '');
+      if (/^[\d.,]+$/.test(ov) && parseFloat(ov.replace(',', '.')) > 0) {
+        this.analysisKeyFacts.push({ icon: 'account_balance', label: 'Offener Betrag', value: `€${ov}` });
+      }
+    }
+
+    // --- Priorität / Dringlichkeit ---
+    const prioMatch = content.match(/(?:Priorit[aä]t|Dringlichkeit)[:\s]+([^\n]{2,30})/i);
+    if (prioMatch) {
+      const pv = prioMatch[1].trim().replace(/\*\*/g, '');
+      if (!this.looksLikeSentenceFragment(pv)) {
+        this.analysisKeyFacts.push({ icon: 'priority_high', label: 'Priorität', value: pv });
+      }
+    }
+
     if (this.analysisKeyFacts.length === 0) {
       this.analysisKeyFacts.push({ icon: 'info', label: 'Status', value: 'Kundenkontext wurde geladen' });
     }
@@ -1539,12 +1640,14 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     // Define which labels belong to which section
     const contactLabels = ['Kunde', 'Kd-Nr.', 'Firma', 'E-Mail', 'Telefon', 'Mobil'];
     const addressLabels = ['Straße', 'Ort'];
-    const accountLabels = ['Kunde seit', 'Sperre'];
-    const orderLabels = ['Umsatz', 'Bestellungen', 'Letzte Bestellung', 'Zahlungsart', 'Tracking', 'Versandstatus', 'Offene Tickets'];
+    const accountLabels = ['Kunde seit', 'Sperre', 'Kundengruppe'];
+    const orderLabels = ['Umsatz', 'Bestellungen', 'Letzte Bestellung', 'Zahlungsart', 'Tracking', 'Versandstatus', 'Offene Tickets', 'Offener Betrag'];
     const productLabels = ['Artikel', 'Artikelnr.', 'VK-Preis', 'Preis', 'Verfügbarkeit', 'Lagerbestand', 'Warengruppe', 'Bestellter Artikel', 'Bestellte Artikel'];
-    const contextLabels = ['Anliegen', 'Empfehlung'];
+    const returnLabels = ['Retoure', 'Gutschrift', 'Storno', 'Rabatt/Gutschein'];
+    const notesLabels = ['Notiz'];
+    const contextLabels = ['Anliegen', 'Empfehlung', 'Priorität'];
 
-    const copyableLabels = new Set(['E-Mail', 'Telefon', 'Mobil', 'Kd-Nr.', 'Tracking']);
+    const copyableLabels = new Set(['E-Mail', 'Telefon', 'Mobil', 'Kd-Nr.', 'Tracking', 'Artikelnr.', 'Gutschrift']);
     const linkLabels: Record<string, (v: string) => string> = {
       'E-Mail': (v) => `mailto:${v}`,
       'Telefon': (v) => `tel:${v}`,
@@ -1569,10 +1672,12 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     buildSection('Konto', 'manage_accounts', accountLabels);
     buildSection('Bestellungen & Umsatz', 'shopping_cart', orderLabels);
     buildSection('Produkte', 'inventory_2', productLabels);
+    buildSection('Retouren & Gutschriften', 'assignment_return', returnLabels);
+    buildSection('Notizen', 'sticky_note_2', notesLabels);
     buildSection('Anfrage', 'support_agent', contextLabels);
 
     // Catch any facts that don't fit into predefined sections
-    const allKnownLabels = new Set([...contactLabels, ...addressLabels, ...accountLabels, ...orderLabels, ...productLabels, ...contextLabels]);
+    const allKnownLabels = new Set([...contactLabels, ...addressLabels, ...accountLabels, ...orderLabels, ...productLabels, ...returnLabels, ...notesLabels, ...contextLabels]);
     const uncategorized = this.analysisKeyFacts.filter(f => !allKnownLabels.has(f.label));
     if (uncategorized.length > 0) {
       this.analysisFactSections.push({

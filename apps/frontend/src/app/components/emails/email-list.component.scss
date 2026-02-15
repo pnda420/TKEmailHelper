@@ -17,11 +17,12 @@ $g700: #374151;
 $g800: #1f2937;
 $g900: #111827;
 
+
 //  HOST 
 :host {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 57px);
+  height: calc(100vh - $global-header-height);
   overflow: hidden;
 }
 
@@ -796,6 +797,52 @@ $g900: #111827;
   &.danger:hover { color: $red; background: rgba($red, .05); border-color: rgba($red, .2); }
 }
 
+.hero-view-buttons {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 10px;
+  border: 1px solid $g200;
+  background: $g50;
+  padding: 2px;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.hero-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: $g400;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .18s cubic-bezier(.23, 1, .32, 1);
+  white-space: nowrap;
+
+  .material-symbols-outlined { font-size: 15px; }
+
+  &:hover {
+    color: $g600;
+    background: rgba(#fff, .6);
+  }
+
+  &.active {
+    background: #fff;
+    color: $accent;
+    border-color: rgba($accent, .15);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+
+    .material-symbols-outlined {
+      color: $accent;
+    }
+  }
+}
+
 .hero-view-toggle {
   display: inline-flex;
   align-items: center;
@@ -1376,6 +1423,138 @@ $g900: #111827;
     &::-webkit-scrollbar-track { background: transparent; }
     &::-webkit-scrollbar-thumb { background: $g300; border-radius: 2px; }
   }
+
+  // ── Currently processing email card ──
+  &__current {
+    padding: 0.5rem 0.75rem;
+    background: linear-gradient(135deg, rgba(#8b5cf6, 0.06), rgba($accent, 0.08));
+    border-bottom: 1px solid rgba($accent, 0.1);
+    flex-shrink: 0;
+  }
+
+  &__current-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.5625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #8b5cf6;
+    margin-bottom: 3px;
+  }
+
+  &__current-pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #8b5cf6;
+    animation: idlePulse 1.5s infinite;
+  }
+
+  &__current-subject {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: $g800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+
+  &__current-step {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.625rem;
+    color: $g500;
+    margin-top: 2px;
+    font-style: italic;
+
+    .material-symbols-outlined {
+      font-size: 12px;
+      color: #8b5cf6;
+    }
+  }
+
+  // ── Log filter chips ──
+  &__filters {
+    display: flex;
+    gap: 4px;
+    padding: 0.375rem 0.75rem;
+    border-bottom: 1px solid rgba($g200, .5);
+    flex-shrink: 0;
+    overflow-x: auto;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  // ── Scroll to bottom FAB ──
+  &__scroll-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid $g200;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    color: $g600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all .15s;
+    z-index: 5;
+
+    .material-symbols-outlined { font-size: 16px; }
+
+    &:hover {
+      background: $accent;
+      color: #fff;
+      border-color: $accent;
+    }
+  }
+}
+
+.ai-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid $g200;
+  background: transparent;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  color: $g500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .12s;
+
+  .material-symbols-outlined { font-size: 11px; }
+
+  .chip-count {
+    padding: 0 4px;
+    border-radius: 8px;
+    background: rgba($red, 0.1);
+    color: $red;
+    font-size: 0.5rem;
+    font-weight: 700;
+  }
+
+  &:hover {
+    border-color: rgba($accent, 0.3);
+    color: $accent;
+  }
+
+  &.active {
+    background: rgba($accent, 0.08);
+    border-color: rgba($accent, 0.25);
+    color: $accent;
+  }
 }
 
 .ai-stat {
@@ -1394,6 +1573,7 @@ $g900: #111827;
     font-variant-numeric: tabular-nums;
 
     &.highlight { color: $accent; }
+    &.highlight-error { color: $red; }
   }
 
   &__lbl {

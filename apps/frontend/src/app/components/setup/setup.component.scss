@@ -14,12 +14,12 @@ $g900: #111827;
 
 :host {
   display: block;
-  min-height: calc(100vh - 57px);
+  min-height: calc(100vh - $global-header-height);
   background: linear-gradient(135deg, #f0f0ff 0%, #f8f9ff 40%, #eef2ff 100%);
 }
 
 .setup-page {
-  min-height: calc(100vh - 57px);
+  min-height: calc(100vh - $global-header-height);
   display: flex;
   align-items: flex-start;
   justify-content: center;

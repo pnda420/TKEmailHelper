@@ -191,4 +191,60 @@ export const JTL_TOOLS: Array<{
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_customer_notes',
+      description: 'Zeigt alle Notizen/Bemerkungen die an einem Kunden hinterlegt sind. Enthält interne Hinweise, Warnungen und Kommentare vom Support-Team. SEHR WICHTIG für Kontext!',
+      parameters: {
+        type: 'object',
+        properties: {
+          kKunde: { type: 'number', description: 'Kunden-ID' },
+        },
+        required: ['kKunde'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_product_variants',
+      description: 'Zeigt alle Varianten eines Artikels (z.B. Farben, Größen) mit Lagerbestand und Preis pro Variante. Nutze dies wenn ein Kunde nach einer bestimmten Variante fragt.',
+      parameters: {
+        type: 'object',
+        properties: {
+          kArtikel: { type: 'number', description: 'Artikel-ID (kArtikel) – kann Vater- oder Kindartikel sein' },
+        },
+        required: ['kArtikel'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_customer_returns',
+      description: 'Zeigt Retouren und zugehörige Gutschriften eines Kunden. Nutze dies bei Reklamationen, Rücksendungen oder wenn der Kunde nach einer Gutschrift fragt.',
+      parameters: {
+        type: 'object',
+        properties: {
+          kKunde: { type: 'number', description: 'Kunden-ID' },
+        },
+        required: ['kKunde'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_order_payments',
+      description: 'Zeigt alle Zahlungseingänge zu einem Auftrag: Betrag, Datum, Zahlungsart, offener Restbetrag. Nutze dies bei Fragen wie "Habe ich schon bezahlt?" oder Mahnungen.',
+      parameters: {
+        type: 'object',
+        properties: {
+          auftragsNr: { type: 'string', description: 'Auftragsnummer' },
+        },
+        required: ['auftragsNr'],
+      },
+    },
+  },
 ];

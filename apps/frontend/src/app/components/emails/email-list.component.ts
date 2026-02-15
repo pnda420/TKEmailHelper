@@ -96,6 +96,12 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   terminalLogs: TerminalLogEntry[] = [];
   terminalEta: string | null = null;
   terminalElapsed: string | null = null;
+  terminalFilter: 'all' | 'steps' | 'progress' | 'errors' = 'all';
+  terminalStepCount = 0;
+  terminalErrorCount = 0;
+  currentProcessingSubject: string | null = null;
+  currentProcessingStep: string | null = null;
+  isTerminalAtBottom = true;
   private processingStartTime: number | null = null;
   private shouldScrollTerminal = false;
   private etaInterval?: any;
@@ -155,16 +161,83 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   // ==================== TERMINAL LOG ====================
 
+  private readonly toolLabels: Record<string, string> = {
+    'find_customer': 'Kunden suchen',
+    'find_customer_by_email': 'Kunden per E-Mail suchen',
+    'get_customer_orders': 'Aufträge laden',
+    'get_order_details': 'Auftragsdetails laden',
+    'get_order_shipping': 'Versandstatus laden',
+    'get_order_invoice': 'Rechnungsinfos laden',
+    'get_customer_tickets': 'Tickets laden',
+    'get_customer_full_context': 'Kundenkontext laden',
+    'search_product': 'Produkt suchen',
+    'get_product_details': 'Produktdetails laden',
+    'get_product_stock': 'Lagerbestand prüfen',
+    'get_customer_bought_products': 'Bestellhistorie laden',
+    'get_customer_notes': 'Kundennotizen laden',
+    'get_product_variants': 'Produktvarianten laden',
+    'get_customer_returns': 'Retouren laden',
+    'get_order_payments': 'Zahlungen prüfen',
+  };
+
+  private getToolLabel(toolName: string): string {
+    return this.toolLabels[toolName] || toolName;
+  }
+
+  private formatToolResult(toolName: string, result: any): string | undefined {
+    if (!result) return undefined;
+    try {
+      switch (toolName) {
+        case 'get_customer_notes': {
+          const notes = Array.isArray(result) ? result : [result];
+          if (notes.length === 0) return 'Keine Notizen vorhanden';
+          return notes.slice(0, 5).map((n: any) =>
+            `→ [${n.NotizTyp}] ${n.dErstellt}: ${(n.cNotiz || '').substring(0, 100)}`
+          ).join('\n');
+        }
+        case 'get_product_variants': {
+          if (!result || result.message) return result?.message || 'Keine Varianten';
+          const v = result;
+          return `→ ${v.eigenschaften?.length || 0} Eigenschaften (${v.eigenschaften?.map((e: any) => e.EigenschaftName).join(', ')})\n→ ${v.varianten?.length || 0} Varianten verfügbar`;
+        }
+        case 'get_customer_returns': {
+          const returns = Array.isArray(result) ? result : [result];
+          if (returns.length === 0) return 'Keine Retouren';
+          return returns.slice(0, 3).map((r: any) =>
+            `→ ${r.cRetoureNr} (${r.dErstellt})${r.cGutschriftNr ? ' – Gutschrift: ' + r.cGutschriftNr : ''}`
+          ).join('\n');
+        }
+        case 'get_order_payments': {
+          const payments = Array.isArray(result) ? result : [result];
+          if (payments.length === 0) return 'Keine Zahlungen gefunden';
+          const total = payments.reduce((sum: number, p: any) => sum + (p.fBetrag || 0), 0);
+          return payments.map((p: any) =>
+            `→ ${p.dDatum}: ${p.fBetrag}€ (${p.Zahlungsart})`
+          ).join('\n') + `\n→ Gesamt bezahlt: ${total.toFixed(2)}€, Offen: ${payments[0]?.fOffenerWert || 0}€`;
+        }
+        default:
+          return undefined;
+      }
+    } catch {
+      return undefined;
+    }
+  }
+
   private pushLog(type: TerminalLogEntry['type'], message: string, detail?: string): void {
     this.terminalLogs.push({ timestamp: new Date(), type, message, detail });
+    // Track counts
+    if (type === 'step') this.terminalStepCount++;
+    if (type === 'error') this.terminalErrorCount++;
     // Keep max 500 entries
     if (this.terminalLogs.length > 500) {
       this.terminalLogs = this.terminalLogs.slice(-400);
     }
-    this.shouldScrollTerminal = true;
+    if (this.isTerminalAtBottom) {
+      this.shouldScrollTerminal = true;
+    }
   }
 
-  private scrollTerminalToBottom(): void {
+  scrollTerminalToBottom(): void {
     if (this.terminalBody?.nativeElement) {
       const el = this.terminalBody.nativeElement;
       el.scrollTop = el.scrollHeight;
@@ -226,6 +299,30 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
   clearTerminal(): void {
     this.terminalLogs = [];
     this.terminalEta = null;
+    this.terminalStepCount = 0;
+    this.terminalErrorCount = 0;
+    this.currentProcessingSubject = null;
+    this.currentProcessingStep = null;
+  }
+
+  get filteredTerminalLogs(): TerminalLogEntry[] {
+    switch (this.terminalFilter) {
+      case 'steps':
+        return this.terminalLogs.filter(l => l.type === 'step' || l.type === 'system');
+      case 'progress':
+        return this.terminalLogs.filter(l => l.type === 'progress' || l.type === 'success' || l.type === 'system');
+      case 'errors':
+        return this.terminalLogs.filter(l => l.type === 'error' || l.type === 'warn');
+      default:
+        return this.terminalLogs;
+    }
+  }
+
+  onTerminalScroll(): void {
+    if (this.terminalBody?.nativeElement) {
+      const el = this.terminalBody.nativeElement;
+      this.isTerminalAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    }
   }
 
   ngOnDestroy(): void {
@@ -458,14 +555,21 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
                 const step = data.step;
                 if (!step) break;
                 if (step.type === 'tool_call') {
-                  this.pushLog('step', `→ Tool: ${step.tool}`, step.summary);
+                  const toolLabel = this.getToolLabel(step.tool);
+                  this.currentProcessingStep = toolLabel;
+                  this.pushLog('step', `→ ${toolLabel}`, step.summary);
                 } else if (step.type === 'tool_result') {
-                  this.pushLog('step', `← ${step.tool} fertig`, step.summary);
+                  const toolLabel = this.getToolLabel(step.tool);
+                  const formatted = this.formatToolResult(step.tool, step.result);
+                  this.pushLog('step', `← ${toolLabel} fertig`, formatted || step.summary);
                 } else if (step.type === 'reply') {
+                  this.currentProcessingStep = 'Antwort wird generiert…';
                   this.pushLog('step', '✎ Antwort wird generiert...');
                 } else if (step.type === 'complete') {
+                  this.currentProcessingStep = null;
                   this.pushLog('step', '✓ Agent-Analyse abgeschlossen');
                 } else if (step.type === 'error') {
+                  this.currentProcessingStep = null;
                   this.pushLog('error', `Agent-Fehler: ${step.summary || 'Unbekannt'}`);
                 }
                 break;
@@ -483,8 +587,15 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
                   const subject = data.email.subject?.substring(0, 60) || `#${data.email.id}`;
                   const tags = data.email.aiTags?.length ? ` [${data.email.aiTags.join(', ')}]` : '';
                   this.pushLog('progress', `[${data.processed}/${data.total}] ✓ ${subject}${tags}`);
+                  // Track next email subject (the one AFTER the just-finished one)
+                  this.currentProcessingSubject = null;
+                  this.currentProcessingStep = null;
                 } else {
                   this.pushLog('progress', `[${data.processed}/${data.total}] verarbeitet`);
+                }
+                // Pre-set current email subject if available
+                if (data.currentSubject) {
+                  this.currentProcessingSubject = data.currentSubject;
                 }
                 if (data.failed > 0) {
                   this.pushLog('warn', `${data.failed} fehlgeschlagen bisher`);
@@ -500,6 +611,8 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
                 this.aiProcessing = false;
                 this.processingStartTime = null;
                 this.terminalEta = null;
+                this.currentProcessingSubject = null;
+                this.currentProcessingStep = null;
                 this.stopEtaTimer();
                 this.closeEventSource();
                 this.loadEmails();

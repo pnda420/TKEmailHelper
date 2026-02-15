@@ -61,6 +61,12 @@
     </span>
     <div class="pricing-models">
       <div class="pricing-model">
+        <span class="pricing-model-name flagship">GPT-5.2</span>
+        <span class="pricing-tag input">Input $1.75</span>
+        <span class="pricing-tag cached">Cached $0.175</span>
+        <span class="pricing-tag output">Output $14.00</span>
+      </div>
+      <div class="pricing-model">
         <span class="pricing-model-name">GPT-5</span>
         <span class="pricing-tag input">Input $1.25</span>
         <span class="pricing-tag cached">Cached $0.125</span>
@@ -129,6 +135,7 @@
     </select>
     <select [(ngModel)]="modelFilter" (change)="applyFilters()" class="filter-select">
       <option value="">Alle Modelle</option>
+      <option value="gpt-5.2">gpt-5.2</option>
       <option value="gpt-5">gpt-5</option>
       <option value="gpt-5-mini">gpt-5-mini</option>
     </select>

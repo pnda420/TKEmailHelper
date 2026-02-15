@@ -3,8 +3,8 @@ import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { Subscription, forkJoin } from 'rxjs';
 import { trigger, transition, style, animate, stagger, query } from '@angular/animations';
-import { ApiService, EmailStats, AiUsageStats } from '../../api/api.service';
-import { AuthService } from '../../services/auth.service';
+import { ApiService, EmailStats, AiUsageStats, UserMailbox } from '../../api/api.service';
+import { AuthService, User } from '../../services/auth.service';
 import { ToastService } from '../../shared/toasts/toast.service';
 
 @Component({
@@ -22,9 +22,9 @@ import { ToastService } from '../../shared/toasts/toast.service';
     ]),
     trigger('staggerCards', [
       transition(':enter', [
-        query('.stat-card', [
+        query('.anim-item', [
           style({ opacity: 0, transform: 'translateY(20px) scale(.96)' }),
-          stagger(100, [
+          stagger(80, [
             animate('500ms cubic-bezier(.23,1,.32,1)', style({ opacity: 1, transform: 'translateY(0) scale(1)' }))
           ])
         ], { optional: true })
@@ -42,16 +42,28 @@ export class HomeComponent implements OnInit, OnDestroy {
   emailStats: EmailStats = { inbox: 0, sent: 0, trash: 0, unread: 0 };
   templateCount = 0;
   aiStats: AiUsageStats | null = null;
+  mailboxes: UserMailbox[] = [];
+  user: User | null = null;
 
   loading = true;
   now = new Date();
   formattedDate = '';
+  formattedTime = '';
 
   private subs: Subscription[] = [];
   private clockInterval: any;
 
   get isAdmin(): boolean {
     return this.authService.isAdmin();
+  }
+
+  get firstName(): string {
+    if (!this.user?.name) return '';
+    return this.user.name.split(' ')[0];
+  }
+
+  get activeMailboxCount(): number {
+    return this.mailboxes.filter(m => m.isActive).length;
   }
 
   constructor(
@@ -62,6 +74,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.user = this.authService.getCurrentUser();
     this.updateDate();
     this.loadDashboard();
     this.clockInterval = setInterval(() => { this.now = new Date(); this.updateDate(); }, 60_000);
@@ -78,11 +91,13 @@ export class HomeComponent implements OnInit, OnDestroy {
       stats: this.api.getEmailStats(),
       templates: this.api.getEmailTemplates(),
       ai: this.api.getAiUsageStats(30),
+      mailboxes: this.api.getMyMailboxes(),
     }).subscribe({
-      next: ({ stats, templates, ai }) => {
+      next: ({ stats, templates, ai, mailboxes }) => {
         this.emailStats = stats;
         this.templateCount = templates.length;
         this.aiStats = ai;
+        this.mailboxes = mailboxes;
         this.loading = false;
       },
       error: () => { this.loading = false; }
@@ -92,9 +107,20 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   getGreeting(): string {
     const h = this.now.getHours();
-    if (h < 12) return 'Guten Morgen';
-    if (h < 18) return 'Guten Tag';
-    return 'Guten Abend';
+    if (h < 6) return 'Gute Nacht,';
+    if (h < 12) return 'Guten Morgen,';
+    if (h < 18) return 'Guten Tag,';
+    if (h < 22) return 'Guten Abend,';
+    return 'Gute Nacht,';
+  }
+
+  getGreetingIcon(): string {
+    const h = this.now.getHours();
+    if (h < 6) return 'dark_mode';
+    if (h < 12) return 'wb_sunny';
+    if (h < 18) return 'light_mode';
+    if (h < 22) return 'nights_stay';
+    return 'dark_mode';
   }
 
   formatTokens(tokens: number): string {
@@ -117,6 +143,9 @@ export class HomeComponent implements OnInit, OnDestroy {
   private updateDate(): void {
     this.formattedDate = this.now.toLocaleDateString('de-DE', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+    this.formattedTime = this.now.toLocaleTimeString('de-DE', {
+      hour: '2-digit', minute: '2-digit'
     });
   }
 }
