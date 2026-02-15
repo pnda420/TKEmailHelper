@@ -329,6 +329,43 @@
 }
 
 // ════════════════════════════════════════════════════════════
+// PASSWORD INPUT WITH TOGGLE
+// ════════════════════════════════════════════════════════════
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  .admin-input {
+    padding-right: 42px;
+  }
+
+  .password-toggle-btn {
+    position: absolute;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: none;
+    border-radius: $radius-sm;
+    cursor: pointer;
+    color: $color-text-tertiary;
+    transition: all $transition-fast;
+
+    &:hover {
+      color: $color-text-primary;
+      background: rgba($color-gray-200, 0.5);
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════
 // SIGNATURE TAB
 // ════════════════════════════════════════════════════════════
 

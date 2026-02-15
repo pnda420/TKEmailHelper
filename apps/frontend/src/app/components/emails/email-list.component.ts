@@ -146,6 +146,7 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // Re-fetch when user toggles active mailboxes in the header
     this.mailboxSub = this.mailboxState.mailboxChanged$.subscribe(() => {
+      this.selectedEmail = null;
       this.offset = 0;
       this.loadEmails();
       this.loadMailboxes();

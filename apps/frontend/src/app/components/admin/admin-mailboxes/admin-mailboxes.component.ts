@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ApiService, Mailbox, CreateMailboxDto, UpdateMailboxDto } from '../../../api/api.service';
 import { User } from '../../../services/auth.service';
 import { AdminLayoutComponent } from '../admin-layout/admin-layout.component';
@@ -43,6 +44,9 @@ export class AdminMailboxesComponent implements OnInit {
   // Signature preview
   showSignaturePreview = false;
 
+  // Password visibility
+  showPassword = false;
+
   // Connection test
   testing = false;
   testResult: {
@@ -73,6 +77,7 @@ export class AdminMailboxesComponent implements OnInit {
     private api: ApiService,
     private toasts: ToastService,
     private confirmationService: ConfirmationService,
+    private sanitizer: DomSanitizer,
   ) {}
 
   ngOnInit(): void {
@@ -110,15 +115,16 @@ export class AdminMailboxesComponent implements OnInit {
     );
   }
 
-  get signaturePreviewHtml(): string {
+  get signaturePreviewHtml(): SafeHtml {
     if (!this.form.signatureTemplate) return '';
-    return this.form.signatureTemplate
+    const html = this.form.signatureTemplate
       .replace(/\{\{userName\}\}/g, 'Max Mustermann')
       .replace(/\{\{userPosition\}\}/g, 'Geschäftsführer')
       .replace(/\{\{companyName\}\}/g, this.form.companyName || 'Firma GmbH')
       .replace(/\{\{companyPhone\}\}/g, this.form.companyPhone || '+49 123 456789')
       .replace(/\{\{companyWebsite\}\}/g, this.form.companyWebsite || 'www.example.com')
       .replace(/\{\{companyAddress\}\}/g, this.form.companyAddress || 'Musterstr. 1, 12345 Musterstadt');
+    return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
   // ════════════════════════════════════════════
@@ -205,6 +211,7 @@ export class AdminMailboxesComponent implements OnInit {
     this.form = this.getEmptyForm();
     this.activeFormTab = 'basic';
     this.showSignaturePreview = false;
+    this.showPassword = false;
     this.showModal = true;
   }
 
@@ -232,6 +239,7 @@ export class AdminMailboxesComponent implements OnInit {
     };
     this.activeFormTab = 'basic';
     this.showSignaturePreview = false;
+    this.showPassword = false;
     this.showModal = true;
   }
 
@@ -239,6 +247,7 @@ export class AdminMailboxesComponent implements OnInit {
     this.showModal = false;
     this.editingMailbox = null;
     this.showSignaturePreview = false;
+    this.showPassword = false;
     this.testResult = null;
     this.testing = false;
   }

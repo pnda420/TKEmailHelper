@@ -8,7 +8,8 @@
           <span class="material-symbols-outlined ms-fill">mail</span>
           Postfächer
         </h1>
-        <p class="admin-page-subtitle">IMAP/SMTP-Postfächer verwalten, Benutzer zuweisen und Signaturen konfigurieren.</p>
+        <p class="admin-page-subtitle">IMAP/SMTP-Postfächer verwalten, Benutzer zuweisen und Signaturen konfigurieren.
+        </p>
       </div>
       <button class="admin-btn admin-btn--primary" (click)="openCreateModal()">
         <span class="material-symbols-outlined ms-size-20">add</span>
@@ -62,10 +63,8 @@
 
     <!-- ═══════════ MAILBOX CARDS ═══════════ -->
     <div class="mailbox-grid" *ngIf="!loading && mailboxes.length > 0">
-      <div class="mailbox-card" *ngFor="let mb of mailboxes; let i = index"
-        [style.--accent]="mb.color || '#3b82f6'"
-        [style.animation-delay]="i * 0.04 + 's'"
-        [class.mailbox-card--inactive]="!mb.isActive">
+      <div class="mailbox-card" *ngFor="let mb of mailboxes; let i = index" [style.--accent]="mb.color || '#3b82f6'"
+        [style.animation-delay]="i * 0.04 + 's'" [class.mailbox-card--inactive]="!mb.isActive">
 
         <!-- Color accent bar -->
         <div class="mailbox-card__accent" [style.background]="mb.color || '#3b82f6'"></div>
@@ -82,8 +81,10 @@
                 <span class="mailbox-card__email">{{ mb.email }}</span>
               </div>
             </div>
-            <span class="admin-badge" [class.admin-badge--success]="mb.isActive" [class.admin-badge--error]="!mb.isActive">
-              <span class="admin-status-dot" [class.admin-status-dot--active]="mb.isActive" [class.admin-status-dot--error]="!mb.isActive"></span>
+            <span class="admin-badge" [class.admin-badge--success]="mb.isActive"
+              [class.admin-badge--error]="!mb.isActive">
+              <span class="admin-status-dot" [class.admin-status-dot--active]="mb.isActive"
+                [class.admin-status-dot--error]="!mb.isActive"></span>
               {{ mb.isActive ? 'Aktiv' : 'Inaktiv' }}
             </span>
           </div>
@@ -120,23 +121,26 @@
 
           <!-- Actions -->
           <div class="mailbox-card__actions">
-            <button class="admin-btn admin-btn--ghost admin-btn--sm" (click)="openAssignModal(mb)" title="Benutzer zuweisen">
+            <button class="admin-btn admin-btn--ghost admin-btn--sm" (click)="openAssignModal(mb)"
+              title="Benutzer zuweisen">
               <span class="material-symbols-outlined ms-size-18">group_add</span>
               Benutzer
             </button>
             <div class="mailbox-card__actions-right">
-              <button class="admin-btn admin-btn--icon admin-btn--sm" (click)="testConnectionForMailbox(mb)" title="Verbindung testen" [disabled]="testing">
-                <span class="material-symbols-outlined ms-size-18" [class.spin]="testing">{{ testing ? 'progress_activity' : 'cable' }}</span>
+              <button class="admin-btn admin-btn--icon admin-btn--sm" (click)="testConnectionForMailbox(mb)"
+                title="Verbindung testen" [disabled]="testing">
+                <span class="material-symbols-outlined ms-size-18" [class.spin]="testing">{{ testing ?
+                  'progress_activity' : 'cable' }}</span>
               </button>
               <button class="admin-btn admin-btn--icon admin-btn--sm" (click)="openEditModal(mb)" title="Bearbeiten">
                 <span class="material-symbols-outlined ms-size-18">edit</span>
               </button>
               <button class="admin-btn admin-btn--icon admin-btn--sm" (click)="toggleActive(mb)"
-                [title]="mb.isActive ? 'Deaktivieren' : 'Aktivieren'"
-                [class.toggle-active]="mb.isActive">
+                [title]="mb.isActive ? 'Deaktivieren' : 'Aktivieren'" [class.toggle-active]="mb.isActive">
                 <span class="material-symbols-outlined ms-size-18">{{ mb.isActive ? 'toggle_on' : 'toggle_off' }}</span>
               </button>
-              <button class="admin-btn admin-btn--icon admin-btn--sm btn-delete" (click)="deleteMailbox(mb)" title="Löschen">
+              <button class="admin-btn admin-btn--icon admin-btn--sm btn-delete" (click)="deleteMailbox(mb)"
+                title="Löschen">
                 <span class="material-symbols-outlined ms-size-18">delete</span>
               </button>
             </div>
@@ -210,9 +214,16 @@
                   {{ editingMailbox ? 'Neues Passwort' : 'Passwort' }}
                   <span class="required" *ngIf="!editingMailbox">*</span>
                 </label>
-                <input class="admin-input" type="password" [(ngModel)]="form.password" name="password"
-                  placeholder="••••••••" />
-                <span class="admin-form-group__hint" *ngIf="editingMailbox">Leer lassen = Passwort bleibt unverändert</span>
+                <div class="password-input-wrapper">
+                  <input class="admin-input" [type]="showPassword ? 'text' : 'password'" [(ngModel)]="form.password"
+                    name="password"
+                    [placeholder]="editingMailbox ? 'Leer lassen = Passwort bleibt unverändert' : '••••••••'" />
+                  <button type="button" class="password-toggle-btn" (click)="showPassword = !showPassword"
+                    tabindex="-1">
+                    <span class="material-symbols-outlined ms-size-20">{{ showPassword ? 'visibility_off' : 'visibility'
+                      }}</span>
+                  </button>
+                </div>
               </div>
               <div class="admin-form-group">
                 <label class="admin-form-group__label">Erkennungsfarbe</label>
@@ -220,9 +231,8 @@
                   <input type="color" class="color-input" [(ngModel)]="form.color" name="color" />
                   <span class="color-hex">{{ form.color }}</span>
                   <div class="color-presets">
-                    <button type="button" *ngFor="let c of colorPresets" class="color-dot"
-                      [style.background]="c" [class.active]="form.color === c"
-                      (click)="form.color = c" [title]="c"></button>
+                    <button type="button" *ngFor="let c of colorPresets" class="color-dot" [style.background]="c"
+                      [class.active]="form.color === c" (click)="form.color = c" [title]="c"></button>
                   </div>
                 </div>
               </div>
@@ -232,7 +242,7 @@
                 <div class="switch-group">
                   <label class="switch">
                     <input type="checkbox" [(ngModel)]="form.isActive" name="isActive" />
-                    <span class="switch__slider"></span>
+                    <span class="slider"></span>
                   </label>
                   <span class="switch-group__label">Postfach aktiv</span>
                 </div>
@@ -261,7 +271,7 @@
                 <div class="switch-group" style="margin-top: 4px">
                   <label class="switch">
                     <input type="checkbox" [(ngModel)]="form.imapTls" name="imapTls" />
-                    <span class="switch__slider"></span>
+                    <span class="slider"></span>
                   </label>
                   <span class="switch-group__label">TLS</span>
                 </div>
@@ -276,7 +286,6 @@
                 <label class="admin-form-group__label">Quell-Ordner</label>
                 <input class="admin-input" type="text" [(ngModel)]="form.imapSourceFolder" name="imapSourceFolder"
                   placeholder="INBOX" />
-                <span class="admin-form-group__hint">Ordner für eingehende E-Mails</span>
               </div>
               <div class="admin-form-group">
                 <label class="admin-form-group__label">Gesendet-Ordner</label>
@@ -307,7 +316,7 @@
                 <div class="switch-group" style="margin-top: 4px">
                   <label class="switch">
                     <input type="checkbox" [(ngModel)]="form.smtpSecure" name="smtpSecure" />
-                    <span class="switch__slider"></span>
+                    <span class="slider"></span>
                   </label>
                   <span class="switch-group__label">SSL/TLS</span>
                 </div>
@@ -363,15 +372,10 @@
             </div>
 
             <div class="signature-toolbar">
-              <button type="button" class="admin-btn admin-btn--ghost admin-btn--sm" (click)="generateDefaultSignature()">
-                <span class="material-symbols-outlined ms-size-18">auto_awesome</span>
-                Standard generieren
-              </button>
-              <button type="button" class="admin-btn admin-btn--sm"
-                [class.admin-btn--primary]="showSignaturePreview"
-                [class.admin-btn--ghost]="!showSignaturePreview"
-                (click)="showSignaturePreview = !showSignaturePreview">
-                <span class="material-symbols-outlined ms-size-18">{{ showSignaturePreview ? 'code' : 'preview' }}</span>
+              <button type="button" class="admin-btn admin-btn--sm" [class.admin-btn--primary]="showSignaturePreview"
+                [class.admin-btn--ghost]="!showSignaturePreview" (click)="showSignaturePreview = !showSignaturePreview">
+                <span class="material-symbols-outlined ms-size-18">{{ showSignaturePreview ? 'code' : 'preview'
+                  }}</span>
                 {{ showSignaturePreview ? 'HTML bearbeiten' : 'Vorschau' }}
               </button>
             </div>
@@ -380,38 +384,46 @@
               rows="14" class="admin-textarea code-editor"
               placeholder="HTML-Signatur mit Platzhaltern eingeben..."></textarea>
 
+
             <div *ngIf="showSignaturePreview" class="signature-preview">
               <div class="signature-preview__label">Vorschau mit Beispieldaten</div>
               <div class="signature-preview__content" [innerHTML]="signaturePreviewHtml"></div>
             </div>
+            <button type="button" class="admin-btn admin-btn--ghost admin-btn--sm" (click)="generateDefaultSignature()">
+              <span class="material-symbols-outlined ms-size-18">auto_awesome</span>
+              Standard generieren
+            </button>
           </div>
         </form>
       </div>
 
       <div class="admin-modal-footer">
         <div class="modal-footer-left">
-          <button type="button" class="admin-btn admin-btn--ghost admin-btn--sm" *ngIf="canGoPrev"
-            (click)="prevTab()">
+          <button type="button" class="admin-btn admin-btn--ghost admin-btn--sm" *ngIf="canGoPrev" (click)="prevTab()">
             <span class="material-symbols-outlined ms-size-18">arrow_back</span>
             Zurück
           </button>
           <button type="button" class="admin-btn admin-btn--outline admin-btn--sm test-connection-btn"
-            (click)="testConnectionFromForm()" [disabled]="testing || !form.email || !form.imapHost || !form.smtpHost || (!form.password && !editingMailbox)">
-            <span class="material-symbols-outlined ms-size-18" [class.spin]="testing">{{ testing ? 'progress_activity' : 'cable' }}</span>
+            (click)="testConnectionFromForm()"
+            [disabled]="testing || !form.email || !form.imapHost || !form.smtpHost || (!form.password && !editingMailbox)">
+            <span class="material-symbols-outlined ms-size-18" [class.spin]="testing">{{ testing ? 'progress_activity' :
+              'cable' }}</span>
             {{ testing ? 'Teste...' : 'Verbindung testen' }}
           </button>
         </div>
 
         <!-- Connection Test Results (inline) -->
         <div class="connection-test-results" *ngIf="testResult">
-          <span class="test-result-chip" [class.success]="testResult.imap.success" [class.error]="!testResult.imap.success"
-            [title]="testResult.imap.message">
-            <span class="material-symbols-outlined ms-size-16">{{ testResult.imap.success ? 'check_circle' : 'cancel' }}</span>
+          <span class="test-result-chip" [class.success]="testResult.imap.success"
+            [class.error]="!testResult.imap.success" [title]="testResult.imap.message">
+            <span class="material-symbols-outlined ms-size-16">{{ testResult.imap.success ? 'check_circle' : 'cancel'
+              }}</span>
             IMAP <span class="test-duration">{{ testResult.imap.durationMs }}ms</span>
           </span>
-          <span class="test-result-chip" [class.success]="testResult.smtp.success" [class.error]="!testResult.smtp.success"
-            [title]="testResult.smtp.message">
-            <span class="material-symbols-outlined ms-size-16">{{ testResult.smtp.success ? 'check_circle' : 'cancel' }}</span>
+          <span class="test-result-chip" [class.success]="testResult.smtp.success"
+            [class.error]="!testResult.smtp.success" [title]="testResult.smtp.message">
+            <span class="material-symbols-outlined ms-size-16">{{ testResult.smtp.success ? 'check_circle' : 'cancel'
+              }}</span>
             SMTP <span class="test-duration">{{ testResult.smtp.durationMs }}ms</span>
           </span>
         </div>
@@ -478,8 +490,7 @@
             {{ assignedUserIds.length }} von {{ allUsers.length }} Benutzern zugewiesen
           </div>
 
-          <label class="user-assign-row" *ngFor="let u of allUsers"
-            [class.assigned]="isUserAssigned(u.id)">
+          <label class="user-assign-row" *ngFor="let u of allUsers" [class.assigned]="isUserAssigned(u.id)">
             <input type="checkbox" [checked]="isUserAssigned(u.id)" (change)="toggleUserAssignment(u.id)" />
             <div class="user-assign-row__avatar">
               {{ u.name.charAt(0).toUpperCase() }}
@@ -488,8 +499,7 @@
               <span class="user-assign-row__name">{{ u.name }}</span>
               <span class="user-assign-row__email">{{ u.email }}</span>
             </div>
-            <span class="admin-badge admin-badge--sm"
-              [class.admin-badge--warning]="u.role === 'admin'"
+            <span class="admin-badge admin-badge--sm" [class.admin-badge--warning]="u.role === 'admin'"
               [class.admin-badge--primary]="u.role !== 'admin'">
               {{ u.role }}
             </span>
