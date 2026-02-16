@@ -4,17 +4,18 @@ import { RouterModule } from '@angular/router';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { trigger, transition, style, animate, stagger, query } from '@angular/animations';
-import { ApiService, Email } from '../../api/api.service';
+import { ApiService, Email, Mailbox } from '../../api/api.service';
 import { ToastService } from '../../shared/toasts/toast.service';
 import { AttachmentPreviewComponent, AttachmentInfo } from '../../shared/attachment-preview/attachment-preview.component';
 import { ConfigService } from '../../services/config.service';
+import { IdenticonPipe } from '../../shared/identicon.pipe';
 
 type HistoryTab = 'sent' | 'trash';
 
 @Component({
   selector: 'app-email-history',
   standalone: true,
-  imports: [CommonModule, RouterModule, AttachmentPreviewComponent],
+  imports: [CommonModule, RouterModule, AttachmentPreviewComponent, IdenticonPipe],
   templateUrl: './email-history.component.html',
   styleUrls: ['./email-history.component.scss'],
   animations: [
@@ -47,6 +48,9 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
   loadingDetail = false;
   selectedEmail: Email | null = null;
 
+  // Mailbox map
+  mailboxMap = new Map<string, Mailbox>();
+
   // Conversation thread
   threadEmails: Email[] = [];
   threadLoading = false;
@@ -70,6 +74,7 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadEmails();
+    this.loadMailboxes();
   }
 
   ngOnDestroy(): void {
@@ -286,5 +291,29 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
   /** Get display name for "to" addresses */
   getToDisplay(email: Email): string {
     return email.toAddresses?.join(', ') || email.fromAddress || '';
+  }
+
+  // ===== Mailbox helpers =====
+
+  private loadMailboxes(): void {
+    this.api.getMyMailboxes().subscribe({
+      next: (userMailboxes) => {
+        this.mailboxMap.clear();
+        userMailboxes.forEach(um => {
+          if (um.mailbox) {
+            this.mailboxMap.set(um.mailbox.id, um.mailbox as any);
+          }
+        });
+      },
+      error: (err) => console.error('Failed to load mailboxes:', err)
+    });
+  }
+
+  getMailboxName(mailboxId: string): string {
+    return this.mailboxMap.get(mailboxId)?.name || '';
+  }
+
+  getMailboxColor(mailboxId: string): string {
+    return this.mailboxMap.get(mailboxId)?.color || '#1565c0';
   }
 }

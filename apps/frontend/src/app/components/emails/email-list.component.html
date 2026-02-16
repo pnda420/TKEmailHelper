@@ -1,84 +1,91 @@
 <!-- <app-page-title title="Posteingang"></app-page-title> -->
 
 <div class="inbox">
-    <!-- AI processing banner -->
-    <div class="ai-banner" *ngIf="aiProcessing && aiStatus" (click)="terminalOpen = !terminalOpen">
-        <div class="ai-banner__track">
-            <div class="ai-banner__fill"
-                [style.width.%]="aiStatus.total > 0 ? (aiStatus.processed / aiStatus.total) * 100 : 0"></div>
-        </div>
-        <div class="ai-banner__content">
-            <div class="ai-banner__left">
-                <span class="ai-banner__pulse"></span>
-                <span class="ai-banner__icon material-symbols-outlined">auto_awesome</span>
-                <span class="ai-banner__text">
-                    <strong>{{ aiStatus.processed }}<span class="ai-banner__sep">/</span>{{ aiStatus.total }}</strong>
-                    E-Mails analysiert
-                </span>
-            </div>
-            <div class="ai-banner__right">
-                <span class="ai-banner__eta" *ngIf="terminalEta">{{ terminalEta }}</span>
-                <span class="ai-banner__eta" *ngIf="!terminalEta && terminalElapsed">{{ terminalElapsed }}</span>
-                <span class="ai-banner__badge">
-                    <span class="material-symbols-outlined">{{ terminalOpen ? 'close' : 'terminal' }}</span>
-                </span>
-            </div>
-        </div>
-    </div>
 
-    <!-- Compact Toolbar -->
+    <!-- ── Unified Command Bar (single row) ── -->
     <header class="inbox-header">
-        <div class="header-left">
-            <span class="count-badge">{{ totalEmails }} E-Mails</span>
-            <span class="idle-status" [class.connected]="idleConnected"
-                  [title]="idleConnected ? 'IMAP IDLE aktiv — neue Mails werden automatisch erkannt' : 'IMAP IDLE nicht verbunden'">
-                <span class="idle-dot"></span>
-                <span class="idle-label">{{ idleConnected ? 'Live' : 'Offline' }}</span>
-            </span>
-        </div>
+        <div class="header-row">
+            <div class="header-stats">
+                <span class="stat-pill">
+                    <span class="material-symbols-outlined stat-pill__icon">inbox</span>
+                    <strong>{{ totalEmails }}</strong>
+                </span>
+                <span class="idle-chip" [class.connected]="idleConnected"
+                      [title]="idleConnected ? 'IMAP IDLE aktiv — neue Mails werden automatisch erkannt' : 'IMAP IDLE nicht verbunden'">
+                    <span class="idle-chip__dot"></span>
+                    <span class="idle-chip__label">{{ idleConnected ? 'Live' : 'Offline' }}</span>
+                </span>
+            </div>
 
-        <div class="search-box">
-            <span class="material-symbols-outlined search-icon">search</span>
-            <input type="text"
-                   [(ngModel)]="searchQuery"
-                   (input)="onSearchInput()"
-                   placeholder="Suche…"
-                   class="search-input" />
-            <button class="search-clear" *ngIf="searchQuery" (click)="clearSearch()">
-                <span class="material-symbols-outlined">close</span>
-            </button>
-        </div>
+            <span class="header-divider"></span>
 
-        <div class="filter-group">
-            <select class="filter-select" [(ngModel)]="filterTag" (change)="onFilterTagChange()">
-                <option value="">Alle Tags</option>
-                <option *ngFor="let tag of availableTags" [value]="tag">{{ tag }}</option>
-            </select>
-            <select class="filter-select" [ngModel]="filterRead === undefined ? '' : filterRead.toString()"
-                    (ngModelChange)="onFilterReadChange($event)">
-                <option value="">Alle</option>
-                <option value="false">Ungelesen</option>
-                <option value="true">Gelesen</option>
-            </select>
-            <button class="filter-clear" *ngIf="hasActiveFilters" (click)="clearFilters()" title="Filter zurücksetzen">
-                <span class="material-symbols-outlined">filter_list_off</span>
-            </button>
-        </div>
+            <div class="header-filters">
+                <button class="filter-chip" [class.active]="filterRead === undefined" (click)="onFilterReadChange('')">
+                    Alle
+                </button>
+                <button class="filter-chip" [class.active]="filterRead === false" (click)="onFilterReadChange('false')">
+                    <span class="material-symbols-outlined">mark_email_unread</span>
+                    Ungelesen
+                </button>
+                <button class="filter-chip" [class.active]="filterRead === true" (click)="onFilterReadChange('true')">
+                    <span class="material-symbols-outlined">drafts</span>
+                    Gelesen
+                </button>
+                <button class="filter-chip" *ngIf="hasActiveFilters" (click)="clearFilters()">
+                    <span class="material-symbols-outlined">filter_list_off</span>
+                    Zurücksetzen
+                </button>
+            </div>
 
-        <div class="header-actions">
-            <button class="action-btn accent"
-                *ngIf="!aiProcessing && aiStatus && aiStatus.pending > 0"
-                (click)="processWithAi()">
-                <span class="material-symbols-outlined">bolt</span>
-                {{ aiStatus.pending }} analysieren
-            </button>
-            <button class="action-btn"
-                *ngIf="isAdmin"
-                (click)="recalculateAi()"
-                [disabled]="aiProcessing || refreshing"
-                title="Alle E-Mails neu analysieren">
-                Alle neu analysieren
-                <span class="material-symbols-outlined" [class.spin]="aiProcessing">auto_awesome</span>
+            <div class="header-search">
+                <span class="material-symbols-outlined header-search__icon">search</span>
+                <input type="text"
+                       [(ngModel)]="searchQuery"
+                       (input)="onSearchInput()"
+                       placeholder="Suchen…"
+                       class="header-search__input" />
+                <button class="header-search__clear" *ngIf="searchQuery" (click)="clearSearch()">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <div class="header-ai-actions">
+                <!-- AI status indicator (when idle) -->
+                <span class="ai-status-chip" *ngIf="aiStatus && !aiProcessing && aiStatus.pending === 0">
+                    <span class="material-symbols-outlined">check_circle</span>
+                    Alle analysiert
+                </span>
+
+                <!-- Process pending -->
+                <button class="ai-action-btn ai-action-btn--process"
+                    *ngIf="!aiProcessing && aiStatus && aiStatus.pending > 0"
+                    (click)="processWithAi()">
+                    <span class="material-symbols-outlined">bolt</span>
+                    <strong>{{ aiStatus.pending }}</strong> analysieren
+                </button>
+
+                <!-- Processing in progress (mini inline) -->
+                <button class="ai-action-btn ai-action-btn--live"
+                    *ngIf="aiProcessing && aiStatus"
+                    (click)="terminalOpen = !terminalOpen">
+                    <span class="ai-action-btn__pulse"></span>
+                    <span class="material-symbols-outlined">auto_awesome</span>
+                    <span class="ai-action-btn__progress">{{ aiStatus.processed }}/{{ aiStatus.total }}</span>
+                    <span class="material-symbols-outlined ai-action-btn__toggle">{{ terminalOpen ? 'close' : 'terminal' }}</span>
+                </button>
+
+                <!-- Recalculate (admin only) -->
+                <button class="ai-action-btn ai-action-btn--recalc"
+                    *ngIf="isAdmin && !aiProcessing"
+                    (click)="recalculateAi()"
+                    [disabled]="refreshing"
+                    title="Alle E-Mails neu analysieren">
+                    <span class="material-symbols-outlined">auto_awesome</span>
+                </button>
+            </div>
+
+            <button class="header-refresh-btn" (click)="refreshEmails()" [disabled]="refreshing" title="E-Mails abrufen">
+                <span class="material-symbols-outlined" [class.spin]="refreshing">sync</span>
             </button>
         </div>
     </header>

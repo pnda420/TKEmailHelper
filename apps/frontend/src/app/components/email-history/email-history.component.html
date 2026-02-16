@@ -1,37 +1,26 @@
 <section class="history-page">
-  <!-- Page Header -->
-  <header class="page-header">
-    <div class="page-header__left">
-      <div class="page-header__icon">
-        <span class="material-symbols-outlined">history</span>
+  <!-- Command Bar Header -->
+  <header class="inbox-header">
+    <div class="header-row">
+      <div class="header-stats">
+        <span class="stat-pill">
+          <span class="material-symbols-outlined stat-pill__icon">{{ activeTab === 'sent' ? 'send' : 'delete' }}</span>
+          <strong>{{ totalEmails }}</strong>
+        </span>
       </div>
-      <div class="page-header__text">
-        <h1>Verlauf</h1>
-        <p>Gesendet &amp; archivierte E-Mails</p>
-      </div>
-    </div>
-    <div class="page-header__stats" *ngIf="totalEmails > 0">
-      <div class="stat-chip">
-        <span class="material-symbols-outlined">{{ activeTab === 'sent' ? 'send' : 'delete' }}</span>
-        <span>{{ totalEmails }}</span>
-      </div>
+
+      <nav class="tab-pills">
+        <button class="tab-pill" [class.active]="activeTab === 'sent'" (click)="switchTab('sent')">
+          <span class="material-symbols-outlined">send</span>
+          Gesendet
+        </button>
+        <button class="tab-pill" [class.active]="activeTab === 'trash'" (click)="switchTab('trash')">
+          <span class="material-symbols-outlined">delete</span>
+          Papierkorb
+        </button>
+      </nav>
     </div>
   </header>
-
-  <!-- Tab bar -->
-  <nav class="tab-bar">
-    <button class="tab" [class.active]="activeTab === 'sent'" (click)="switchTab('sent')">
-      <span class="tab__icon material-symbols-outlined">send</span>
-      <span class="tab__label">Gesendet</span>
-      <span class="tab__count" *ngIf="activeTab === 'sent' && totalEmails">{{ totalEmails }}</span>
-    </button>
-    <button class="tab" [class.active]="activeTab === 'trash'" (click)="switchTab('trash')">
-      <span class="tab__icon material-symbols-outlined">delete</span>
-      <span class="tab__label">Papierkorb</span>
-      <span class="tab__count" *ngIf="activeTab === 'trash' && totalEmails">{{ totalEmails }}</span>
-    </button>
-    <span class="tab-indicator" [class.right]="activeTab === 'trash'"></span>
-  </nav>
 
   <!-- Loading -->
   <div class="loading-state" *ngIf="loading">
@@ -55,7 +44,6 @@
       </div>
     </div>
     <h3>{{ activeTab === 'sent' ? 'Keine gesendeten E-Mails' : 'Papierkorb ist leer' }}</h3>
-    <p>{{ activeTab === 'sent' ? 'Sobald du E-Mails beantwortest, erscheinen sie hier.' : 'E-Mails, die keine Antwort benötigen, landen hier.' }}</p>
     <a routerLink="/emails" class="cta-btn">
       <span class="material-symbols-outlined">inbox</span>
       Zum Posteingang
@@ -77,8 +65,8 @@
         [class.active]="selectedEmail?.id === email.id"
         (click)="selectEmail(email)">
 
-        <div class="mail-avatar" [class.sent]="activeTab === 'sent'" [class.trash]="activeTab === 'trash'">
-          {{ getSenderInitials(email) }}
+        <div class="mail-avatar"
+             [style.background-image]="email.fromAddress | identicon">
         </div>
 
         <div class="mail-content">
@@ -86,6 +74,12 @@
             <span class="mail-sender">{{ getSenderName(email) }}</span>
             <span class="mail-time">
               {{ formatDate(email.repliedAt || email.receivedAt) }}
+            </span>
+          </div>
+          <div class="mail-mailbox-row" *ngIf="email.mailboxId && getMailboxName(email.mailboxId)">
+            <span class="mailbox-badge"
+              [style.background-color]="getMailboxColor(email.mailboxId)">
+              {{ getMailboxName(email.mailboxId) }}
             </span>
           </div>
           <div class="mail-subject">{{ email.subject }}</div>

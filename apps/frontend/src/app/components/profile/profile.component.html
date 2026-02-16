@@ -71,7 +71,7 @@
         </div>
         <p class="card-desc">Diese Daten werden der KI übergeben, damit sie weiß wer du bist und personalisierte Antworten generieren kann.</p>
 
-        <form (ngSubmit)="saveSignature()" class="ki-form">
+        <div class="ki-form">
           <div class="field">
             <label for="sigName">
               <span class="material-symbols-outlined ms-size-16">person</span>
@@ -86,12 +86,12 @@
             </label>
             <input type="text" id="sigPosition" [(ngModel)]="editSignature.position" name="sigPosition" placeholder="z.B. Geschäftsführer" maxlength="100" />
           </div>
-          <button type="submit" class="btn btn--primary btn--block" [disabled]="signatureSaving">
+          <button type="button" class="btn btn--primary btn--block" *ngIf="hasSignatureChanges()" [disabled]="signatureSaving" (click)="saveSignature()">
             <span class="material-symbols-outlined ms-size-20" *ngIf="!signatureSaving">check</span>
             <span class="spinner-small" *ngIf="signatureSaving"></span>
-            {{ signatureSaving ? 'Speichern...' : 'KI-Kontext speichern' }}
+            {{ signatureSaving ? 'Speichern...' : 'Speichern' }}
           </button>
-        </form>
+        </div>
       </div>
 
       <!-- RIGHT: Zugewiesene Postfächer -->

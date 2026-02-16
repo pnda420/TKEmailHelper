@@ -96,6 +96,7 @@ export class ProfileComponent implements OnInit {
       next: (updatedUser) => {
         localStorage.setItem('current_user', JSON.stringify(updatedUser));
         this.user = updatedUser;
+        this.loadSignatureFromUser(updatedUser);
         this.signatureSaving = false;
         this.toasts.success('KI-Kontext erfolgreich gespeichert!');
       },
@@ -108,6 +109,14 @@ export class ProfileComponent implements OnInit {
 
   hasSignature(): boolean {
     return !!(this.user?.signatureName || this.user?.signaturePosition);
+  }
+
+  hasSignatureChanges(): boolean {
+    if (!this.user) return false;
+    const savedName = this.user.signatureName || '';
+    const savedPosition = this.user.signaturePosition || '';
+    return (this.editSignature.name || '').trim() !== savedName
+        || (this.editSignature.position || '').trim() !== savedPosition;
   }
 
   // ==================== Profile Methods ====================

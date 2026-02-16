@@ -57,12 +57,39 @@ export class AuthService {
     const userJson = localStorage.getItem('current_user');
 
     if (token && userJson) {
+      // Check if token is expired before restoring session
+      if (this.isTokenExpired(token)) {
+        console.warn('🔒 Token abgelaufen — Session wird bereinigt');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('current_user');
+        this.currentUserSubject.next(null);
+        return;
+      }
+
       try {
         const user = JSON.parse(userJson);
         this.currentUserSubject.next(user);
       } catch (e) {
         this.logout();
       }
+    }
+  }
+
+  /**
+   * Decode JWT and check if it's expired.
+   * Returns true if token is expired or invalid.
+   */
+  isTokenExpired(token?: string | null): boolean {
+    const t = token || this.getToken();
+    if (!t) return true;
+
+    try {
+      const payload = JSON.parse(atob(t.split('.')[1]));
+      if (!payload.exp) return false; // No expiry = never expires
+      // Add 30s buffer so we don't use a token that's about to expire
+      return (payload.exp * 1000) < (Date.now() + 30_000);
+    } catch {
+      return true; // Invalid token format
     }
   }
 
@@ -119,10 +146,18 @@ export class AuthService {
     );
   }
 
-  logout() {
+  /**
+   * Clear auth session (token + user) without navigating.
+   * Use this when the interceptor handles navigation.
+   */
+  clearSession() {
     localStorage.removeItem('access_token');
     localStorage.removeItem('current_user');
     this.currentUserSubject.next(null);
+  }
+
+  logout() {
+    this.clearSession();
     this.router.navigate(['/login']);
   }
 
@@ -135,7 +170,19 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    return !!this.getToken() && !!this.getCurrentUser();
+    const token = this.getToken();
+    if (!token || !this.getCurrentUser()) return false;
+    
+    // Also check if token is expired
+    if (this.isTokenExpired(token)) {
+      // Token expired — clean up silently
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('current_user');
+      this.currentUserSubject.next(null);
+      return false;
+    }
+    
+    return true;
   }
 
   isAdmin(): boolean {

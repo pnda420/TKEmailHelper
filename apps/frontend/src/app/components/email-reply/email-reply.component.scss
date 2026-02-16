@@ -144,8 +144,31 @@ $global-header-height: 73px;
   gap: 1rem;
 }
 
+.mailbox-badge {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mail-mailbox-row {
+  margin-top: 3px;
+  margin-bottom: 1px;
+}
+
 .nav-back-btn {
-  width: 38px;
+  padding-left: 5px;
+  padding-right: 5px;
   height: 38px;
   border-radius: 10px;
   border: 1px solid $gray-200;
@@ -155,6 +178,7 @@ $global-header-height: 73px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 5px;
   transition: all 0.15s;
   flex-shrink: 0;
 
@@ -381,13 +405,10 @@ $global-header-height: 73px;
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: linear-gradient(135deg, $primary, $primary-dark);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 0.875rem;
+    background-color: $gray-200;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
     flex-shrink: 0;
   }
 

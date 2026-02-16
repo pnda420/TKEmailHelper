@@ -21,138 +21,87 @@
   padding: 0 1.5rem 1rem;
 }
 
-// ==================== PAGE HEADER ====================
-.page-header {
-    margin-top: 20px;
+// ==================== COMMAND BAR HEADER ====================
+.inbox-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.25rem 0 0.5rem;
   flex-shrink: 0;
-
-  &__left {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  &__icon {
-    width: 44px;
-    height: 44px;
-    border-radius: $radius-md;
-    background: $gradient-primary;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: $shadow-brand;
-
-    .material-symbols-outlined { font-size: 22px; color: #fff; }
-  }
-
-  &__text {
-    h1 {
-      margin: 0;
-      font-size: 1.375rem;
-      font-weight: 800;
-      color: $color-text-primary;
-      letter-spacing: -0.02em;
-    }
-    p {
-      margin: 0;
-      font-size: 0.8rem;
-      color: $color-text-secondary;
-    }
-  }
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid $color-gray-200;
+  margin: 0.75rem 0 0.5rem;
+  overflow: hidden;
 }
 
-.stat-chip {
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  width: 100%;
+}
+
+.header-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.stat-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 0.375rem 0.75rem;
-  background: $glass-bg;
-  border: 1px solid $color-gray-200;
-  border-radius: $radius-full;
-  font-size: 0.8125rem;
-  font-weight: 700;
+  padding: 3px 10px 3px 7px;
+  border-radius: 20px;
+  background: rgba($color-brand-primary, 0.08);
   color: $color-brand-primary;
-  box-shadow: $shadow-xs;
-
-  .material-symbols-outlined { font-size: 16px; }
-}
-
-// ==================== TAB BAR ====================
-.tab-bar {
-  position: relative;
-  display: flex;
-  gap: 0;
-  background: $glass-bg;
-  border: 1px solid $color-gray-200;
-  border-radius: $radius-md;
-  padding: 4px;
-  margin: 0.75rem 0;
-  flex-shrink: 0;
-  box-shadow: $shadow-xs;
-}
-
-.tab {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: $radius-sm;
-  background: transparent;
-  color: $color-text-secondary;
   font-size: 0.8125rem;
   font-weight: 600;
-  cursor: pointer;
-  transition: all .2s ease;
-  position: relative;
-  z-index: 1;
 
-  &__icon { font-size: 18px; }
-
-  &:hover:not(.active) {
-    color: $color-text-primary;
+  &__icon {
+    font-size: 16px !important;
+    color: $color-brand-primary;
   }
 
-  &.active {
-    color: #fff;
+  strong {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
   }
 }
 
-.tab-indicator {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: calc(50% - 4px);
-  height: calc(100% - 8px);
-  background: $gradient-primary;
-  border-radius: $radius-sm;
-  transition: transform .25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: $shadow-brand;
-  z-index: 0;
-
-  &.right {
-    transform: translateX(100%);
-  }
+// ── Tab pills (inline switches) ──
+.tab-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
 }
 
-.tab__count {
+.tab-pill {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: $radius-full;
-  background: rgba(255,255,255,0.3);
-  color: inherit;
-  font-size: 0.6875rem;
-  font-weight: 700;
+  gap: 4px;
+  padding: 5px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: $color-text-secondary;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+
+  .material-symbols-outlined { font-size: 15px; }
+
+  &:hover { background: rgba($color-brand-primary, 0.06); color: $color-text-primary; }
+
+  &.active {
+    background: rgba($color-brand-primary, 0.1);
+    color: $color-brand-primary;
+    border-color: rgba($color-brand-primary, 0.2);
+    font-weight: 700;
+  }
 }
 
 // ==================== LOADING SKELETON ====================
@@ -358,24 +307,38 @@
 
 .mail-avatar {
   width: 38px; height: 38px;
-  border-radius: $radius-sm;
+  border-radius: 50%;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
+  background-color: $color-gray-200;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
   user-select: none;
+}
 
-  &.sent {
-    background: rgba($color-success, 0.1);
-    color: $color-success;
-  }
-  &.trash {
-    background: rgba($color-error, 0.08);
-    color: $color-error;
-  }
+.mailbox-badge {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mail-mailbox-row {
+  margin-top: 3px;
+  margin-bottom: 1px;
 }
 
 .mail-content { flex: 1; min-width: 0; }

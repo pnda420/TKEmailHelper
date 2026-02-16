@@ -4,20 +4,32 @@ import { Observable, throwError } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { ToastService } from '../shared/toasts/toast.service';
 import { Router } from '@angular/router';
+import { AuthService } from './auth.service';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
     private toasts = inject(ToastService);
     private router = inject(Router);
+    private authService = inject(AuthService);
     private rateLimitWarningShown = false;
     private rateLimitToastShown = false;
 
     intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-        // Token direkt aus localStorage holen (kein AuthService!)
+        // Token direkt aus localStorage holen
         const token = localStorage.getItem('access_token');
 
         let request = req;
         if (token) {
+            // Pre-check: if token is expired, don't even send the request
+            if (this.authService.isTokenExpired(token)) {
+                this.authService.clearSession();
+                if (!this.router.url.startsWith('/login') && !this.router.url.startsWith('/welcome')) {
+                    this.toasts.error('Sitzung abgelaufen. Bitte melde dich erneut an.', { duration: 5000 });
+                    this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
+                }
+                return throwError(() => new HttpErrorResponse({ status: 401, statusText: 'Token expired' }));
+            }
+
             request = req.clone({
                 setHeaders: {
                     Authorization: `Bearer ${token}`
@@ -55,8 +67,8 @@ export class AuthInterceptor implements HttpInterceptor {
                     // Nur ausloggen wenn wir einen Token hatten (nicht bei Login-Versuchen)
                     const hadToken = localStorage.getItem('access_token');
                     if (hadToken) {
-                        localStorage.removeItem('access_token');
-                        localStorage.removeItem('current_user');
+                        // Use clearSession() to sync header/UI (we handle navigation below)
+                        this.authService.clearSession();
                         
                         // Nur Toast zeigen wenn wir nicht bereits auf der Login-Seite sind
                         if (!this.router.url.startsWith('/login')) {

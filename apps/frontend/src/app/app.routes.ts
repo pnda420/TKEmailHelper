@@ -39,7 +39,7 @@ export const routes: Routes = [
     { path: 'setup', component: SetupComponent, canActivate: [authGuard], title: pageMainName + ' | Einrichtung', data: { description: 'Profil einrichten.' } },
 
     // 🛡️ Geschützte Seiten (Login erforderlich)
-    { path: '', component: HomeComponent, canActivate: [authGuard], title: pageMainName, data: { description: 'Email Helper Dashboard - Verwalte deine E-Mails effizient mit KI-Unterstützung.' } },
+    { path: '', component: HomeComponent, canActivate: [authGuard], title: pageMainName + ' | Home', data: { description: 'Email Helper Dashboard - Verwalte deine E-Mails effizient mit KI-Unterstützung.' } },
     { path: 'about', component: AboutComponent, canActivate: [authGuard], title: pageMainName + ' | Über uns', data: { description: 'Über TK Email Helper.' } },
     { path: 'profile', component: ProfileComponent, canActivate: [authGuard], title: pageMainName + ' | Profil', data: { description: 'Dein Profil.' } },
     { path: 'emails', component: EmailListComponent, canActivate: [authGuard], title: pageMainName + ' | Posteingang', data: { description: 'E-Mail Posteingang.' } },

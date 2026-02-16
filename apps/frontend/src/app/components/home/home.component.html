@@ -72,20 +72,20 @@
             <span class="stat-card__lbl">Gesendet</span>
           </div>
         </button>
-        <button class="stat-card anim-item" (click)="router.navigate(['/history'])">
+        <!-- <button class="stat-card anim-item" (click)="router.navigate(['/history'])">
           <span class="stat-card__icon trash"><span class="material-symbols-outlined">delete</span></span>
           <div class="stat-card__data">
             <span class="stat-card__val">{{ emailStats.trash }}</span>
             <span class="stat-card__lbl">Papierkorb</span>
           </div>
-        </button>
-        <button class="stat-card anim-item" (click)="router.navigate(['/templates'])">
+        </button> -->
+        <!-- <button class="stat-card anim-item" (click)="router.navigate(['/templates'])">
           <span class="stat-card__icon tmpl"><span class="material-symbols-outlined">description</span></span>
           <div class="stat-card__data">
             <span class="stat-card__val">{{ templateCount }}</span>
             <span class="stat-card__lbl">Vorlagen</span>
           </div>
-        </button>
+        </button> -->
         <button class="stat-card anim-item" *ngIf="isAdmin" (click)="router.navigate(['/admin/ai-usage'])">
           <span class="stat-card__icon ai"><span class="material-symbols-outlined">auto_awesome</span></span>
           <div class="stat-card__data">

@@ -12,13 +12,14 @@ import { ToastService } from '../../shared/toasts/toast.service';
 import { AttachmentPreviewComponent, AttachmentInfo } from '../../shared/attachment-preview/attachment-preview.component';
 import { ConfigService } from '../../services/config.service';
 import { AuthService, User } from '../../services/auth.service';
+import { IdenticonPipe } from '../../shared/identicon.pipe';
 
 type WorkflowStep = 'select' | 'customize' | 'edit' | 'send';
 
 @Component({
   selector: 'app-email-reply',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, AttachmentPreviewComponent, AngularSplitModule],
+  imports: [CommonModule, RouterModule, FormsModule, AttachmentPreviewComponent, AngularSplitModule, IdenticonPipe],
   templateUrl: './email-reply.component.html',
   styleUrls: ['./email-reply.component.scss'],
   animations: [
@@ -55,6 +56,9 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   email: Email | null = null;
   loading = true;
   
+  // Mailbox map for sidebar display
+  mailboxMap = new Map<string, Mailbox>();
+
   // Workflow State
   currentStep: WorkflowStep = 'select';
   allSteps: WorkflowStep[] = ['select', 'customize', 'edit', 'send'];
@@ -201,6 +205,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     this.emailId = this.route.snapshot.params['id'];
     this.loadEmail();
     this.loadTemplates();
+    this.loadMailboxes();
     this.initSpeechRecognition();
     
     // Subscribe to current user for signature
@@ -1262,6 +1267,30 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
       },
       error: (err) => console.error('Failed to load mailbox for signature:', err)
     });
+  }
+
+  // ==================== MAILBOX MAP ====================
+
+  private loadMailboxes(): void {
+    this.api.getMyMailboxes().subscribe({
+      next: (userMailboxes) => {
+        this.mailboxMap.clear();
+        userMailboxes.forEach(um => {
+          if (um.mailbox) {
+            this.mailboxMap.set(um.mailbox.id, um.mailbox as any);
+          }
+        });
+      },
+      error: (err) => console.error('Failed to load mailboxes:', err)
+    });
+  }
+
+  getMailboxName(mailboxId: string): string {
+    return this.mailboxMap.get(mailboxId)?.name || '';
+  }
+
+  getMailboxColor(mailboxId: string): string {
+    return this.mailboxMap.get(mailboxId)?.color || '#1565c0';
   }
 
   // ==================== AI AGENT ANALYSIS (Pre-computed) ====================
