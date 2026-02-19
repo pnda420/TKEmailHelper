@@ -7,7 +7,10 @@ import {
   Body,
   Param,
   UseGuards,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { EmailTemplatesService, CreateTemplateDto, UpdateTemplateDto, GenerateEmailDto, ReviseEmailDto, SendReplyDto } from './email-templates.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -77,7 +80,14 @@ export class EmailTemplatesController {
   // ==================== SEND EMAIL ====================
 
   @Post('send')
-  async sendReply(@Body() dto: SendReplyDto, @CurrentUser() user: User) {
-    return this.templatesService.sendReply(dto, user);
+  @UseInterceptors(FilesInterceptor('attachments', 20, {
+    limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB per file
+  }))
+  async sendReply(
+    @Body() dto: SendReplyDto,
+    @UploadedFiles() files: Express.Multer.File[],
+    @CurrentUser() user: User,
+  ) {
+    return this.templatesService.sendReply(dto, user, files);
   }
 }

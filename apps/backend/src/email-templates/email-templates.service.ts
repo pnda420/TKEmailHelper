@@ -398,7 +398,7 @@ ${revisionInstructions}
       .replace(/"/g, '&quot;');
   }
 
-  async sendReply(dto: SendReplyDto, user?: User): Promise<{ success: boolean; messageId?: string }> {
+  async sendReply(dto: SendReplyDto, user?: User, files?: Express.Multer.File[]): Promise<{ success: boolean; messageId?: string }> {
     // Resolve mailbox (from DTO or from the email's stored mailboxId)
     let mailbox: Mailbox | null = null;
     if (dto.mailboxId) {
@@ -482,6 +482,15 @@ ${quotedOriginalHtml}
         inReplyTo: dto.inReplyTo,
         references: referencesChain || undefined,
       };
+
+      // Attach uploaded files if any
+      if (files?.length) {
+        mailOptions.attachments = files.map((file) => ({
+          filename: file.originalname,
+          content: file.buffer,
+          contentType: file.mimetype,
+        }));
+      }
 
       const info = await activeTransporter.sendMail(mailOptions);
       this.logger.log(`Email sent: ${info.messageId}`);

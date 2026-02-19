@@ -1368,9 +1368,24 @@ getAITemplateRecommendation(subject: string, body: string): Observable<{
 }
 
 /**
- * E-Mail senden
+ * E-Mail senden (with optional file attachments via FormData)
  */
-sendEmailReply(dto: SendReplyDto): Observable<SendReplyResponse> {
+sendEmailReply(dto: SendReplyDto, attachments?: File[]): Observable<SendReplyResponse> {
+  if (attachments?.length) {
+    const formData = new FormData();
+    // Append all DTO fields
+    for (const [key, value] of Object.entries(dto)) {
+      if (value !== undefined && value !== null) {
+        formData.append(key, String(value));
+      }
+    }
+    // Append files
+    for (const file of attachments) {
+      formData.append('attachments', file, file.name);
+    }
+    // Don't set Content-Type — browser sets it with boundary for multipart/form-data
+    return this.http.post<SendReplyResponse>(`${this.apiUrl}/email-templates/send`, formData);
+  }
   return this.http.post<SendReplyResponse>(`${this.apiUrl}/email-templates/send`, dto, {
     headers: this.getHeaders()
   });

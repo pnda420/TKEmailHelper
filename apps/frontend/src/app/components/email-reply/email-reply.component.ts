@@ -150,6 +150,15 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   // Mailbox signature (resolved from mailbox template)
   mailboxSignature = '';
   
+  // Reply-To address (editable)
+  replyToAddress = '';                // The address we'll actually send to
+  parsedEmailAddresses: string[] = []; // Emails extracted from the email body
+  showRecipientDropdown = false;      // Dropdown open state
+
+  // Reply attachments (outgoing)
+  replyAttachments: File[] = [];      // Files the user wants to attach to the reply
+  isDraggingOver = false;             // Drag & drop hover state
+
   // Revision feature
   originalReplyBody = ''; // Stores the original AI-generated reply for diff tracking
   originalReplySubject = '';
@@ -261,10 +270,14 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     this.api.getEmailById(this.emailId).subscribe({
       next: (email) => {
         this.email = email;
+        this.replyToAddress = email.fromAddress;
         this.replySubject = email.subject.startsWith('Re:') 
           ? email.subject 
           : `Re: ${email.subject}`;
         this.loading = false;
+
+        // Parse email addresses from the email body
+        this.parsedEmailAddresses = this.extractEmailsFromBody(email);
         
         // Load attachments for preview
         if (email.attachments?.length) {
@@ -781,7 +794,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
 
     this.api.sendEmailReply({
       emailId: this.email.id,
-      to: this.email.fromAddress,
+      to: this.replyToAddress,
       subject: this.replySubject,
       body: this.replyBody,
       inReplyTo: this.email.messageId,
@@ -793,7 +806,7 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
       originalHtmlBody: this.email.htmlBody || undefined,
       originalTextBody: this.email.textBody || undefined,
       mailboxId: this.email.mailboxId || undefined,
-    }).subscribe({
+    }, this.replyAttachments.length ? this.replyAttachments : undefined).subscribe({
       next: () => {
         this.toasts.success('E-Mail wurde gesendet und archiviert!');
         this.sendingReply = false;
@@ -830,6 +843,151 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
   }
 
   // ==================== HELPERS ====================
+
+  /** Extract all unique email addresses from the email body text/html */
+  private extractEmailsFromBody(email: Email): string[] {
+    const bodyText = email.textBody || this.stripHtml(email.htmlBody || '');
+    const regex = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+    const found = bodyText.match(regex) || [];
+    // Deduplicate and exclude the fromAddress (it's already the default)
+    const unique = [...new Set(found.map(e => e.toLowerCase()))]
+      .filter(e => e !== email.fromAddress?.toLowerCase());
+    return unique;
+  }
+
+  /** Select a recipient from the dropdown */
+  selectRecipient(address: string): void {
+    this.replyToAddress = address;
+    this.showRecipientDropdown = false;
+  }
+
+  /** Toggle recipient dropdown */
+  toggleRecipientDropdown(): void {
+    if (this.recipientOptions.length > 0) {
+      this.showRecipientDropdown = !this.showRecipientDropdown;
+    }
+  }
+
+  /** Close dropdown when clicking outside */
+  closeRecipientDropdown(): void {
+    // Small timeout so the click event on an option fires first
+    setTimeout(() => this.showRecipientDropdown = false, 150);
+  }
+
+  /** All available recipient options (default + parsed) */
+  get recipientOptions(): string[] {
+    if (!this.email) return [];
+    const options = [this.email.fromAddress];
+    for (const addr of this.parsedEmailAddresses) {
+      if (!options.some(o => o.toLowerCase() === addr.toLowerCase())) {
+        options.push(addr);
+      }
+    }
+    return options;
+  }
+
+  /** Whether the replyTo was changed from default */
+  get isRecipientChanged(): boolean {
+    return !!this.email && this.replyToAddress.toLowerCase() !== this.email.fromAddress.toLowerCase();
+  }
+
+  // ==================== REPLY ATTACHMENTS ====================
+
+  /** Handle file input (click to browse) */
+  onAttachmentFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files) {
+      this.addFiles(Array.from(input.files));
+      input.value = ''; // reset so same file can be re-selected
+    }
+  }
+
+  /** Handle drop event */
+  onAttachmentDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDraggingOver = false;
+    if (event.dataTransfer?.files) {
+      this.addFiles(Array.from(event.dataTransfer.files));
+    }
+  }
+
+  /** Handle dragover */
+  onAttachmentDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDraggingOver = true;
+  }
+
+  /** Handle dragleave */
+  onAttachmentDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDraggingOver = false;
+  }
+
+  /** Add files with duplicate check */
+  private addFiles(files: File[]): void {
+    for (const file of files) {
+      const exists = this.replyAttachments.some(
+        f => f.name === file.name && f.size === file.size
+      );
+      if (!exists) {
+        this.replyAttachments = [...this.replyAttachments, file];
+      }
+    }
+  }
+
+  /** Remove an attachment */
+  removeReplyAttachment(index: number): void {
+    this.replyAttachments = this.replyAttachments.filter((_, i) => i !== index);
+  }
+
+  /** Preview an attachment (for images/PDFs) */
+  previewReplyAttachment(file: File): void {
+    const url = URL.createObjectURL(file);
+    const previewAttachment: AttachmentInfo = {
+      filename: file.name,
+      contentType: file.type,
+      size: file.size,
+      url: url,
+    };
+    this.selectedAttachment = previewAttachment;
+    this.currentAttachments = this.replyAttachments.map(f => ({
+      filename: f.name,
+      contentType: f.type,
+      size: f.size,
+      url: URL.createObjectURL(f),
+    }));
+    this.attachmentPreviewOpen = true;
+  }
+
+  /** Format file size for display */
+  formatAttachmentSize(bytes: number): string {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  /** Get total reply attachments size */
+  get totalAttachmentSize(): number {
+    return this.replyAttachments.reduce((sum, f) => sum + f.size, 0);
+  }
+
+  /** Get icon for file type */
+  getFileIcon(file: File): string {
+    const type = file.type;
+    if (type.startsWith('image/')) return 'image';
+    if (type === 'application/pdf') return 'picture_as_pdf';
+    if (type.includes('spreadsheet') || type.includes('excel') || file.name.match(/\.xlsx?$/i)) return 'table_chart';
+    if (type.includes('word') || type.includes('document') || file.name.match(/\.docx?$/i)) return 'description';
+    if (type.includes('presentation') || type.includes('powerpoint') || file.name.match(/\.pptx?$/i)) return 'slideshow';
+    if (type.startsWith('video/')) return 'movie';
+    if (type.startsWith('audio/')) return 'audio_file';
+    if (type.includes('zip') || type.includes('rar') || type.includes('7z') || type.includes('tar')) return 'folder_zip';
+    if (type.includes('text') || file.name.match(/\.(txt|csv|log|md)$/i)) return 'text_snippet';
+    return 'attach_file';
+  }
 
   private stripHtml(html: string): string {
     const tmp = document.createElement('div');
