@@ -63,10 +63,16 @@ export class EmailsController {
    */
   @Get('sent')
   async getSentEmails(
+    @CurrentUser() user: User,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query('search') search?: string,
+    @Query('tag') tag?: string,
+    @Query('sort') sort?: string,
+    @Query('hasAttachments') hasAttachments?: string,
   ) {
-    return this.emailsService.getSentEmails(limit, offset);
+    const mailboxIds = await this.mailboxesService.getActiveMailboxIdsForUser(user.id);
+    return this.emailsService.getSentEmails(limit, offset, search, tag, sort, hasAttachments === 'true' ? true : undefined, mailboxIds.length > 0 ? mailboxIds : undefined);
   }
 
   /**
@@ -74,10 +80,16 @@ export class EmailsController {
    */
   @Get('trash')
   async getTrashedEmails(
+    @CurrentUser() user: User,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query('search') search?: string,
+    @Query('tag') tag?: string,
+    @Query('sort') sort?: string,
+    @Query('hasAttachments') hasAttachments?: string,
   ) {
-    return this.emailsService.getTrashedEmails(limit, offset);
+    const mailboxIds = await this.mailboxesService.getActiveMailboxIdsForUser(user.id);
+    return this.emailsService.getTrashedEmails(limit, offset, search, tag, sort, hasAttachments === 'true' ? true : undefined, mailboxIds.length > 0 ? mailboxIds : undefined);
   }
 
   /**

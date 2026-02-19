@@ -1052,10 +1052,14 @@ markEmailAsRead(id: string): Observable<Email> {
 /**
  * Gesendete E-Mails abrufen
  */
-getSentEmails(limit = 50, offset = 0): Observable<EmailListResponse> {
-  const params = new HttpParams()
+getSentEmails(limit = 50, offset = 0, search?: string, tag?: string, sort?: string, hasAttachments?: boolean): Observable<EmailListResponse> {
+  let params = new HttpParams()
     .set('limit', limit.toString())
     .set('offset', offset.toString());
+  if (search) params = params.set('search', search);
+  if (tag) params = params.set('tag', tag);
+  if (sort) params = params.set('sort', sort);
+  if (hasAttachments) params = params.set('hasAttachments', 'true');
   return this.http.get<EmailListResponse>(`${this.apiUrl}/emails/sent`, {
     headers: this.getHeaders(),
     params
@@ -1065,10 +1069,14 @@ getSentEmails(limit = 50, offset = 0): Observable<EmailListResponse> {
 /**
  * Papierkorb-E-Mails abrufen
  */
-getTrashedEmails(limit = 50, offset = 0): Observable<EmailListResponse> {
-  const params = new HttpParams()
+getTrashedEmails(limit = 50, offset = 0, search?: string, tag?: string, sort?: string, hasAttachments?: boolean): Observable<EmailListResponse> {
+  let params = new HttpParams()
     .set('limit', limit.toString())
     .set('offset', offset.toString());
+  if (search) params = params.set('search', search);
+  if (tag) params = params.set('tag', tag);
+  if (sort) params = params.set('sort', sort);
+  if (hasAttachments) params = params.set('hasAttachments', 'true');
   return this.http.get<EmailListResponse>(`${this.apiUrl}/emails/trash`, {
     headers: this.getHeaders(),
     params

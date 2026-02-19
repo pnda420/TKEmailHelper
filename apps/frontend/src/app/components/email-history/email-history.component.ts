@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { trigger, transition, style, animate, stagger, query } from '@angular/animations';
@@ -11,11 +12,12 @@ import { ConfigService } from '../../services/config.service';
 import { IdenticonPipe } from '../../shared/identicon.pipe';
 
 type HistoryTab = 'sent' | 'trash';
+type SortOption = 'receivedAt_desc' | 'receivedAt_asc' | 'repliedAt_desc' | 'repliedAt_asc';
 
 @Component({
   selector: 'app-email-history',
   standalone: true,
-  imports: [CommonModule, RouterModule, AttachmentPreviewComponent, IdenticonPipe],
+  imports: [CommonModule, RouterModule, FormsModule, AttachmentPreviewComponent, IdenticonPipe],
   templateUrl: './email-history.component.html',
   styleUrls: ['./email-history.component.scss'],
   animations: [
@@ -48,6 +50,22 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
   loadingDetail = false;
   selectedEmail: Email | null = null;
 
+  // Search & Filter & Sort
+  searchQuery = '';
+  filterTag = '';
+  sortBy: SortOption = 'receivedAt_desc';
+  filterAttachments = false;
+  availableTags: string[] = [];
+  private searchDebounceTimer?: any;
+
+  // Sort options for dropdown
+  sortOptions: { value: SortOption; label: string; icon: string }[] = [
+    { value: 'receivedAt_desc', label: 'Neueste zuerst', icon: 'arrow_downward' },
+    { value: 'receivedAt_asc', label: 'Älteste zuerst', icon: 'arrow_upward' },
+    { value: 'repliedAt_desc', label: 'Antwort (neueste)', icon: 'reply' },
+    { value: 'repliedAt_asc', label: 'Antwort (älteste)', icon: 'reply' },
+  ];
+
   // Mailbox map
   mailboxMap = new Map<string, Mailbox>();
 
@@ -75,11 +93,13 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadEmails();
     this.loadMailboxes();
+    this.loadAvailableTags();
   }
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
     this.detailSub?.unsubscribe();
+    if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
   }
 
   switchTab(tab: HistoryTab): void {
@@ -91,11 +111,70 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
     this.loadEmails();
   }
 
+  // ==================== SEARCH & FILTER ====================
+
+  onSearchInput(): void {
+    if (this.searchDebounceTimer) clearTimeout(this.searchDebounceTimer);
+    this.searchDebounceTimer = setTimeout(() => {
+      this.resetAndLoad();
+    }, 350);
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.resetAndLoad();
+  }
+
+  onSortChange(): void {
+    this.resetAndLoad();
+  }
+
+  onFilterTagChange(): void {
+    this.resetAndLoad();
+  }
+
+  toggleAttachmentFilter(): void {
+    this.filterAttachments = !this.filterAttachments;
+    this.resetAndLoad();
+  }
+
+  clearFilters(): void {
+    this.searchQuery = '';
+    this.filterTag = '';
+    this.sortBy = 'receivedAt_desc';
+    this.filterAttachments = false;
+    this.resetAndLoad();
+  }
+
+  get hasActiveFilters(): boolean {
+    return !!(this.searchQuery || this.filterTag || this.filterAttachments || this.sortBy !== 'receivedAt_desc');
+  }
+
+  private resetAndLoad(): void {
+    this.offset = 0;
+    this.emails = [];
+    this.loadEmails();
+  }
+
+  private loadAvailableTags(): void {
+    this.api.getAvailableTags().subscribe({
+      next: (res) => this.availableTags = res.tags,
+      error: () => this.availableTags = [],
+    });
+  }
+
+  // ==================== DATA LOADING ====================
+
   loadEmails(): void {
     this.loading = true;
+    const search = this.searchQuery || undefined;
+    const tag = this.filterTag || undefined;
+    const sort = this.sortBy !== 'receivedAt_desc' ? this.sortBy : undefined;
+    const hasAtt = this.filterAttachments || undefined;
+
     const obs = this.activeTab === 'sent'
-      ? this.api.getSentEmails(this.limit, this.offset)
-      : this.api.getTrashedEmails(this.limit, this.offset);
+      ? this.api.getSentEmails(this.limit, this.offset, search, tag, sort, hasAtt)
+      : this.api.getTrashedEmails(this.limit, this.offset, search, tag, sort, hasAtt);
 
     this.sub = obs.subscribe({
       next: (res) => {
@@ -166,9 +245,17 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
     }));
   }
 
-  openAttachmentPreview(att: { filename: string; contentType: string; size: number }, index: number): void {
-    if (!this.selectedEmail) return;
-    this.selectedAttachment = this.currentAttachments[index];
+  /** Get attachment infos for any email (used in thread view) */
+  getThreadAttachmentInfos(email: Email): AttachmentInfo[] {
+    return this.getAttachmentInfos(email);
+  }
+
+  openAttachmentPreview(att: { filename: string; contentType: string; size: number }, index: number, email?: Email): void {
+    const target = email || this.selectedEmail;
+    if (!target) return;
+    const infos = this.getAttachmentInfos(target);
+    this.currentAttachments = infos;
+    this.selectedAttachment = infos[index];
     this.attachmentPreviewOpen = true;
   }
 
@@ -212,9 +299,14 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
 
   loadMore(): void {
     this.offset += this.limit;
+    const search = this.searchQuery || undefined;
+    const tag = this.filterTag || undefined;
+    const sort = this.sortBy !== 'receivedAt_desc' ? this.sortBy : undefined;
+    const hasAtt = this.filterAttachments || undefined;
+
     const obs = this.activeTab === 'sent'
-      ? this.api.getSentEmails(this.limit, this.offset)
-      : this.api.getTrashedEmails(this.limit, this.offset);
+      ? this.api.getSentEmails(this.limit, this.offset, search, tag, sort, hasAtt)
+      : this.api.getTrashedEmails(this.limit, this.offset, search, tag, sort, hasAtt);
 
     obs.subscribe({
       next: (res) => { this.emails = [...this.emails, ...res.emails]; },
@@ -224,6 +316,33 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
 
   get hasMore(): boolean {
     return this.emails.length < this.totalEmails;
+  }
+
+  /** Get the response time duration between receivedAt and repliedAt */
+  getResponseTime(email: Email): string {
+    if (!email.repliedAt || !email.receivedAt) return '';
+    const received = new Date(email.receivedAt).getTime();
+    const replied = new Date(email.repliedAt).getTime();
+    const diff = replied - received;
+    if (diff < 0) return '';
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return '< 1 Min';
+    if (minutes < 60) return `${minutes} Min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} Std ${minutes % 60} Min`;
+    const days = Math.floor(hours / 24);
+    return `${days} Tag${days > 1 ? 'e' : ''} ${hours % 24} Std`;
+  }
+
+  /** Get CSS class for response time badge */
+  getResponseTimeClass(email: Email): string {
+    if (!email.repliedAt || !email.receivedAt) return '';
+    const diff = new Date(email.repliedAt).getTime() - new Date(email.receivedAt).getTime();
+    const hours = diff / 3600000;
+    if (hours < 1) return 'rt-fast';
+    if (hours < 4) return 'rt-ok';
+    if (hours < 24) return 'rt-slow';
+    return 'rt-very-slow';
   }
 
   // ===== Helpers =====
@@ -291,6 +410,11 @@ export class EmailHistoryComponent implements OnInit, OnDestroy {
   /** Get display name for "to" addresses */
   getToDisplay(email: Email): string {
     return email.toAddresses?.join(', ') || email.fromAddress || '';
+  }
+
+  /** Get current sort option label */
+  get currentSortLabel(): string {
+    return this.sortOptions.find(o => o.value === this.sortBy)?.label || 'Sortierung';
   }
 
   // ===== Mailbox helpers =====

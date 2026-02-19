@@ -9,6 +9,8 @@
         </span>
       </div>
 
+      <span class="header-divider"></span>
+
       <nav class="tab-pills">
         <button class="tab-pill" [class.active]="activeTab === 'sent'" (click)="switchTab('sent')">
           <span class="material-symbols-outlined">send</span>
@@ -19,6 +21,45 @@
           Papierkorb
         </button>
       </nav>
+
+      <span class="header-divider"></span>
+
+      <!-- Filter Chips -->
+      <div class="header-filters">
+        <button class="filter-chip" [class.active]="filterAttachments" (click)="toggleAttachmentFilter()" title="Nur mit Anhängen">
+          <span class="material-symbols-outlined">attach_file</span>
+          Anhänge
+        </button>
+        <!-- <select class="filter-select" [(ngModel)]="filterTag" (ngModelChange)="onFilterTagChange()" *ngIf="availableTags.length">
+          <option value="">Alle Tags</option>
+          <option *ngFor="let tag of availableTags" [value]="tag">{{ tag }}</option>
+        </select> -->
+        <button class="filter-chip reset" *ngIf="hasActiveFilters" (click)="clearFilters()">
+          <span class="material-symbols-outlined">filter_list_off</span>
+          Zurücksetzen
+        </button>
+      </div>
+
+      <!-- Sort Dropdown -->
+      <div class="header-sort">
+        <span class="material-symbols-outlined sort-icon">sort</span>
+        <select class="sort-select" [(ngModel)]="sortBy" (ngModelChange)="onSortChange()">
+          <option *ngFor="let opt of sortOptions" [value]="opt.value">{{ opt.label }}</option>
+        </select>
+      </div>
+
+      <!-- Search -->
+      <div class="header-search">
+        <span class="material-symbols-outlined header-search__icon">search</span>
+        <input type="text"
+               [(ngModel)]="searchQuery"
+               (input)="onSearchInput()"
+               placeholder="Betreff, Absender, Inhalt…"
+               class="header-search__input" />
+        <button class="header-search__clear" *ngIf="searchQuery" (click)="clearSearch()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -43,8 +84,13 @@
         <span class="material-symbols-outlined">{{ activeTab === 'sent' ? 'forward_to_inbox' : 'recycling' }}</span>
       </div>
     </div>
-    <h3>{{ activeTab === 'sent' ? 'Keine gesendeten E-Mails' : 'Papierkorb ist leer' }}</h3>
-    <a routerLink="/emails" class="cta-btn">
+    <h3>{{ hasActiveFilters ? 'Keine Ergebnisse' : (activeTab === 'sent' ? 'Keine gesendeten E-Mails' : 'Papierkorb ist leer') }}</h3>
+    <p *ngIf="hasActiveFilters">Versuche andere Filter oder Suchbegriffe</p>
+    <button *ngIf="hasActiveFilters" class="cta-btn" (click)="clearFilters()">
+      <span class="material-symbols-outlined">filter_list_off</span>
+      Filter zurücksetzen
+    </button>
+    <a *ngIf="!hasActiveFilters" routerLink="/emails" class="cta-btn">
       <span class="material-symbols-outlined">inbox</span>
       Zum Posteingang
     </a>
@@ -54,7 +100,7 @@
   <div class="split" *ngIf="!loading && emails.length > 0">
     <!-- List pane -->
     <div class="list-pane" [class.has-detail]="selectedEmail" [@listAnimation]="emails.length">
-      <!-- Search / filter hint -->
+      <!-- List header with count -->
       <div class="list-header">
         <span class="list-header__count">{{ emails.length }} von {{ totalEmails }}</span>
         <span class="list-header__label">{{ activeTab === 'sent' ? 'Gesendet' : 'Papierkorb' }}</span>
@@ -84,14 +130,32 @@
           </div>
           <div class="mail-subject">{{ email.subject }}</div>
           <div class="mail-snippet">{{ getListSnippet(email) | slice:0:120 }}</div>
-          <!-- AI Tags in list -->
-          <div class="mail-tags" *ngIf="email.aiTags?.length">
-            <span class="mail-tag" *ngFor="let tag of email.aiTags | slice:0:3">{{ tag }}</span>
+
+          <!-- Response time badge in list -->
+          <div class="mail-bottom-row">
+            <div class="mail-tags" *ngIf="email.aiTags?.length">
+              <span class="mail-tag" *ngFor="let tag of email.aiTags | slice:0:3">{{ tag }}</span>
+            </div>
+            <span class="response-time-badge" *ngIf="getResponseTime(email)" [ngClass]="getResponseTimeClass(email)" title="Antwortzeit">
+              <span class="material-symbols-outlined">timer</span>
+              {{ getResponseTime(email) }}
+            </span>
+          </div>
+
+          <!-- Attachment chips in list -->
+          <div class="mail-attachments-mini" *ngIf="email.attachments?.length">
+            <span class="material-symbols-outlined att-mini-icon">attach_file</span>
+            <span class="att-mini-count">{{ email.attachments!.length }}</span>
+            <span class="att-mini-names" *ngFor="let att of email.attachments | slice:0:2">
+              {{ att.filename | slice:0:20 }}{{ att.filename.length > 20 ? '…' : '' }}
+            </span>
+            <span class="att-mini-more" *ngIf="email.attachments!.length > 2">
+              +{{ email.attachments!.length - 2 }}
+            </span>
           </div>
         </div>
 
         <div class="mail-meta">
-          <span class="material-symbols-outlined clip-icon" *ngIf="email.attachments?.length">attach_file</span>
           <span class="material-symbols-outlined status-icon sent-icon" *ngIf="email.repliedAt && activeTab === 'sent'" title="Beantwortet">reply</span>
           <button class="restore-inline" *ngIf="activeTab === 'trash'" (click)="restoreEmail(email, $event)" title="Wiederherstellen">
             <span class="material-symbols-outlined">restore</span>
@@ -113,6 +177,11 @@
         </button>
         <div class="detail-bar__subject">{{ selectedEmail.subject }}</div>
         <div class="detail-bar__spacer"></div>
+        <!-- Response time in detail bar -->
+        <span class="detail-bar__rt" *ngIf="getResponseTime(selectedEmail)" [ngClass]="getResponseTimeClass(selectedEmail)">
+          <span class="material-symbols-outlined">timer</span>
+          {{ getResponseTime(selectedEmail) }}
+        </span>
         <button class="restore-btn" *ngIf="activeTab === 'trash'" (click)="restoreEmail(selectedEmail)">
           <span class="material-symbols-outlined">restore</span>
           Wiederherstellen
@@ -147,6 +216,14 @@
               <span class="material-symbols-outlined">schedule</span>
               <span>Empfangen: {{ formatFullDate(selectedEmail.receivedAt) }}</span>
             </div>
+            <div class="conversation-date" *ngIf="selectedEmail.repliedAt">
+              <span class="material-symbols-outlined">reply</span>
+              <span>Beantwortet: {{ formatFullDate(selectedEmail.repliedAt) }}</span>
+            </div>
+            <div class="conversation-rt" *ngIf="getResponseTime(selectedEmail)">
+              <span class="material-symbols-outlined">timer</span>
+              <span>Antwortzeit: <strong [ngClass]="getResponseTimeClass(selectedEmail)">{{ getResponseTime(selectedEmail) }}</strong></span>
+            </div>
           </div>
         </div>
 
@@ -176,6 +253,25 @@
                 <span class="keyfact__value">{{ fact.value }}</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Attachments Card (detail view) -->
+        <div class="attachments-card" *ngIf="selectedEmail.attachments?.length">
+          <div class="attachments-card__header">
+            <span class="material-symbols-outlined">attach_file</span>
+            <span>{{ selectedEmail.attachments!.length }} Anhang{{ selectedEmail.attachments!.length > 1 ? 'e' : '' }}</span>
+          </div>
+          <div class="attachments-card__grid">
+            <button class="att-chip-card" *ngFor="let att of selectedEmail.attachments; let i = index" (click)="openAttachmentPreview(att, i)">
+              <div class="att-chip-card__icon">
+                <span class="material-symbols-outlined">{{ getFileIcon(att.contentType) }}</span>
+              </div>
+              <div class="att-chip-card__info">
+                <span class="att-chip-card__name">{{ att.filename }}</span>
+                <span class="att-chip-card__size">{{ formatFileSize(att.size) }}</span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -213,6 +309,22 @@
                   <pre class="body-text" *ngIf="te.status !== 'sent'">{{ te.cleanedBody || te.textBody || te.preview || '(Kein Inhalt)' }}</pre>
                   <pre class="body-text" *ngIf="te.status === 'sent' && !te.replySentBody">{{ te.preview || '(Kein Inhalt)' }}</pre>
                 </div>
+
+                <!-- Attachments in thread messages -->
+                <div class="thread-msg__attachments" *ngIf="te.attachments?.length">
+                  <div class="thread-att-header">
+                    <span class="material-symbols-outlined">attach_file</span>
+                    {{ te.attachments!.length }} Anhang{{ te.attachments!.length > 1 ? 'e' : '' }}
+                  </div>
+                  <div class="thread-att-list">
+                    <button class="att-chip mini" *ngFor="let att of te.attachments; let ai = index" (click)="openAttachmentPreview(att, ai, te)">
+                      <span class="material-symbols-outlined">{{ getFileIcon(att.contentType) }}</span>
+                      <span class="att-name">{{ att.filename }}</span>
+                      <span class="att-size">{{ formatFileSize(att.size) }}</span>
+                    </button>
+                  </div>
+                </div>
+
                 <div class="thread-msg__tags" *ngIf="te.aiTags?.length">
                   <span class="ai-tag mini" *ngFor="let tag of te.aiTags">{{ tag }}</span>
                 </div>
@@ -298,7 +410,7 @@
                 </div>
               </div>
 
-              <!-- Attachments -->
+              <!-- Attachments (fallback single view) -->
               <div class="attachments" *ngIf="selectedEmail.attachments?.length">
                 <div class="att-header">
                   <span class="material-symbols-outlined">attach_file</span>

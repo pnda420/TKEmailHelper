@@ -361,6 +361,8 @@ export class EmailsService {
     filterTag?: string,
     filterRead?: boolean,
     mailboxIds?: string[],
+    sortBy?: string,
+    hasAttachments?: boolean,
   ): Promise<{ emails: Email[]; total: number }> {
     const qb = this.emailRepository.createQueryBuilder('email');
 
@@ -412,7 +414,22 @@ export class EmailsService {
       'email.createdAt', 'email.updatedAt',
     ]);
 
-    qb.orderBy('email.receivedAt', 'DESC');
+    // Filter by hasAttachments
+    if (hasAttachments === true) {
+      qb.andWhere('email.hasAttachments = :hasAtt', { hasAtt: true });
+    }
+
+    // Sort order
+    if (sortBy === 'repliedAt_asc') {
+      qb.orderBy('email.repliedAt', 'ASC', 'NULLS LAST');
+    } else if (sortBy === 'repliedAt_desc') {
+      qb.orderBy('email.repliedAt', 'DESC', 'NULLS LAST');
+    } else if (sortBy === 'receivedAt_asc') {
+      qb.orderBy('email.receivedAt', 'ASC');
+    } else {
+      qb.orderBy('email.receivedAt', 'DESC');
+    }
+
     qb.take(limit);
     qb.skip(offset);
 
@@ -423,15 +440,23 @@ export class EmailsService {
   /**
    * Get sent emails
    */
-  async getSentEmails(limit = 50, offset = 0): Promise<{ emails: Email[]; total: number }> {
-    return this.getAllEmails(limit, offset, EmailStatus.SENT);
+  async getSentEmails(
+    limit = 50, offset = 0,
+    search?: string, filterTag?: string, sortBy?: string,
+    hasAttachments?: boolean, mailboxIds?: string[],
+  ): Promise<{ emails: Email[]; total: number }> {
+    return this.getAllEmails(limit, offset, EmailStatus.SENT, search, filterTag, undefined, mailboxIds, sortBy, hasAttachments);
   }
 
   /**
    * Get trashed emails
    */
-  async getTrashedEmails(limit = 50, offset = 0): Promise<{ emails: Email[]; total: number }> {
-    return this.getAllEmails(limit, offset, EmailStatus.TRASH);
+  async getTrashedEmails(
+    limit = 50, offset = 0,
+    search?: string, filterTag?: string, sortBy?: string,
+    hasAttachments?: boolean, mailboxIds?: string[],
+  ): Promise<{ emails: Email[]; total: number }> {
+    return this.getAllEmails(limit, offset, EmailStatus.TRASH, search, filterTag, undefined, mailboxIds, sortBy, hasAttachments);
   }
 
   /**
