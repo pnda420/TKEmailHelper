@@ -35,6 +35,10 @@
           <div class="mailbox-card__body">
             <span class="mailbox-card__name">{{ um.mailbox.name }}</span>
             <span class="mailbox-card__email">{{ um.mailbox.email }}</span>
+            <div class="mailbox-card__auto-delete" *ngIf="um.mailbox.spamAutoDeleteCategories && um.mailbox.spamAutoDeleteCategories.length > 0">
+              <span class="material-symbols-outlined">auto_delete</span>
+              <span class="mailbox-card__cat-tag" *ngFor="let cat of um.mailbox.spamAutoDeleteCategories" [class]="getCategoryClass(cat)">{{ getCategoryLabel(cat) }}</span>
+            </div>
           </div>
           <div class="mailbox-card__status">
             <span class="mailbox-card__dot" [class.active]="um.isActive"></span>

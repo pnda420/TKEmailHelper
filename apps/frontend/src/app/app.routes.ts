@@ -23,6 +23,8 @@ import { HelpComponent } from './components/help/help.component';
 import { WelcomeComponent } from './components/welcome/welcome.component';
 import { SetupComponent } from './components/setup/setup.component';
 import { AdminMailboxesComponent } from './components/admin/admin-mailboxes/admin-mailboxes.component';
+import { SpamKillerComponent } from './components/spam-killer/spam-killer.component';
+import { SpamDeletionHistoryComponent } from './components/spam-killer/spam-deletion-history.component';
 
 const pageMainName = 'MailFlow';
 export const routes: Routes = [
@@ -46,6 +48,8 @@ export const routes: Routes = [
     { path: 'emails/:id/reply', component: EmailReplyComponent, canActivate: [authGuard], title: pageMainName + ' | Antworten', data: { description: 'E-Mail beantworten.' } },
     { path: 'history', component: EmailHistoryComponent, canActivate: [authGuard], title: pageMainName + ' | Verlauf', data: { description: 'E-Mail Verlauf – Gesendet & Papierkorb.' } },
     { path: 'templates', component: EmailTemplatesComponent, canActivate: [authGuard], title: pageMainName + ' | Vorlagen', data: { description: 'E-Mail Vorlagen verwalten.' } },
+    { path: 'spam-killer', component: SpamKillerComponent, canActivate: [authGuard], title: pageMainName + ' | Spam Killer', data: { description: 'KI-gestützte Spam-Erkennung – Finde und lösche Spam mit einem Klick.' } },
+    { path: 'spam-killer/history', component: SpamDeletionHistoryComponent, canActivate: [authGuard], title: pageMainName + ' | Löschverlauf', data: { description: 'Verlauf aller gelöschten Spam-E-Mails.' } },
     { path: 'help', component: HelpComponent, canActivate: [authGuard], title: pageMainName + ' | Hilfe', data: { description: 'Hilfe & Anleitung für MailFlow.' } },
     { path: 'admin', redirectTo: 'admin/health', pathMatch: 'full' },
     { path: 'admin/health', component: AdminHealthComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | System Status', data: { description: 'System Health & Status.' } },

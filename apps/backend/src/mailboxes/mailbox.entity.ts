@@ -77,6 +77,15 @@ export class Mailbox {
   @Column({ default: '#1565c0' })
   color: string;
 
+  // Spam Killer: auto-scan interval in minutes (null = disabled, user triggers manually)
+  @Column({ type: 'int', nullable: true, default: null })
+  spamScanIntervalMinutes: number | null;
+
+  // Spam Killer: categories to auto-delete without user confirmation
+  // e.g. ['spam', 'phishing', 'scam'] — remaining non-legitimate go to review
+  @Column('simple-json', { nullable: true, default: null })
+  spamAutoDeleteCategories: string[] | null;
+
   @Column({ default: true })
   isActive: boolean;
 

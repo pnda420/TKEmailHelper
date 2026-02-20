@@ -371,6 +371,8 @@ export interface Mailbox {
   signatureTemplate: string | null;
   color: string;
   isActive: boolean;
+  spamScanIntervalMinutes: number | null;
+  spamAutoDeleteCategories: string[] | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -382,6 +384,52 @@ export interface UserMailbox {
   mailbox: Mailbox;
   isActive: boolean;
   assignedAt: Date;
+}
+
+// ==================== SPAM KILLER INTERFACES ====================
+
+export interface SpamKillerEmail {
+  uid: number;
+  messageId: string;
+  subject: string;
+  from: string;
+  fromName: string;
+  to: string;
+  date: string;
+  preview: string;
+  isSpam: boolean;
+  spamScore: number;
+  spamReason: string;
+  category: 'legitimate' | 'spam' | 'scam' | 'newsletter' | 'marketing' | 'phishing' | 'unknown';
+}
+
+export interface SpamKillerScanResult {
+  mailboxId: string;
+  mailboxEmail: string;
+  totalInbox: number;
+  newlyClassified: number;
+  fromCache: number;
+  spamCount: number;
+  newsletterCount: number;
+  legitimateCount: number;
+  emails: SpamKillerEmail[];
+  scanDurationMs: number;
+}
+
+export interface SpamDeletionLog {
+  id: string;
+  mailboxId: string;
+  mailboxEmail: string;
+  deletedByUserId: string;
+  deletedByUserEmail: string;
+  count: number;
+  emailSummaries: string;
+  deletedAt: string;
+}
+
+export interface SpamDeletionHistoryResponse {
+  logs: SpamDeletionLog[];
+  total: number;
 }
 
 export interface CreateMailboxDto {
@@ -404,6 +452,8 @@ export interface CreateMailboxDto {
   companyAddress?: string;
   signatureTemplate?: string;
   color?: string;
+  spamScanIntervalMinutes?: number | null;
+  spamAutoDeleteCategories?: string[] | null;
 }
 
 export interface UpdateMailboxDto extends Partial<CreateMailboxDto> {
@@ -1618,5 +1668,46 @@ clearAiData(): Observable<{ message: string; updated: number }> {
 
   getActiveMailboxes(): Observable<UserMailbox[]> {
     return this.http.get<UserMailbox[]>(`${this.apiUrl}/mailboxes/my/active`, { headers: this.getHeaders() });
+  }
+
+  // ==================== SPAM KILLER ====================
+
+  spamKillerScan(mailboxId: string): Observable<SpamKillerScanResult> {
+    return this.http.post<SpamKillerScanResult>(`${this.apiUrl}/spam-killer/scan/${mailboxId}`, {}, { headers: this.getHeaders() });
+  }
+
+  spamKillerDelete(mailboxId: string, uids: number[]): Observable<{ deleted: number; failed: number }> {
+    return this.http.request<{ deleted: number; failed: number }>('DELETE', `${this.apiUrl}/spam-killer/delete/${mailboxId}`, {
+      headers: this.getHeaders(),
+      body: { uids },
+    });
+  }
+
+  spamKillerGetCached(mailboxId: string): Observable<SpamKillerScanResult | null> {
+    return this.http.get<SpamKillerScanResult | null>(`${this.apiUrl}/spam-killer/results/${mailboxId}`, { headers: this.getHeaders() });
+  }
+
+  spamKillerGetCounts(): Observable<Record<string, number>> {
+    return this.http.get<Record<string, number>>(`${this.apiUrl}/spam-killer/counts`, { headers: this.getHeaders() });
+  }
+
+  spamKillerGetDeletionLogs(mailboxId: string): Observable<SpamDeletionLog[]> {
+    return this.http.get<SpamDeletionLog[]>(`${this.apiUrl}/spam-killer/deletion-logs/${mailboxId}`, { headers: this.getHeaders() });
+  }
+
+  spamKillerGetDeletionHistory(params: { limit?: number; offset?: number; search?: string; userEmail?: string; mailboxId?: string; category?: string }): Observable<SpamDeletionHistoryResponse> {
+    let queryParams = new URLSearchParams();
+    if (params.limit) queryParams.set('limit', params.limit.toString());
+    if (params.offset) queryParams.set('offset', params.offset.toString());
+    if (params.search) queryParams.set('search', params.search);
+    if (params.userEmail) queryParams.set('userEmail', params.userEmail);
+    if (params.mailboxId) queryParams.set('mailboxId', params.mailboxId);
+    if (params.category) queryParams.set('category', params.category);
+    const qs = queryParams.toString();
+    return this.http.get<SpamDeletionHistoryResponse>(`${this.apiUrl}/spam-killer/deletion-history${qs ? '?' + qs : ''}`, { headers: this.getHeaders() });
+  }
+
+  spamKillerGetDeletionUsers(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.apiUrl}/spam-killer/deletion-users`, { headers: this.getHeaders() });
   }
 }

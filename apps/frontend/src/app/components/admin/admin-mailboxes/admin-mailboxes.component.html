@@ -181,6 +181,10 @@
             <span class="material-symbols-outlined ms-size-18">upload</span>
             SMTP
           </button>
+          <button class="form-tab" [class.active]="activeFormTab === 'spamkiller'" (click)="activeFormTab = 'spamkiller'">
+            <span class="material-symbols-outlined ms-size-18">shield</span>
+            Spam Killer
+          </button>
           <button class="form-tab" [class.active]="activeFormTab === 'company'" (click)="activeFormTab = 'company'">
             <span class="material-symbols-outlined ms-size-18">business</span>
             Firma
@@ -290,6 +294,94 @@
                 <label class="admin-form-group__label">Gesendet-Ordner</label>
                 <input class="admin-input" type="text" [(ngModel)]="form.imapSentFolder" name="imapSentFolder"
                   placeholder="Sent" />
+              </div>
+            </div>
+
+          </div>
+
+          <!-- TAB: Spam Killer -->
+          <div class="form-section" *ngIf="activeFormTab === 'spamkiller'">
+            <div class="section-info">
+              <span class="material-symbols-outlined">info</span>
+              Lege fest, wie oft der Spam Killer automatisch nach neuen E-Mails sucht. Leer oder 0 = deaktiviert (manuell durch User).
+            </div>
+            <div class="form-row two-col">
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Auto-Scan Intervall (Minuten)</label>
+                <input class="admin-input" type="number" [(ngModel)]="form.spamScanIntervalMinutes" name="spamScanIntervalMinutes"
+                  placeholder="z.B. 60 (leer = deaktiviert)" min="0" />
+              </div>
+              <div class="admin-form-group">
+                <label class="admin-form-group__label">Status</label>
+                <div class="spam-scan-status" style="margin-top: 4px">
+                  <span class="admin-badge" [class.admin-badge--success]="form.spamScanIntervalMinutes && form.spamScanIntervalMinutes > 0"
+                    [class.admin-badge--warning]="!form.spamScanIntervalMinutes || form.spamScanIntervalMinutes === 0">
+                    <span class="admin-status-dot" [class.admin-status-dot--active]="form.spamScanIntervalMinutes && form.spamScanIntervalMinutes > 0"
+                      [class.admin-status-dot--error]="!form.spamScanIntervalMinutes || form.spamScanIntervalMinutes === 0"></span>
+                    {{ form.spamScanIntervalMinutes && form.spamScanIntervalMinutes > 0 ? ('Alle ' + form.spamScanIntervalMinutes + ' Min.') : 'Deaktiviert (manuell)' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <hr class="form-divider" />
+            <h4 class="form-section-title">
+              <span class="material-symbols-outlined ms-size-18">category</span>
+              Kategorie-Zuordnung
+            </h4>
+
+            <!-- Spam Kategorie-Zuordnung -->
+            <div class="section-info">
+              <span class="material-symbols-outlined">info</span>
+              Ordne die Kategorien zu: <strong>Nachfragen</strong> zeigt E-Mails im Spam Killer zur manuellen Prüfung an. <strong>Auto Löschen</strong> entfernt E-Mails dieser Kategorien automatisch.
+            </div>
+            <div class="spam-category-columns">
+              <!-- Nachfragen (manual review) -->
+              <div class="spam-category-column spam-category-column--inquiry">
+                <div class="spam-category-column__header">
+                  <span class="material-symbols-outlined" style="color: #f59e0b; font-size: 20px;">visibility</span>
+                  <span>Nachfragen</span>
+                  <span class="spam-category-column__count">{{ inquiryCategories.length }}</span>
+                </div>
+                <div class="spam-category-column__list">
+                  <div class="spam-category-chip spam-category-chip--review"
+                    *ngFor="let cat of inquiryCategories"
+                    (click)="moveToAutoDelete(cat.key)">
+                    <span class="material-symbols-outlined spam-category-chip__icon" [style.color]="cat.color">{{ cat.icon }}</span>
+                    <span class="spam-category-chip__label">{{ cat.label }}</span>
+                    <span class="spam-category-chip__action" title="Zu Auto Löschen verschieben">
+                      <span class="material-symbols-outlined" style="color: #94a3b8; font-size: 16px;">arrow_forward</span>
+                    </span>
+                  </div>
+                  <div class="spam-category-column__empty" *ngIf="inquiryCategories.length === 0">
+                    <span class="material-symbols-outlined" style="font-size: 28px; color: #cbd5e1;">inbox</span>
+                    <span>Keine Kategorien</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Auto Löschen -->
+              <div class="spam-category-column spam-category-column--delete">
+                <div class="spam-category-column__header">
+                  <span class="material-symbols-outlined" style="color: #dc2626; font-size: 20px;">delete_forever</span>
+                  <span>Auto Löschen</span>
+                  <span class="spam-category-column__count spam-category-column__count--danger">{{ autoDeleteCategories.length }}</span>
+                </div>
+                <div class="spam-category-column__list">
+                  <div class="spam-category-chip spam-category-chip--active"
+                    *ngFor="let cat of autoDeleteCategories"
+                    (click)="moveToInquiry(cat.key)">
+                    <span class="material-symbols-outlined spam-category-chip__icon" [style.color]="cat.color">{{ cat.icon }}</span>
+                    <span class="spam-category-chip__label">{{ cat.label }}</span>
+                    <span class="spam-category-chip__action" title="Zu Nachfragen verschieben">
+                      <span class="material-symbols-outlined" style="color: #94a3b8; font-size: 16px;">arrow_back</span>
+                    </span>
+                  </div>
+                  <div class="spam-category-column__empty" *ngIf="autoDeleteCategories.length === 0">
+                    <span class="material-symbols-outlined" style="font-size: 28px; color: #cbd5e1;">delete_outline</span>
+                    <span>Keine Kategorien</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

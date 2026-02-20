@@ -10,6 +10,7 @@
  *   Pricing: $1.75/1M input, $14/1M output
  */
 export const AI_MODELS = {
+    nano: 'gpt-5-nano',
     fast: 'gpt-5-mini',
     powerful: 'gpt-5.2',
 } as const ;

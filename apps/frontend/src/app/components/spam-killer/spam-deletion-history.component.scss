@@ -1,0 +1,631 @@
+@use '../../utils/shared-styles' as *;
+
+$accent: #6366f1;
+$accent-dark: #4f46e5;
+$red: #ef4444;
+$green: #22c55e;
+$g50:  #f9fafb;
+$g100: #f3f4f6;
+$g200: #e5e7eb;
+$g300: #d1d5db;
+$g400: #9ca3af;
+$g500: #6b7280;
+$g600: #4b5563;
+$g700: #374151;
+$g800: #1f2937;
+$g900: #111827;
+
+:host {
+  display: block;
+  height: calc(100vh - $global-header-height);
+  overflow-y: auto;
+}
+
+.dh {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+// ── Page Header ──
+
+.dh-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    h1 { font-size: 1.25rem; font-weight: 800; color: $g900; margin: 0; }
+    p { font-size: 0.8125rem; color: $g500; margin: 0; }
+  }
+
+  &__icon {
+    font-size: 32px;
+    color: $red;
+    font-variation-settings: 'FILL' 1, 'wght' 600;
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+}
+
+.dh-total-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 999px;
+  background: rgba($accent, 0.08);
+  color: $accent-dark;
+  font-size: 0.75rem;
+  font-weight: 500;
+  flex-shrink: 0;
+
+  .material-symbols-outlined { font-size: 16px; }
+  strong { font-weight: 700; }
+}
+
+.dh-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 10px;
+  border: 1.5px solid $g200;
+  background: white;
+  color: $g600;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s;
+
+  .material-symbols-outlined { font-size: 16px; }
+
+  &:hover {
+    border-color: $g300;
+    color: $g800;
+    background: $g50;
+  }
+}
+
+// ── Command Bar ──
+
+.dh-command-bar {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid $g200;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.dh-command-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  flex-wrap: wrap;
+}
+
+.dh-divider {
+  width: 1px;
+  height: 20px;
+  background: $g200;
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+// ── Search ──
+
+.dh-search {
+  position: relative;
+  flex: 1;
+  min-width: 140px;
+  max-width: 280px;
+
+  &__icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px !important;
+    color: $g400;
+    pointer-events: none;
+  }
+
+  &__input {
+    width: 100%;
+    height: 34px;
+    padding: 0 34px 0 34px;
+    border: 1.5px solid $g200;
+    border-radius: 10px;
+    background: $g50;
+    font-size: 0.8125rem;
+    color: $g800;
+    outline: none;
+    transition: all 0.15s;
+
+    &::placeholder { color: $g400; }
+
+    &:focus {
+      background: #fff;
+      border-color: rgba($accent, 0.4);
+      box-shadow: 0 0 0 3px rgba($accent, 0.08);
+    }
+  }
+
+  &__clear {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: $g400;
+    cursor: pointer;
+
+    .material-symbols-outlined { font-size: 15px; }
+    &:hover { background: $g200; color: $g600; }
+  }
+}
+
+// ── Filter Selects ──
+
+.dh-filter {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  &__icon {
+    position: absolute;
+    left: 8px;
+    font-size: 16px !important;
+    color: $g400;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  &__select {
+    height: 34px;
+    padding: 0 28px 0 30px;
+    border: 1.5px solid $g200;
+    border-radius: 10px;
+    background: $g50;
+    font-size: 0.75rem;
+    color: $g700;
+    font-weight: 500;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239ca3af'%3E%3Cpath d='M6 8.5L1 3.5h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    transition: all 0.15s;
+    max-width: 200px;
+
+    &:focus {
+      border-color: rgba($accent, 0.4);
+      box-shadow: 0 0 0 3px rgba($accent, 0.08);
+    }
+  }
+}
+
+.dh-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border: 1px solid rgba($red, 0.2);
+  border-radius: 8px;
+  background: rgba($red, 0.04);
+  color: $red;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+
+  .material-symbols-outlined { font-size: 14px; }
+
+  &:hover {
+    background: rgba($red, 0.08);
+    border-color: rgba($red, 0.3);
+  }
+}
+
+// ── Loading State ──
+
+.dh-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 3rem;
+  color: $g500;
+  font-size: 0.875rem;
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// ── Empty State ──
+
+.dh-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+
+  &__icon {
+    font-size: 48px;
+    color: $g300;
+    margin-bottom: 1rem;
+    font-variation-settings: 'FILL' 0;
+  }
+
+  h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: $g700;
+    margin: 0 0 0.25rem;
+  }
+
+  p {
+    font-size: 0.8125rem;
+    color: $g500;
+    margin: 0;
+  }
+}
+
+// ── Log List ──
+
+.dh-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+// ── Log Entry ──
+
+.dh-log {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid $g200;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  transition: box-shadow 0.2s, border-color 0.2s;
+
+  &:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
+  &--expanded { border-color: rgba($accent, 0.3); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06); }
+  &--system { border-left: 3px solid rgba($accent, 0.4); }
+
+  // ── Header ──
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.1s;
+    gap: 0.75rem;
+
+    &:hover { background: $g50; }
+  }
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba($accent, 0.08);
+    color: $accent-dark;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    font-weight: 700;
+    flex-shrink: 0;
+
+    .material-symbols-outlined {
+      font-size: 20px;
+      font-variation-settings: 'FILL' 1;
+    }
+
+    &--system {
+      background: rgba($accent, 0.12);
+      color: $accent;
+    }
+  }
+
+  &__info {
+    min-width: 0;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    flex-wrap: wrap;
+  }
+
+  &__user {
+    font-weight: 700;
+    color: $g800;
+
+    &--system {
+      color: $accent;
+    }
+  }
+
+  &__sep {
+    color: $g400;
+    font-weight: 400;
+  }
+
+  &__mailbox {
+    color: $g500;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 2px;
+  }
+
+  &__time {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.6875rem;
+    color: $g400;
+
+    .material-symbols-outlined { font-size: 13px; }
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  &__count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 8px;
+    background: rgba($red, 0.08);
+    color: $red;
+    font-size: 0.75rem;
+    font-weight: 700;
+
+    .material-symbols-outlined { font-size: 14px; }
+  }
+
+  &__chevron {
+    font-size: 20px;
+    color: $g400;
+    transition: transform 0.2s;
+
+    &--open { transform: rotate(180deg); }
+  }
+
+  // ── Expanded Body ──
+  &__body {
+    border-top: 1px solid $g200;
+    padding: 0.5rem;
+    background: $g50;
+  }
+
+  &__no-details {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    color: $g400;
+    font-size: 0.8125rem;
+
+    .material-symbols-outlined { font-size: 16px; }
+  }
+}
+
+// ── Individual Email in expanded log ──
+
+.dh-email {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  transition: background 0.1s;
+
+  &:hover { background: rgba($g200, 0.5); }
+
+  &__cat {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+
+    .material-symbols-outlined {
+      font-size: 20px;
+      font-variation-settings: 'FILL' 1;
+    }
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__subject {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: $g800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__from {
+    font-size: 0.6875rem;
+    color: $g500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__badges {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  &__cat-badge {
+    font-size: 0.625rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  &__score {
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: $g500;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+// ── Pagination ──
+
+.dh-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 1.25rem 0 0.5rem;
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+    border: 1.5px solid $g200;
+    border-radius: 8px;
+    background: white;
+    color: $g600;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s;
+
+    .material-symbols-outlined { font-size: 18px; }
+
+    &:hover:not(:disabled) {
+      border-color: $g300;
+      background: $g50;
+      color: $g800;
+    }
+
+    &:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    &--active {
+      background: $accent !important;
+      border-color: $accent !important;
+      color: white !important;
+    }
+  }
+
+  &__dots {
+    padding: 0 4px;
+    color: $g400;
+    font-size: 0.8125rem;
+  }
+
+  &__info {
+    margin-left: 0.75rem;
+    font-size: 0.75rem;
+    color: $g400;
+    font-weight: 500;
+  }
+}
+
+// ── Responsive ──
+
+@media (max-width: 768px) {
+  .dh { padding: 1rem; }
+
+  .dh-header {
+    flex-direction: column;
+    align-items: flex-start;
+
+    &__right { width: 100%; justify-content: space-between; }
+  }
+
+  .dh-command-row { flex-direction: column; align-items: stretch; }
+
+  .dh-search { max-width: 100%; }
+
+  .dh-divider { display: none; }
+
+  .dh-filter__select { max-width: 100%; width: 100%; }
+
+  .dh-log__header { flex-direction: column; align-items: flex-start; }
+
+  .dh-log__right {
+    width: 100%;
+    justify-content: flex-end;
+    padding-top: 0.25rem;
+  }
+
+  .dh-log__mailbox { max-width: 140px; }
+
+  .dh-email { flex-direction: column; align-items: flex-start; gap: 0.375rem; }
+
+  .dh-email__badges { align-self: flex-end; }
+}

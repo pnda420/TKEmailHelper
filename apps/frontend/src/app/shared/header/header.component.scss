@@ -238,6 +238,24 @@
   }
 }
 
+/* ===== SPAM BADGE ===== */
+
+.nav-spam-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #dc2626;
+  color: white;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 2px;
+}
+
 .nav__auth {
   display: flex;
   align-items: center;
@@ -967,6 +985,34 @@
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===== SPAM KILLER NAV LINK ===== */
+
+.nav-link--spam-killer {
+  .material-symbols-outlined {
+    color: #7c3aed !important;
+    font-variation-settings: 'FILL' 1;
+  }
+
+  &:hover {
+    color: #7c3aed !important;
+    background: rgba(124, 58, 237, 0.08) !important;
+
+    .material-symbols-outlined {
+      color: #6d28d9 !important;
+    }
+  }
+
+  &.active {
+    color: #7c3aed !important;
+    background: rgba(124, 58, 237, 0.1) !important;
+    font-weight: 600;
+
+    .material-symbols-outlined {
+      color: #6d28d9 !important;
+    }
   }
 }
 

@@ -148,4 +148,20 @@ export class HomeComponent implements OnInit, OnDestroy {
       hour: '2-digit', minute: '2-digit'
     });
   }
+
+  getCategoryLabel(cat: string): string {
+    const m: Record<string, string> = {
+      spam: 'Spam', scam: 'Betrug', phishing: 'Phishing',
+      newsletter: 'Newsletter', marketing: 'Marketing', legitimate: 'Sicher',
+    };
+    return m[cat] || cat;
+  }
+
+  getCategoryClass(cat: string): string {
+    const m: Record<string, string> = {
+      spam: 'cat-spam', scam: 'cat-scam', phishing: 'cat-phishing',
+      newsletter: 'cat-newsletter', marketing: 'cat-marketing', legitimate: 'cat-safe',
+    };
+    return m[cat] || '';
+  }
 }

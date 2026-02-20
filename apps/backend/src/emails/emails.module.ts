@@ -14,7 +14,7 @@ import { MailboxesModule } from '../mailboxes/mailboxes.module';
     TypeOrmModule.forFeature([Email]),
     forwardRef(() => EmailTemplatesModule),
     forwardRef(() => AiAgentModule),
-    MailboxesModule,
+    forwardRef(() => MailboxesModule),
   ],
   controllers: [EmailsController],
   providers: [EmailsService, EmailEventsService, ImapIdleService],

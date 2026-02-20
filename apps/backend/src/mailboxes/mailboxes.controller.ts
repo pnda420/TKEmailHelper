@@ -9,6 +9,8 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
@@ -16,11 +18,18 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/users.entity';
 import { MailboxesService } from './mailboxes.service';
 import { CreateMailboxDto, UpdateMailboxDto, AssignMailboxDto, SetActiveMailboxesDto } from './mailboxes.dto';
+import { ImapIdleService } from '../emails/imap-idle.service';
+import { SpamKillerService } from '../spam-killer/spam-killer.service';
 
 @Controller('mailboxes')
 @UseGuards(JwtAuthGuard)
 export class MailboxesController {
-  constructor(private readonly mailboxesService: MailboxesService) {}
+  constructor(
+    private readonly mailboxesService: MailboxesService,
+    private readonly imapIdle: ImapIdleService,
+    @Inject(forwardRef(() => SpamKillerService))
+    private readonly spamKillerService: SpamKillerService,
+  ) {}
 
   // ==================== ADMIN: MAILBOX CRUD ====================
 
@@ -28,7 +37,12 @@ export class MailboxesController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateMailboxDto) {
-    return this.mailboxesService.create(dto);
+    const mailbox = await this.mailboxesService.create(dto);
+    // Restart IMAP watchers so the new mailbox is immediately active
+    this.imapIdle.restartWatchers().catch(() => {});
+    // Restart spam auto-scan schedulers if interval was configured
+    this.spamKillerService.restartAutoScanSchedulers().catch(() => {});
+    return mailbox;
   }
 
   @UseGuards(AdminGuard)
@@ -46,14 +60,25 @@ export class MailboxesController {
   @UseGuards(AdminGuard)
   @Patch('admin/:id')
   async update(@Param('id') id: string, @Body() dto: UpdateMailboxDto) {
-    return this.mailboxesService.update(id, dto);
+    const mailbox = await this.mailboxesService.update(id, dto);
+    // Restart watchers in case isActive or credentials changed
+    if (dto.isActive !== undefined || dto.password || dto.imapHost) {
+      this.imapIdle.restartWatchers().catch(() => {});
+    }
+    // Restart spam auto-scan schedulers on any update (interval/categories/active may have changed)
+    this.spamKillerService.restartAutoScanSchedulers().catch(() => {});
+    return mailbox;
   }
 
   @UseGuards(AdminGuard)
   @Delete('admin/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(@Param('id') id: string) {
-    return this.mailboxesService.delete(id);
+    await this.mailboxesService.delete(id);
+    // Restart watchers to stop monitoring the deleted mailbox
+    this.imapIdle.restartWatchers().catch(() => {});
+    // Restart spam auto-scan schedulers to remove deleted mailbox
+    this.spamKillerService.restartAutoScanSchedulers().catch(() => {});
   }
 
   // ==================== ADMIN: USER ASSIGNMENT ====================
@@ -115,6 +140,7 @@ export class MailboxesController {
         companyName: um.mailbox.companyName,
         color: um.mailbox.color,
         isActive: um.mailbox.isActive,
+        spamAutoDeleteCategories: um.mailbox.spamAutoDeleteCategories,
       },
     }));
   }

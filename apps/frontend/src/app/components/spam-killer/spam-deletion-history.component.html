@@ -1,0 +1,195 @@
+<div class="dh">
+  <!-- ── Page Header ── -->
+  <div class="dh-header">
+    <div class="dh-header__left">
+      <span class="material-symbols-outlined dh-header__icon">delete_sweep</span>
+      <div>
+        <h1>Löschverlauf</h1>
+        <p>Übersicht aller gelöschten Spam-E-Mails</p>
+      </div>
+    </div>
+    <div class="dh-header__right">
+      <span class="dh-total-badge">
+        <span class="material-symbols-outlined">analytics</span>
+        <strong>{{ totalLogs }}</strong> Einträge
+      </span>
+      <a routerLink="/spam-killer" class="dh-back-btn">
+        <span class="material-symbols-outlined">arrow_back</span>
+        Spam Killer
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Command Bar ── -->
+  <header class="dh-command-bar">
+    <div class="dh-command-row">
+      <!-- Search -->
+      <div class="dh-search">
+        <span class="material-symbols-outlined dh-search__icon">search</span>
+        <input type="text"
+               [(ngModel)]="searchQuery"
+               (input)="onSearchInput()"
+               placeholder="Suchen…"
+               class="dh-search__input" />
+        <button class="dh-search__clear" *ngIf="searchQuery" (click)="clearSearch()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <span class="dh-divider"></span>
+
+      <!-- Filter: User -->
+      <div class="dh-filter">
+        <span class="material-symbols-outlined dh-filter__icon">person</span>
+        <select class="dh-filter__select" [(ngModel)]="filterUserEmail" (ngModelChange)="onFilterChange()">
+          <option value="">Alle Benutzer</option>
+          <option *ngFor="let u of availableUsers" [value]="u">{{ u }}</option>
+        </select>
+      </div>
+
+      <!-- Filter: Mailbox -->
+      <div class="dh-filter">
+        <span class="material-symbols-outlined dh-filter__icon">mail</span>
+        <select class="dh-filter__select" [(ngModel)]="filterMailboxId" (ngModelChange)="onFilterChange()">
+          <option value="">Alle Postfächer</option>
+          <option *ngFor="let mb of availableMailboxes" [value]="mb.id">{{ mb.email }}</option>
+        </select>
+      </div>
+
+      <!-- Filter: Category -->
+      <div class="dh-filter">
+        <span class="material-symbols-outlined dh-filter__icon">label</span>
+        <select class="dh-filter__select" [(ngModel)]="filterCategory" (ngModelChange)="onFilterChange()">
+          <option value="">Alle Kategorien</option>
+          <option *ngFor="let cat of categories" [value]="cat.key">{{ cat.label }}</option>
+        </select>
+      </div>
+
+      <!-- Reset Filters -->
+      <button class="dh-reset-btn" *ngIf="hasActiveFilters" (click)="clearFilters()">
+        <span class="material-symbols-outlined">filter_list_off</span>
+        Zurücksetzen
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Loading State ── -->
+  <div class="dh-loading" *ngIf="loading && initialLoad">
+    <span class="material-symbols-outlined spin">hourglass_empty</span>
+    <span>Lade Löschverlauf…</span>
+  </div>
+
+  <!-- ── Empty State ── -->
+  <div class="dh-empty" *ngIf="!loading && logs.length === 0 && !initialLoad">
+    <span class="material-symbols-outlined dh-empty__icon">inbox</span>
+    <h3 *ngIf="!hasActiveFilters">Noch keine Löschungen</h3>
+    <h3 *ngIf="hasActiveFilters">Keine Treffer</h3>
+    <p *ngIf="!hasActiveFilters">Gelöschte Spam-E-Mails werden hier protokolliert.</p>
+    <p *ngIf="hasActiveFilters">Versuche andere Filter oder Suchbegriffe.</p>
+  </div>
+
+  <!-- ── Log List ── -->
+  <div class="dh-list" *ngIf="logs.length > 0">
+    <div class="dh-log"
+         *ngFor="let log of logs"
+         [class.dh-log--expanded]="isExpanded(log.id)"
+         [class.dh-log--system]="isSystemUser(log.deletedByUserEmail)">
+
+      <!-- Log Header (clickable) -->
+      <div class="dh-log__header" (click)="toggleLog(log.id)">
+        <div class="dh-log__left">
+          <!-- User avatar -->
+          <div class="dh-log__avatar" [class.dh-log__avatar--system]="isSystemUser(log.deletedByUserEmail)">
+            <span class="material-symbols-outlined" *ngIf="isSystemUser(log.deletedByUserEmail)">smart_toy</span>
+            <span *ngIf="!isSystemUser(log.deletedByUserEmail)">{{ log.deletedByUserEmail.charAt(0).toUpperCase() }}</span>
+          </div>
+
+          <!-- Info -->
+          <div class="dh-log__info">
+            <div class="dh-log__title">
+              <span class="dh-log__user" [class.dh-log__user--system]="isSystemUser(log.deletedByUserEmail)">
+                {{ isSystemUser(log.deletedByUserEmail) ? 'Auto-Delete' : log.deletedByUserEmail }}
+              </span>
+              <span class="dh-log__sep">·</span>
+              <span class="dh-log__mailbox">{{ log.mailboxEmail || getMailboxName(log.mailboxId) }}</span>
+            </div>
+            <div class="dh-log__meta">
+              <span class="dh-log__time">
+                <span class="material-symbols-outlined">schedule</span>
+                {{ formatDate(log.deletedAt) }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dh-log__right">
+          <span class="dh-log__count-badge">
+            <span class="material-symbols-outlined">delete</span>
+            {{ log.count }}
+          </span>
+          <span class="material-symbols-outlined dh-log__chevron" [class.dh-log__chevron--open]="isExpanded(log.id)">
+            expand_more
+          </span>
+        </div>
+      </div>
+
+      <!-- Expanded: Email list -->
+      <div class="dh-log__body" *ngIf="isExpanded(log.id)">
+        <div class="dh-email"
+             *ngFor="let email of parseEmailSummaries(log.emailSummaries)">
+          <div class="dh-email__cat">
+            <span class="material-symbols-outlined" [style.color]="getCategoryInfo(email.category).color"
+              [title]="getCategoryInfo(email.category).label">
+              {{ getCategoryInfo(email.category).icon }}
+            </span>
+          </div>
+          <div class="dh-email__content">
+            <div class="dh-email__subject">{{ email.subject || '(Kein Betreff)' }}</div>
+            <div class="dh-email__from">{{ email.from }}</div>
+          </div>
+          <div class="dh-email__badges">
+            <span class="dh-email__cat-badge" [style.background]="getCategoryInfo(email.category).color + '14'"
+              [style.color]="getCategoryInfo(email.category).color">
+              {{ getCategoryInfo(email.category).label }}
+            </span>
+            <span class="dh-email__score" *ngIf="email.spamScore">
+              {{ (email.spamScore * 100).toFixed(0) }}%
+            </span>
+          </div>
+        </div>
+        <div class="dh-log__no-details" *ngIf="parseEmailSummaries(log.emailSummaries).length === 0">
+          <span class="material-symbols-outlined">info</span>
+          Keine Details verfügbar
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Pagination ── -->
+  <div class="dh-pagination" *ngIf="totalPages > 1">
+    <button class="dh-pagination__btn" [disabled]="currentPage === 1" (click)="prevPage()">
+      <span class="material-symbols-outlined">chevron_left</span>
+    </button>
+
+    <button class="dh-pagination__btn dh-pagination__btn--first" *ngIf="pageNumbers[0] > 1" (click)="goToPage(1)">1</button>
+    <span class="dh-pagination__dots" *ngIf="pageNumbers[0] > 2">…</span>
+
+    <button class="dh-pagination__btn"
+            *ngFor="let p of pageNumbers"
+            [class.dh-pagination__btn--active]="p === currentPage"
+            (click)="goToPage(p)">
+      {{ p }}
+    </button>
+
+    <span class="dh-pagination__dots" *ngIf="pageNumbers[pageNumbers.length - 1] < totalPages - 1">…</span>
+    <button class="dh-pagination__btn dh-pagination__btn--last" *ngIf="pageNumbers[pageNumbers.length - 1] < totalPages" (click)="goToPage(totalPages)">{{ totalPages }}</button>
+
+    <button class="dh-pagination__btn" [disabled]="currentPage === totalPages" (click)="nextPage()">
+      <span class="material-symbols-outlined">chevron_right</span>
+    </button>
+
+    <span class="dh-pagination__info">
+      Seite {{ currentPage }} von {{ totalPages }}
+    </span>
+  </div>
+</div>

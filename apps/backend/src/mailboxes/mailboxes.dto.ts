@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional, IsBoolean, IsNumber, IsArray, MaxLength, Min, Max } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsBoolean, IsNumber, IsInt, IsArray, MaxLength, Min, Max } from 'class-validator';
 
 export class CreateMailboxDto {
   @IsString()
@@ -77,6 +77,16 @@ export class CreateMailboxDto {
   @IsOptional()
   @MaxLength(7)
   color?: string;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  spamScanIntervalMinutes?: number | null;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  spamAutoDeleteCategories?: string[] | null;
 }
 
 export class UpdateMailboxDto {
@@ -166,6 +176,16 @@ export class UpdateMailboxDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  spamScanIntervalMinutes?: number | null;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  spamAutoDeleteCategories?: string[] | null;
 }
 
 export class AssignMailboxDto {

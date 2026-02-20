@@ -8,7 +8,7 @@ import { AdminLayoutComponent } from '../admin-layout/admin-layout.component';
 import { ConfirmationService } from '../../../shared/confirmation/confirmation.service';
 import { ToastService } from '../../../shared/toasts/toast.service';
 
-type FormTab = 'basic' | 'imap' | 'smtp' | 'company' | 'signature';
+type FormTab = 'basic' | 'imap' | 'smtp' | 'spamkiller' | 'company' | 'signature';
 
 @Component({
   selector: 'app-admin-mailboxes',
@@ -61,7 +61,7 @@ export class AdminMailboxesComponent implements OnInit {
   ];
 
   // Tab navigation order
-  private tabOrder: FormTab[] = ['basic', 'imap', 'smtp', 'company', 'signature'];
+  private tabOrder: FormTab[] = ['basic', 'imap', 'smtp', 'spamkiller', 'company', 'signature'];
 
   // Placeholder info for signature tab
   placeholders = [
@@ -151,7 +151,62 @@ export class AdminMailboxesComponent implements OnInit {
       signatureTemplate: '',
       color: '#1565c0',
       isActive: true,
+      spamScanIntervalMinutes: null,
+      spamAutoDeleteCategories: null,
     };
+  }
+
+  // ════════════════════════════════════════════
+  // SPAM CATEGORY CONFIG HELPERS
+  // ════════════════════════════════════════════
+
+  readonly spamCategories: { key: string; label: string; icon: string; color: string }[] = [
+    { key: 'spam', label: 'Spam', icon: 'report', color: '#ef4444' },
+    { key: 'scam', label: 'Betrug', icon: 'gpp_bad', color: '#dc2626' },
+    { key: 'phishing', label: 'Phishing', icon: 'phishing', color: '#b91c1c' },
+    { key: 'newsletter', label: 'Newsletter', icon: 'newspaper', color: '#f59e0b' },
+    { key: 'marketing', label: 'Marketing', icon: 'campaign', color: '#f97316' },
+  ];
+
+  /** Categories assigned to auto-delete */
+  get autoDeleteCategories() {
+    return this.spamCategories.filter(c => (this.form.spamAutoDeleteCategories ?? []).includes(c.key));
+  }
+
+  /** Categories assigned to manual review (inquiry) */
+  get inquiryCategories() {
+    return this.spamCategories.filter(c => !(this.form.spamAutoDeleteCategories ?? []).includes(c.key));
+  }
+
+  isAutoDeleteCategory(cat: string): boolean {
+    return (this.form.spamAutoDeleteCategories ?? []).includes(cat);
+  }
+
+  moveToAutoDelete(catKey: string): void {
+    const current = this.form.spamAutoDeleteCategories ?? [];
+    if (!current.includes(catKey)) {
+      this.form.spamAutoDeleteCategories = [...current, catKey];
+    }
+  }
+
+  moveToInquiry(catKey: string): void {
+    const current = this.form.spamAutoDeleteCategories ?? [];
+    this.form.spamAutoDeleteCategories = current.filter((c: string) => c !== catKey);
+    if (this.form.spamAutoDeleteCategories.length === 0) {
+      this.form.spamAutoDeleteCategories = null;
+    }
+  }
+
+  toggleAutoDeleteCategory(cat: string): void {
+    const current = this.form.spamAutoDeleteCategories ?? [];
+    if (current.includes(cat)) {
+      this.form.spamAutoDeleteCategories = current.filter((c: string) => c !== cat);
+    } else {
+      this.form.spamAutoDeleteCategories = [...current, cat];
+    }
+    if (this.form.spamAutoDeleteCategories.length === 0) {
+      this.form.spamAutoDeleteCategories = null;
+    }
   }
 
   loadMailboxes(): void {
@@ -236,6 +291,8 @@ export class AdminMailboxesComponent implements OnInit {
       signatureTemplate: mailbox.signatureTemplate || '',
       color: mailbox.color,
       isActive: mailbox.isActive,
+      spamScanIntervalMinutes: (mailbox as any).spamScanIntervalMinutes ?? null,
+      spamAutoDeleteCategories: (mailbox as any).spamAutoDeleteCategories ?? null,
     };
     this.activeFormTab = 'basic';
     this.showSignaturePreview = false;

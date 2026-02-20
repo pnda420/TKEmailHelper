@@ -1,5 +1,5 @@
 import { CommonModule, DOCUMENT } from '@angular/common';
-import { Component, Inject, OnInit, OnDestroy, HostListener } from '@angular/core';
+import { Component, Inject, OnInit, OnDestroy, HostListener, NgZone } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService, User, UserRole } from '../../services/auth.service';
 import { ToastService } from '../toasts/toast.service';
@@ -7,6 +7,7 @@ import { ConfirmationService } from '../confirmation/confirmation.service';
 import { ApiService, ServiceCategory, SystemStatus, UserMailbox, Mailbox } from '../../api/api.service';
 import { Subscription } from 'rxjs';
 import { MailboxStateService } from '../../services/mailbox-state.service';
+import { ConfigService } from '../../services/config.service';
 
 interface NavCategory {
   id: string;
@@ -41,6 +42,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
   myMailboxes: UserMailbox[] = [];
   mailboxDropdownOpen = false;
 
+  // Spam Killer badge
+  totalSpamCount = 0;
+  private spamLiveES: EventSource | null = null;
+
   constructor(
     @Inject(DOCUMENT) private doc: Document,
     public router: Router,
@@ -48,7 +53,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private toasts: ToastService,
     private confirmationService: ConfirmationService,
     private api: ApiService,
-    private mailboxState: MailboxStateService
+    private mailboxState: MailboxStateService,
+    private config: ConfigService,
+    private ngZone: NgZone,
   ) { }
 
   ngOnInit(): void {
@@ -57,11 +64,15 @@ export class HeaderComponent implements OnInit, OnDestroy {
       if (user) {
         this.loadConnectionStatus();
         this.loadMyMailboxes();
+        this.loadSpamCounts();
+        this.connectSpamLiveSSE();
         // Poll every 30s while logged in
         this.connectionInterval = setInterval(() => this.loadConnectionStatus(), 30_000);
       } else {
         this.connectionStatus = null;
         this.myMailboxes = [];
+        this.totalSpamCount = 0;
+        this.closeSpamLiveSSE();
         if (this.connectionInterval) {
           clearInterval(this.connectionInterval);
           this.connectionInterval = undefined;
@@ -86,6 +97,46 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.routerSub?.unsubscribe();
     if (this.connectionInterval) {
       clearInterval(this.connectionInterval);
+    }
+    this.closeSpamLiveSSE();
+  }
+
+  // ── Spam Killer Live SSE ──
+
+  private connectSpamLiveSSE(): void {
+    this.closeSpamLiveSSE();
+    const token = this.authService.getToken();
+    if (!token) return;
+    const url = `${this.config.apiUrl}/spam-killer/live?token=${encodeURIComponent(token)}`;
+
+    this.ngZone.runOutsideAngular(() => {
+      this.spamLiveES = new EventSource(url);
+      this.spamLiveES.onmessage = (event) => {
+        this.ngZone.run(() => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'counts-updated' && data.counts) {
+              // Filter to only this user's mailboxes
+              const myIds = new Set(this.myMailboxes.map(m => m.mailboxId));
+              let total = 0;
+              for (const [id, count] of Object.entries(data.counts)) {
+                if (myIds.has(id)) total += count as number;
+              }
+              this.totalSpamCount = total;
+            }
+          } catch {}
+        });
+      };
+      this.spamLiveES.onerror = () => {
+        // Silently reconnect (EventSource auto-reconnects)
+      };
+    });
+  }
+
+  private closeSpamLiveSSE(): void {
+    if (this.spamLiveES) {
+      this.spamLiveES.close();
+      this.spamLiveES = null;
     }
   }
 
@@ -173,6 +224,15 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.api.getMyMailboxes().subscribe({
       next: (mailboxes) => this.myMailboxes = mailboxes,
       error: () => this.myMailboxes = [],
+    });
+  }
+
+  private loadSpamCounts(): void {
+    this.api.spamKillerGetCounts().subscribe({
+      next: (counts) => {
+        this.totalSpamCount = Object.values(counts).reduce((sum, c) => sum + c, 0);
+      },
+      error: () => this.totalSpamCount = 0,
     });
   }
 

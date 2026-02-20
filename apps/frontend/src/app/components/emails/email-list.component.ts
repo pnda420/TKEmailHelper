@@ -928,22 +928,44 @@ export class EmailListComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
 
-  // Move to trash (no reply needed)
-  moveToTrash(): void {
+  // Move to trash (no reply needed) — with confirmation + optimistic UI
+  async moveToTrash(): Promise<void> {
     if (!this.selectedEmail) return;
+
+    const confirmed = await this.confirmationService.confirm({
+      title: 'E-Mail löschen',
+      message: `"${this.selectedEmail.subject?.substring(0, 80) || 'Kein Betreff'}" in den Papierkorb verschieben?`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      type: 'danger',
+      icon: 'delete',
+    });
+    if (!confirmed) return;
+
     const emailId = this.selectedEmail.id;
+    const removedEmail = this.selectedEmail;
+    const removedIndex = this.emails.findIndex(e => e.id === emailId);
+
+    // Optimistic UI: remove immediately
+    this.emails = this.emails.filter(e => e.id !== emailId);
+    this.totalEmails--;
+    this.selectedEmail = null;
+    this.api.unlockEmail(emailId).subscribe();
 
     this.api.moveEmailToTrash(emailId).subscribe({
       next: () => {
-        this.api.unlockEmail(emailId).subscribe();
         this.toasts.success('E-Mail in Papierkorb verschoben');
-        this.emails = this.emails.filter(e => e.id !== emailId);
-        this.totalEmails--;
-        this.selectedEmail = null;
       },
       error: (err) => {
         console.error('Fehler:', err);
-        this.toasts.error('Fehler beim Verschieben');
+        this.toasts.error('Fehler beim Verschieben — E-Mail wiederhergestellt');
+        // Revert: insert back at original position
+        if (removedIndex >= 0 && removedIndex <= this.emails.length) {
+          this.emails.splice(removedIndex, 0, removedEmail);
+        } else {
+          this.emails.unshift(removedEmail);
+        }
+        this.totalEmails++;
       }
     });
   }
