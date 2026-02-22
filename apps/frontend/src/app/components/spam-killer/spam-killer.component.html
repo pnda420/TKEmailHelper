@@ -14,6 +14,7 @@
             <span class="material-symbols-outlined sk-pick__icon">shield</span>
             <div>
               <h1>Mailwächter</h1>
+              <p>KI-gestützte Spam-Erkennung für deine Postfächer</p>
             </div>
           </div>
           <div class="sk-pick__actions">
@@ -42,49 +43,43 @@
 
       <!-- Mailbox grid -->
       <div class="sk-pick__grid" *ngIf="!loadingMailboxes && mailboxes.length > 0">
-        <div
-          class="sk-pick__card"
-          *ngFor="let mb of mailboxes; trackBy: trackByMailbox"
-          (click)="selectMailbox(mb)"
+        <div class="sk-pick__card" *ngFor="let mb of mailboxes; trackBy: trackByMailbox" (click)="selectMailbox(mb)"
           [class.sk-pick__card--danger]="mailboxSpamCounts[mb.mailboxId] >= 10"
           [class.sk-pick__card--warn]="mailboxSpamCounts[mb.mailboxId] > 0 && mailboxSpamCounts[mb.mailboxId] < 10"
           [class.sk-pick__card--clean]="!mailboxSpamCounts[mb.mailboxId] || mailboxSpamCounts[mb.mailboxId] === 0"
-          @scaleIn>
+          [style.--mb-color]="mb.mailbox.color || '#6366f1'" @scaleIn>
 
-          <!-- Status accent strip -->
-          <div class="sk-pick__accent"></div>
+          <div class="sk-pick__accent" [style.background]="mb.mailbox.color || '#6366f1'"></div>
 
-          <!-- Avatar -->
-          <div class="sk-pick__avatar">
-            <span>{{ getMailboxInitials(mb) }}</span>
+          <div class="sk-pick__avatar" [style.background-image]="mb.mailbox.email | identicon">
           </div>
 
-          <!-- Info -->
           <div class="sk-pick__info">
             <strong class="sk-pick__name">{{ mb.mailbox.name || 'Postfach' }}</strong>
             <span class="sk-pick__email">{{ mb.mailbox.email }}</span>
-            <div class="sk-pick__tags" *ngIf="mb.mailbox.spamAutoDeleteCategories && mb.mailbox.spamAutoDeleteCategories.length > 0">
+            <div class="sk-pick__tags"
+              *ngIf="mb.mailbox.spamAutoDeleteCategories && mb.mailbox.spamAutoDeleteCategories.length > 0">
               <span class="material-symbols-outlined">auto_delete</span>
-              <span class="sk-cat-badge sk-cat-badge--xs" *ngFor="let cat of mb.mailbox.spamAutoDeleteCategories" [class]="getCategoryClass(cat)">
+              <span class="sk-cat-badge sk-cat-badge--xs" *ngFor="let cat of mb.mailbox.spamAutoDeleteCategories"
+                [class]="getCategoryClass(cat)">
                 {{ getCategoryLabel(cat) }}
               </span>
             </div>
           </div>
 
-          <!-- Status badge -->
           <div class="sk-pick__status">
             <div class="sk-pick__count" *ngIf="mailboxSpamCounts[mb.mailboxId] > 0"
               [class.sk-pick__count--high]="mailboxSpamCounts[mb.mailboxId] >= 10">
               <span class="sk-pick__count-number">{{ mailboxSpamCounts[mb.mailboxId] }}</span>
               <span class="sk-pick__count-label">verdächtig</span>
             </div>
-            <div class="sk-pick__clean" *ngIf="!mailboxSpamCounts[mb.mailboxId] || mailboxSpamCounts[mb.mailboxId] === 0">
+            <div class="sk-pick__clean"
+              *ngIf="!mailboxSpamCounts[mb.mailboxId] || mailboxSpamCounts[mb.mailboxId] === 0">
               <span class="material-symbols-outlined">check_circle</span>
               <span>Sauber</span>
             </div>
           </div>
 
-          <!-- Arrow -->
           <span class="material-symbols-outlined sk-pick__arrow">chevron_right</span>
         </div>
       </div>
@@ -103,232 +98,256 @@
   </ng-container>
 
   <!-- ============================================ -->
-  <!-- VIEW 2: EMAIL LIST (email-list style)        -->
+  <!-- VIEW 2: EMAIL LIST (redesigned)              -->
   <!-- ============================================ -->
   <ng-container *ngIf="activeMailbox">
 
-    <!-- Command bar -->
-    <div class="sk-cmd" @fadeSlide>
-      <div class="sk-cmd__row">
-
-        <!-- Back + Mailbox info -->
-        <button class="sk-cmd__back" (click)="backToMailboxes()">
+    <!-- Top bar -->
+    <div class="sk-topbar" @fadeSlide>
+      <div class="sk-topbar__left">
+        <button class="sk-topbar__back" (click)="backToMailboxes()" title="Zurück">
           <span class="material-symbols-outlined">arrow_back</span>
         </button>
-        <div class="sk-cmd__mailbox">
+        <div class="sk-topbar__mailbox">
           <strong>{{ activeMailbox.mailbox.name || 'Postfach' }}</strong>
           <span>{{ activeMailbox.mailbox.email }}</span>
         </div>
+      </div>
 
-        <div class="sk-cmd__divider"></div>
-
-        <!-- Stats -->
-        <div class="sk-cmd__stats" *ngIf="loaded && emails.length > 0">
-          <span class="sk-stat-pill sk-stat-pill--danger" *ngIf="spamCount > 0">{{ spamCount }} Spam</span>
-          <span class="sk-stat-pill sk-stat-pill--info" *ngIf="newsletterCount > 0">{{ newsletterCount }} Newsletter</span>
-          <span class="sk-stat-pill sk-stat-pill--ok">{{ legitimateCount }} OK</span>
-        </div>
-
+      <div class="sk-topbar__center">
         <!-- Scan indicator -->
-        <div class="sk-cmd__scanning" *ngIf="scanning">
+        <div class="sk-topbar__scanning" *ngIf="scanning">
           <div class="sk-pulse-dot"></div>
           <span>{{ scanStatus }}</span>
-          <span class="sk-cmd__scan-pct" *ngIf="scanTotal > 0">{{ scanProgress }}/{{ scanTotal }}</span>
+          <span class="sk-topbar__scan-pct" *ngIf="scanTotal > 0">{{ scanProgress }}/{{ scanTotal }}</span>
         </div>
+        <!-- Stats pills -->
+        <div class="sk-topbar__stats" *ngIf="loaded && emails.length > 0 && !scanning">
+          <span class="sk-stat-pill sk-stat-pill--danger" *ngIf="spamCount > 0">{{ spamCount }} Spam</span>
+          <span class="sk-stat-pill sk-stat-pill--info" *ngIf="newsletterCount > 0">{{ newsletterCount }} NL</span>
+          <span class="sk-stat-pill sk-stat-pill--ok">{{ legitimateCount }} OK</span>
+        </div>
+      </div>
 
-        <div class="sk-cmd__spacer"></div>
-
-        <!-- Search -->
-        <div class="sk-cmd__search">
+      <div class="sk-topbar__right">
+        <div class="sk-topbar__search">
           <span class="material-symbols-outlined">search</span>
           <input type="text" placeholder="Suchen..." [(ngModel)]="searchQuery" />
-          <button class="sk-cmd__search-clear" *ngIf="searchQuery" (click)="clearSearch()">
+          <button class="sk-topbar__search-clear" *ngIf="searchQuery" (click)="clearSearch()">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
-
-        <!-- Actions -->
-        <button class="sk-cmd__btn" (click)="startScan()" [disabled]="scanning" title="Neu scannen">
-          <span class="material-symbols-outlined" [class.sk-spin]="scanning">{{ scanning ? 'hourglass_top' : 'radar' }}</span>
+        <button class="sk-topbar__icon-btn" (click)="startScan()" [disabled]="scanning" title="Neu scannen">
+          <span class="material-symbols-outlined" [class.sk-spin]="scanning">{{ scanning ? 'hourglass_top' : 'radar'
+            }}</span>
         </button>
-        <a routerLink="/spam-killer/history" class="sk-cmd__btn" title="Löschverlauf">
+        <a routerLink="/spam-killer/history" class="sk-topbar__icon-btn" title="Löschverlauf">
           <span class="material-symbols-outlined">delete_sweep</span>
         </a>
       </div>
 
-      <!-- Filter chips -->
-      <div class="sk-cmd__filters" *ngIf="loaded && emails.length > 0">
-        <button
-          class="sk-filter-chip"
-          *ngFor="let cat of ['spam','scam','phishing','newsletter','marketing','legitimate']"
-          [class.sk-filter-chip--active]="filterCategory === cat"
-          (click)="setFilterCategory($any(cat))">
-          <span class="material-symbols-outlined">{{ getCategoryIcon(cat) }}</span>
-          {{ getCategoryLabel(cat) }}
-          <span class="sk-filter-chip__count" *ngIf="categoryCountMap[cat]">{{ categoryCountMap[cat] }}</span>
-        </button>
-        <button class="sk-filter-chip sk-filter-chip--clear" *ngIf="hasActiveFilters" (click)="clearFilters()">
-          <span class="material-symbols-outlined">filter_list_off</span>
-          Zurücksetzen
-        </button>
-      </div>
-
-      <!-- Scan progress bar -->
-      <div class="sk-cmd__progress" *ngIf="scanning">
-        <div class="sk-cmd__progress-fill" [style.width.%]="scanTotal > 0 ? (scanProgress / scanTotal * 100) : 0"></div>
+      <!-- Progress bar -->
+      <div class="sk-topbar__progress" *ngIf="scanning">
+        <div class="sk-topbar__progress-fill" [style.width.%]="scanTotal > 0 ? (scanProgress / scanTotal * 100) : 0">
+        </div>
       </div>
     </div>
 
-    <!-- Main content area -->
-    <div class="sk-main">
+    <!-- Toolbar: filters + bulk actions -->
+    <div class="sk-toolbar" *ngIf="loaded && emails.length > 0" @fadeSlide>
 
-      <!-- List pane -->
-      <aside class="sk-list-pane" [class.sk-list-pane--detail-open]="selectedEmail">
+      <div class="sk-toolbar__right">
+        <span class="sk-toolbar__info" *ngIf="scanDurationMs > 0">{{ formatDuration(scanDurationMs) }} &middot; {{
+          totalInbox }} geprüft</span>
+      </div>
+    </div>
 
-        <!-- Select all bar -->
-        <div class="sk-list-pane__toolbar" *ngIf="loaded && filteredEmails.length > 0">
-          <label class="sk-check-all">
-            <input type="checkbox" [checked]="allSelected" (change)="toggleAll()" />
-            <span>Alle ({{ filteredEmails.length }})</span>
+    <!-- Filter chips -->
+    <div class="sk-filters" *ngIf="loaded && emails.length > 0">
+      <div class="sk-toolbar__left">
+        <label class="sk-toolbar__select-all">
+          <input type="checkbox" [checked]="allSelected" (change)="toggleAll()" />
+          <span>Alle</span>
+          <span class="sk-toolbar__count">({{ filteredEmails.length }})</span>
+        </label>
+
+        <!-- Delete selected button -->
+        <button class="sk-toolbar__delete-btn" *ngIf="selectedCount > 0" [disabled]="isDeleting"
+          (click)="deleteSelected()" @fadeSlide>
+          <span class="material-symbols-outlined">delete_forever</span>
+          {{ isDeleting ? 'Lösche...' : selectedCount + ' markierte löschen' }}
+        </button>
+      </div>
+      <button class="sk-filter-chip"
+        *ngFor="let cat of ['spam','scam','phishing','newsletter','marketing','legitimate']"
+        [class.sk-filter-chip--active]="filterCategory === cat" (click)="setFilterCategory($any(cat))">
+        <span class="material-symbols-outlined">{{ getCategoryIcon(cat) }}</span>
+        {{ getCategoryLabel(cat) }}
+        <span class="sk-filter-chip__count" *ngIf="categoryCountMap[cat]">{{ categoryCountMap[cat] }}</span>
+      </button>
+      <button class="sk-filter-chip sk-filter-chip--clear" *ngIf="hasActiveFilters" (click)="clearFilters()">
+        <span class="material-symbols-outlined">filter_list_off</span>
+        Zurücksetzen
+      </button>
+    </div>
+
+    <!-- Email list (single column, expandable cards) -->
+    <div class="sk-email-list" [@listAnim]="filteredEmails.length">
+
+      <div *ngFor="let e of filteredEmails; trackBy: trackByUid" class="sk-card"
+        [class.sk-card--expanded]="expandedEmail?.uid === e.uid" [class.sk-card--checked]="e.selected">
+
+        <!-- Card row -->
+        <div class="sk-card__row" (click)="toggleExpand(e)">
+          <label class="sk-card__check" (click)="$event.stopPropagation()">
+            <input type="checkbox" [checked]="e.selected" (change)="toggle(e)" />
           </label>
-          <span class="sk-list-pane__info" *ngIf="scanDurationMs > 0">{{ formatDuration(scanDurationMs) }} &middot; {{ totalInbox }} geprüft</span>
+
+          <div class="sk-card__score" [class]="getScoreClass(e.spamScore)">{{ e.spamScore }}</div>
+
+          <div class="sk-card__avatar"
+               [style.background-image]="e.from | identicon"
+               [style.background-color]="activeMailbox!.mailbox.color || '#6366f1'">
+          </div>
+
+          <div class="sk-card__content">
+            <div class="sk-card__header">
+              <span class="sk-card__from">{{ e.fromName || e.from }}</span>
+              <span class="sk-cat-badge" [class]="getCategoryClass(e.category)">
+                <span class="material-symbols-outlined">{{ getCategoryIcon(e.category) }}</span>
+                {{ getCategoryLabel(e.category) }}
+              </span>
+            </div>
+            <div class="sk-card__subject">{{ e.subject }}</div>
+            <div class="sk-card__reason">{{ e.spamReason }}</div>
+          </div>
+
+          <span class="sk-card__date">{{ formatDate(e.date) }}</span>
+
+          <!-- Per-email actions -->
+          <div class="sk-card__actions" (click)="$event.stopPropagation()">
+            <button class="sk-card__action-btn sk-card__action-btn--delete" (click)="deleteSingle(e)" title="Löschen"
+              [disabled]="isDeleting">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
+          </div>
+
+          <span class="material-symbols-outlined sk-card__chevron">
+            {{ expandedEmail?.uid === e.uid ? 'expand_less' : 'expand_more' }}
+          </span>
         </div>
 
-        <!-- Email items -->
-        <div class="sk-list-pane__items" [@listAnim]="filteredEmails.length">
-          <div
-            *ngFor="let e of filteredEmails; trackBy: trackByUid"
-            class="sk-mail-item"
-            [class.sk-mail-item--active]="selectedEmail?.uid === e.uid"
-            [class.sk-mail-item--checked]="e.selected"
-            (click)="showDetail(e)">
+        <!-- Expanded detail -->
+        <div class="sk-card__detail" *ngIf="expandedEmail?.uid === e.uid" @fadeSlide>
+          <div class="sk-card__detail-inner">
 
-            <label class="sk-mail-item__check" (click)="$event.stopPropagation()">
-              <input type="checkbox" [checked]="e.selected" (change)="toggle(e)" />
-            </label>
-
-            <div class="sk-mail-item__score" [class]="getScoreClass(e.spamScore)">{{ e.spamScore }}</div>
-
-            <div class="sk-mail-item__content">
-              <div class="sk-mail-item__top">
-                <span class="sk-mail-item__from">{{ e.fromName || e.from }}</span>
-                <span class="sk-mail-item__date">{{ formatDate(e.date) }}</span>
-              </div>
-              <div class="sk-mail-item__subject">{{ e.subject }}</div>
-              <div class="sk-mail-item__bottom">
-                <span class="sk-cat-badge" [class]="getCategoryClass(e.category)">
+            <!-- Score + Category hero -->
+            <div class="sk-card__hero" [class]="'sk-card__hero--' + getScoreClass(e.spamScore)">
+              <div class="sk-card__hero-score" [class]="getScoreClass(e.spamScore)">{{ e.spamScore }}</div>
+              <div class="sk-card__hero-info">
+                <span class="sk-cat-badge sk-cat-badge--lg" [class]="getCategoryClass(e.category)">
                   <span class="material-symbols-outlined">{{ getCategoryIcon(e.category) }}</span>
                   {{ getCategoryLabel(e.category) }}
                 </span>
-                <span class="sk-mail-item__reason">{{ e.spamReason }}</span>
+                <p>{{ e.spamReason }}</p>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Loading state -->
-        <div class="sk-list-pane__status" *ngIf="!loaded && !error">
-          <span class="material-symbols-outlined sk-spin">sync</span>
-          <span>Lade Ergebnisse...</span>
-        </div>
+            <!-- Meta table -->
+            <div class="sk-card__meta">
+              <div class="sk-card__meta-row">
+                <span class="sk-card__meta-label">Von</span>
+                <span class="sk-card__meta-value">{{ e.fromName }} &lt;{{ e.from }}&gt;</span>
+              </div>
+              <div class="sk-card__meta-row">
+                <span class="sk-card__meta-label">An</span>
+                <span class="sk-card__meta-value">{{ e.to }}</span>
+              </div>
+              <div class="sk-card__meta-row">
+                <span class="sk-card__meta-label">Betreff</span>
+                <span class="sk-card__meta-value">{{ e.subject }}</span>
+              </div>
+              <div class="sk-card__meta-row">
+                <span class="sk-card__meta-label">Datum</span>
+                <span class="sk-card__meta-value">{{ formatDateFull(e.date) }}</span>
+              </div>
+            </div>
 
-        <!-- Error state -->
-        <div class="sk-list-pane__status" *ngIf="error && !scanning">
-          <span class="material-symbols-outlined" style="color: #dc2626;">error</span>
-          <span>Scan fehlgeschlagen</span>
-          <button class="sk-inline-btn" (click)="startScan()">
-            <span class="material-symbols-outlined">refresh</span> Erneut
-          </button>
-        </div>
+            <!-- Preview -->
+            <div class="sk-card__preview" *ngIf="e.preview && !emailBodyVisible">
+              <p>{{ e.preview }}</p>
+            </div>
 
-        <!-- Empty state (clean inbox) -->
-        <div class="sk-list-pane__empty" *ngIf="loaded && emails.length === 0 && !error && !scanning">
-          <span class="material-symbols-outlined">verified_user</span>
-          <h3>Alles sauber!</h3>
-          <p>Keine verdächtigen E-Mails gefunden.</p>
-          <button class="sk-inline-btn" (click)="startScan()">
-            <span class="material-symbols-outlined">radar</span> Neu scannen
-          </button>
-        </div>
+            <!-- Full email body -->
+            <div class="sk-card__body" *ngIf="emailBodyVisible && emailBodyText">
+              <h4>
+                <span class="material-symbols-outlined">article</span>
+                E-Mail Inhalt
+              </h4>
+              <div class="sk-card__body-text">{{ emailBodyText }}</div>
+            </div>
 
-        <!-- No filter results -->
-        <div class="sk-list-pane__empty" *ngIf="loaded && emails.length > 0 && filteredEmails.length === 0">
-          <span class="material-symbols-outlined">filter_list_off</span>
-          <h3>Keine Treffer</h3>
-          <p>Keine E-Mails für diesen Filter.</p>
-          <button class="sk-inline-btn" (click)="clearFilters()">
-            <span class="material-symbols-outlined">clear_all</span> Filter zurücksetzen
-          </button>
-        </div>
-
-      </aside>
-
-      <!-- Detail pane -->
-      <main class="sk-detail-pane" *ngIf="selectedEmail" @slideIn>
-        <div class="sk-detail">
-          <button class="sk-detail__close" (click)="closeDetail()">
-            <span class="material-symbols-outlined">close</span>
-          </button>
-
-          <!-- Score hero -->
-          <div class="sk-detail__hero" [class]="'sk-detail__hero--' + getScoreClass(selectedEmail.spamScore)">
-            <div class="sk-detail__score-circle" [class]="getScoreClass(selectedEmail.spamScore)">{{ selectedEmail.spamScore }}</div>
-            <div>
-              <span class="sk-cat-badge sk-cat-badge--lg" [class]="getCategoryClass(selectedEmail.category)">
-                <span class="material-symbols-outlined">{{ getCategoryIcon(selectedEmail.category) }}</span>
-                {{ getCategoryLabel(selectedEmail.category) }}
-              </span>
-              <p class="sk-detail__reason">{{ selectedEmail.spamReason }}</p>
+            <!-- Action buttons -->
+            <div class="sk-card__detail-actions">
+              <button class="sk-card__detail-btn sk-card__detail-btn--read" (click)="toggleEmailBody()"
+                [disabled]="emailBodyLoading">
+                <span class="material-symbols-outlined" [class.sk-spin]="emailBodyLoading">
+                  {{ emailBodyLoading ? 'hourglass_top' : emailBodyVisible ? 'visibility_off' : 'visibility' }}
+                </span>
+                {{ emailBodyLoading ? 'Lade...' : emailBodyVisible ? 'Ausblenden' : 'E-Mail lesen' }}
+              </button>
+              <button class="sk-card__detail-btn sk-card__detail-btn--mark" (click)="toggle(e)"
+                [class.sk-card__detail-btn--marked]="e.selected">
+                <span class="material-symbols-outlined">{{ e.selected ? 'check_circle' : 'radio_button_unchecked'
+                  }}</span>
+                {{ e.selected ? 'Markiert' : 'Markieren' }}
+              </button>
+              <button class="sk-card__detail-btn sk-card__detail-btn--destroy" (click)="deleteSingle(e)"
+                [disabled]="isDeleting">
+                <span class="material-symbols-outlined">delete_forever</span>
+                Löschen
+              </button>
             </div>
           </div>
-
-          <!-- Meta -->
-          <div class="sk-detail__meta">
-            <div class="sk-detail__row"><span>Von</span><span>{{ selectedEmail.fromName }} &lt;{{ selectedEmail.from }}&gt;</span></div>
-            <div class="sk-detail__row"><span>An</span><span>{{ selectedEmail.to }}</span></div>
-            <div class="sk-detail__row"><span>Betreff</span><span>{{ selectedEmail.subject }}</span></div>
-            <div class="sk-detail__row"><span>Datum</span><span>{{ formatDate(selectedEmail.date) }}</span></div>
-          </div>
-
-          <!-- Preview -->
-          <div class="sk-detail__preview" *ngIf="selectedEmail.preview && !emailBodyVisible">
-            <h4>Vorschau</h4>
-            <p>{{ selectedEmail.preview }}</p>
-          </div>
-
-          <!-- Full email body -->
-          <div class="sk-detail__body" *ngIf="emailBodyVisible && emailBodyText">
-            <h4>
-              <span class="material-symbols-outlined">article</span>
-              E-Mail Inhalt
-            </h4>
-            <div class="sk-detail__body-text">{{ emailBodyText }}</div>
-          </div>
-
-          <!-- Read email button -->
-          <button class="sk-detail__read-btn" (click)="toggleEmailBody()" [disabled]="emailBodyLoading">
-            <span class="material-symbols-outlined" [class.sk-spin]="emailBodyLoading">
-              {{ emailBodyLoading ? 'hourglass_top' : emailBodyVisible ? 'visibility_off' : 'visibility' }}
-            </span>
-            {{ emailBodyLoading ? 'Lade...' : emailBodyVisible ? 'Text ausblenden' : 'Komplette E-Mail lesen' }}
-          </button>
-
-          <!-- Toggle mark -->
-          <button class="sk-detail__mark-btn" (click)="toggle(selectedEmail)" [class.sk-detail__mark-btn--active]="selectedEmail.selected">
-            <span class="material-symbols-outlined">{{ selectedEmail.selected ? 'check_circle' : 'radio_button_unchecked' }}</span>
-            {{ selectedEmail.selected ? 'Zum Löschen markiert' : 'Nicht markiert' }}
-          </button>
         </div>
-      </main>
+      </div>
 
     </div>
 
-    <!-- Action bar (floating bottom) -->
-    <div class="sk-action-bar" *ngIf="selectedCount > 0" @fadeSlide>
-      <span><strong>{{ selectedCount }}</strong> ausgewählt</span>
-      <button class="sk-action-bar__delete" [disabled]="isDeleting" (click)="deleteSelected()">
-        <span class="material-symbols-outlined">delete_forever</span>
-        {{ isDeleting ? 'Lösche...' : selectedCount + ' löschen' }}
+    <!-- Loading state -->
+    <div class="sk-state" *ngIf="!loaded && !error">
+      <span class="material-symbols-outlined sk-spin">sync</span>
+      <span>Lade Ergebnisse...</span>
+    </div>
+
+    <!-- Error state -->
+    <div class="sk-state" *ngIf="error && !scanning">
+      <span class="material-symbols-outlined" style="color: #dc2626;">error</span>
+      <span>Scan fehlgeschlagen</span>
+      <button class="sk-inline-btn" (click)="startScan()">
+        <span class="material-symbols-outlined">refresh</span> Erneut versuchen
+      </button>
+    </div>
+
+    <!-- Empty state -->
+    <div class="sk-state sk-state--empty" *ngIf="loaded && emails.length === 0 && !error && !scanning">
+      <div class="sk-state__icon-wrap">
+        <span class="material-symbols-outlined">verified_user</span>
+      </div>
+      <h3>Alles sauber!</h3>
+      <p>Keine verdächtigen E-Mails gefunden.</p>
+      <button class="sk-inline-btn" (click)="startScan()">
+        <span class="material-symbols-outlined">radar</span> Neu scannen
+      </button>
+    </div>
+
+    <!-- No filter results -->
+    <div class="sk-state sk-state--empty" *ngIf="loaded && emails.length > 0 && filteredEmails.length === 0">
+      <span class="material-symbols-outlined">filter_list_off</span>
+      <h3>Keine Treffer</h3>
+      <p>Keine E-Mails passen zu diesem Filter.</p>
+      <button class="sk-inline-btn" (click)="clearFilters()">
+        <span class="material-symbols-outlined">clear_all</span> Filter zurücksetzen
       </button>
     </div>
 

@@ -8,6 +8,7 @@ import { ToastService } from '../../shared/toasts/toast.service';
 import { ConfirmationService } from '../../shared/confirmation/confirmation.service';
 import { ConfigService } from '../../services/config.service';
 import { AuthService } from '../../services/auth.service';
+import { IdenticonPipe } from '../../shared/identicon.pipe';
 
 interface SpamEmail {
   uid: number;
@@ -30,7 +31,7 @@ type CategoryFilter = '' | 'spam' | 'scam' | 'phishing' | 'newsletter' | 'market
 @Component({
   selector: 'app-spam-killer',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, IdenticonPipe],
   templateUrl: './spam-killer.component.html',
   styleUrls: ['./spam-killer.component.scss'],
   animations: [
@@ -80,6 +81,7 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
   activeMailbox: UserMailbox | null = null;
   emails: SpamEmail[] = [];
   selectedEmail: SpamEmail | null = null;
+  expandedEmail: SpamEmail | null = null;
 
   // -- Scan state --
   scanning = false;
@@ -128,6 +130,8 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
         (e.preview && e.preview.toLowerCase().includes(q))
       );
     }
+    // Sort newest first
+    result = [...result].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return result;
   }
 
@@ -202,6 +206,7 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
     this.activeMailbox = mb;
     this.emails = [];
     this.selectedEmail = null;
+    this.expandedEmail = null;
     this.loaded = false;
     this.error = false;
     this.scanning = false;
@@ -222,6 +227,7 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
     this.activeMailbox = null;
     this.emails = [];
     this.selectedEmail = null;
+    this.expandedEmail = null;
     this.loaded = false;
     this.error = false;
     this.scanning = false;
@@ -271,7 +277,7 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
     this.error = false;
     this.scanProgress = 0;
     this.scanTotal = 0;
-    this.scanStatus = 'Verbinde...';
+    this.scanStatus = 'Lade neue Mails...';
 
     const token = localStorage.getItem('access_token') || '';
     const url = `${this.config.apiUrl}/spam-killer/scan-live/${id}?token=${encodeURIComponent(token)}`;
@@ -362,6 +368,9 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
                 this.emails = this.emails.filter(e => !removedSet.has(e.uid));
                 if (this.selectedEmail && removedSet.has(this.selectedEmail.uid)) {
                   this.selectedEmail = null;
+                }
+                if (this.expandedEmail && removedSet.has(this.expandedEmail.uid)) {
+                  this.expandedEmail = null;
                 }
               }
             }
@@ -467,6 +476,49 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
     this.emailBodyVisible = false;
   }
 
+  toggleExpand(email: SpamEmail) {
+    if (this.expandedEmail?.uid === email.uid) {
+      this.expandedEmail = null;
+      this.emailBodyText = null;
+      this.emailBodyVisible = false;
+    } else {
+      this.expandedEmail = email;
+      this.emailBodyText = null;
+      this.emailBodyLoading = false;
+      this.emailBodyVisible = false;
+    }
+  }
+
+  async deleteSingle(email: SpamEmail) {
+    if (!this.activeMailbox) return;
+
+    const ok = await this.confirm.confirm({
+      title: 'E-Mail löschen',
+      message: `"${email.subject}" endgültig löschen?`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      type: 'danger',
+      icon: 'delete_forever',
+    });
+    if (!ok) return;
+
+    this.isDeleting = true;
+    this.api.spamKillerDelete(this.activeMailbox.mailboxId, [email.uid]).subscribe({
+      next: (res) => {
+        this.isDeleting = false;
+        this.emails = this.emails.filter(e => e.uid !== email.uid);
+        if (this.expandedEmail?.uid === email.uid) this.expandedEmail = null;
+        this.toasts.success('E-Mail gelöscht!');
+        if (res.failed > 0) this.toasts.warning('Konnte nicht gelöscht werden.');
+        this.loadSpamCounts();
+      },
+      error: () => {
+        this.isDeleting = false;
+        this.toasts.error('Löschen fehlgeschlagen.');
+      },
+    });
+  }
+
   toggleEmailBody() {
     if (this.emailBodyVisible) {
       this.emailBodyVisible = false;
@@ -476,9 +528,10 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
       this.emailBodyVisible = true;
       return;
     }
-    if (!this.activeMailbox || !this.selectedEmail) return;
+    const target = this.expandedEmail || this.selectedEmail;
+    if (!this.activeMailbox || !target) return;
     this.emailBodyLoading = true;
-    this.api.spamKillerGetEmailBody(this.activeMailbox.mailboxId, this.selectedEmail.uid).subscribe({
+    this.api.spamKillerGetEmailBody(this.activeMailbox.mailboxId, target.uid).subscribe({
       next: (res) => {
         this.emailBodyText = res.bodyText || 'Kein Text verfügbar.';
         this.emailBodyVisible = true;
@@ -536,6 +589,13 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
       if (h < 24) return `Vor ${Math.floor(h)}h`;
       if (h < 48) return 'Gestern';
       return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    } catch { return d; }
+  }
+
+  formatDateFull(d: string): string {
+    try {
+      const date = new Date(d);
+      return date.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     } catch { return d; }
   }
 
