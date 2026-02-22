@@ -470,6 +470,12 @@ $g900: #111827;
 
 // ── Individual Email in expanded log ──
 
+.dh-email-wrapper {
+  border-bottom: 1px solid rgba($g200, 0.5);
+
+  &:last-child { border-bottom: none; }
+}
+
 .dh-email {
   display: flex;
   align-items: center;
@@ -479,6 +485,8 @@ $g900: #111827;
   transition: background 0.1s;
 
   &:hover { background: rgba($g200, 0.5); }
+
+  &--clickable { cursor: pointer; }
 
   &__cat {
     flex-shrink: 0;
@@ -533,6 +541,29 @@ $g900: #111827;
     font-weight: 700;
     color: $g500;
     font-variant-numeric: tabular-nums;
+  }
+
+  &__expand-icon {
+    font-size: 18px;
+    color: $g400;
+    transition: transform 0.2s;
+
+    &--open { transform: rotate(180deg); }
+  }
+
+  &__body {
+    font-size: 0.8125rem;
+    color: $g700;
+    line-height: 1.7;
+    background: white;
+    padding: 0.875rem;
+    margin: 0 0.75rem 0.5rem;
+    border-radius: 8px;
+    border: 1px solid $g200;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 400px;
+    overflow-y: auto;
   }
 }
 

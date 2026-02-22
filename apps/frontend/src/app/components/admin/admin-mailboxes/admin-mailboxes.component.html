@@ -89,34 +89,132 @@
             </span>
           </div>
 
-          <!-- Info Grid -->
-          <div class="mailbox-card__info">
-            <div class="info-item">
-              <span class="material-symbols-outlined ms-size-16">download</span>
-              <span class="info-label">IMAP</span>
-              <span class="info-value">{{ mb.imapHost }}:{{ mb.imapPort }}</span>
+          <!-- ── Server Section ── -->
+          <div class="mailbox-card__section">
+            <div class="section-title">
+              <span class="material-symbols-outlined ms-size-14">dns</span>
+              Server
             </div>
-            <div class="info-item">
-              <span class="material-symbols-outlined ms-size-16">upload</span>
-              <span class="info-label">SMTP</span>
-              <span class="info-value">{{ mb.smtpHost }}:{{ mb.smtpPort }}</span>
-            </div>
-            <div class="info-item" *ngIf="mb.companyName">
-              <span class="material-symbols-outlined ms-size-16">business</span>
-              <span class="info-label">Firma</span>
-              <span class="info-value">{{ mb.companyName }}</span>
-            </div>
-            <div class="info-item">
-              <span class="material-symbols-outlined ms-size-16">folder</span>
-              <span class="info-label">Ordner</span>
-              <span class="info-value">{{ mb.imapSourceFolder || 'INBOX' }}</span>
+            <div class="mailbox-card__info">
+              <div class="info-item">
+                <span class="material-symbols-outlined ms-size-16">download</span>
+                <span class="info-label">IMAP</span>
+                <span class="info-value" [title]="mb.imapHost + ':' + mb.imapPort">{{ mb.imapHost }}:{{ mb.imapPort }}</span>
+              </div>
+              <div class="info-item">
+                <span class="material-symbols-outlined ms-size-16">upload</span>
+                <span class="info-label">SMTP</span>
+                <span class="info-value" [title]="mb.smtpHost + ':' + mb.smtpPort">{{ mb.smtpHost }}:{{ mb.smtpPort }}</span>
+              </div>
+              <div class="info-item">
+                <span class="material-symbols-outlined ms-size-16">lock</span>
+                <span class="info-label">IMAP TLS</span>
+                <span class="info-value" [class.info-value--on]="mb.imapTls" [class.info-value--off]="!mb.imapTls">
+                  {{ mb.imapTls ? 'Ja' : 'Nein' }}
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="material-symbols-outlined ms-size-16">lock</span>
+                <span class="info-label">SMTP SSL</span>
+                <span class="info-value" [class.info-value--on]="mb.smtpSecure" [class.info-value--off]="!mb.smtpSecure">
+                  {{ mb.smtpSecure ? 'Ja' : 'Nein' }}
+                </span>
+              </div>
             </div>
           </div>
 
-          <!-- Assigned Users Preview -->
-          <div class="mailbox-card__users" *ngIf="mailboxUserCounts[mb.id] !== undefined">
-            <span class="material-symbols-outlined ms-size-16">group</span>
-            <span>{{ mailboxUserCounts[mb.id] }} Benutzer zugewiesen</span>
+          <!-- ── Folders Section ── -->
+          <div class="mailbox-card__section">
+            <div class="section-title">
+              <span class="material-symbols-outlined ms-size-14">folder_open</span>
+              Ordner
+            </div>
+            <div class="mailbox-card__info">
+              <div class="info-item">
+                <span class="material-symbols-outlined ms-size-16">inbox</span>
+                <span class="info-label">Eingang</span>
+                <span class="info-value" [title]="mb.imapSourceFolder || 'INBOX'">{{ mb.imapSourceFolder || 'INBOX' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="material-symbols-outlined ms-size-16">send</span>
+                <span class="info-label">Gesendet</span>
+                <span class="info-value" [title]="mb.imapSentFolder || 'Sent'">{{ mb.imapSentFolder || 'Sent' }}</span>
+              </div>
+              <div class="info-item" *ngIf="mb.imapDoneFolder">
+                <span class="material-symbols-outlined ms-size-16">task_alt</span>
+                <span class="info-label">Erledigt</span>
+                <span class="info-value" [title]="mb.imapDoneFolder">{{ mb.imapDoneFolder }}</span>
+              </div>
+              <div class="info-item" *ngIf="mb.imapTrashFolder">
+                <span class="material-symbols-outlined ms-size-16">delete</span>
+                <span class="info-label">Papierkorb</span>
+                <span class="info-value" [title]="mb.imapTrashFolder">{{ mb.imapTrashFolder }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Company Section ── -->
+          <div class="mailbox-card__section" *ngIf="mb.companyName || mb.companyPhone || mb.companyWebsite || mb.companyAddress">
+            <div class="section-title">
+              <span class="material-symbols-outlined ms-size-14">business</span>
+              Firma
+            </div>
+            <div class="mailbox-card__info">
+              <div class="info-item" *ngIf="mb.companyName">
+                <span class="material-symbols-outlined ms-size-16">badge</span>
+                <span class="info-label">Name</span>
+                <span class="info-value" [title]="mb.companyName">{{ mb.companyName }}</span>
+              </div>
+              <div class="info-item" *ngIf="mb.companyPhone">
+                <span class="material-symbols-outlined ms-size-16">call</span>
+                <span class="info-label">Telefon</span>
+                <span class="info-value" [title]="mb.companyPhone">{{ mb.companyPhone }}</span>
+              </div>
+              <div class="info-item" *ngIf="mb.companyWebsite">
+                <span class="material-symbols-outlined ms-size-16">language</span>
+                <span class="info-label">Website</span>
+                <span class="info-value" [title]="mb.companyWebsite">{{ mb.companyWebsite }}</span>
+              </div>
+              <div class="info-item info-item--full" *ngIf="mb.companyAddress">
+                <span class="material-symbols-outlined ms-size-16">location_on</span>
+                <span class="info-label">Adresse</span>
+                <span class="info-value" [title]="mb.companyAddress">{{ mb.companyAddress }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Spam & Signature chips ── -->
+          <div class="mailbox-card__chips">
+            <span class="info-chip" *ngIf="mb.spamScanIntervalMinutes"
+              [title]="'Spam-Scan alle ' + mb.spamScanIntervalMinutes + ' Minuten'">
+              <span class="material-symbols-outlined ms-size-14">shield</span>
+              Spam alle {{ mb.spamScanIntervalMinutes }} min
+            </span>
+            <span class="info-chip" *ngIf="mb.spamAutoDeleteCategories?.length"
+              [title]="'Auto-Löschen: ' + mb.spamAutoDeleteCategories!.join(', ')">
+              <span class="material-symbols-outlined ms-size-14">auto_delete</span>
+              {{ mb.spamAutoDeleteCategories!.length }} Auto-Lösch-Kat.
+            </span>
+            <span class="info-chip info-chip--signature" *ngIf="mb.signatureTemplate">
+              <span class="material-symbols-outlined ms-size-14">draw</span>
+              Signatur
+            </span>
+            <span class="info-chip info-chip--no-signature" *ngIf="!mb.signatureTemplate">
+              <span class="material-symbols-outlined ms-size-14">block</span>
+              Keine Signatur
+            </span>
+          </div>
+
+          <!-- ── Footer meta ── -->
+          <div class="mailbox-card__meta">
+            <div class="meta-item" *ngIf="mailboxUserCounts[mb.id] !== undefined">
+              <span class="material-symbols-outlined ms-size-14">group</span>
+              {{ mailboxUserCounts[mb.id] }} Benutzer
+            </div>
+            <div class="meta-item" *ngIf="mb.createdAt">
+              <span class="material-symbols-outlined ms-size-14">schedule</span>
+              {{ mb.createdAt | date:'dd.MM.yyyy' }}
+            </div>
           </div>
 
           <!-- Actions -->

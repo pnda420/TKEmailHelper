@@ -22,21 +22,21 @@
             <span class="material-symbols-outlined ms-size-18">inbox</span>
             Posteingang
           </a>
-          <a routerLink="/spam-killer" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()"
-            [routerLinkActiveOptions]="{ exact: true }">
-            <span class="material-symbols-outlined ms-size-18">shield</span>
-            Spam Killer
-            <span class="nav-spam-badge" *ngIf="totalSpamCount > 0">{{ totalSpamCount > 99 ? '99+' : totalSpamCount
-              }}</span>
-          </a>
           <a routerLink="/history" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
             <span class="material-symbols-outlined ms-size-18">history</span>
             Verlauf
           </a>
+          <a routerLink="/spam-killer" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()"
+            [routerLinkActiveOptions]="{ exact: true }">
+            <span class="material-symbols-outlined ms-size-18">shield</span>
+            Mailwächter 
+            <span class="nav-spam-badge" *ngIf="totalSpamCount > 0">{{ totalSpamCount > 99 ? '99+' : totalSpamCount
+              }}</span>
+          </a>
           <a *ngIf="user.role === UserRole.ADMIN" routerLink="/admin" routerLinkActive="active"
             class="nav-link--admin-main" (click)="servicesDropdownOpen = false; closeMenu()">
             <span class="material-symbols-outlined ms-size-18">admin_panel_settings</span>
-            Admin
+            Admin Panel
           </a>
         </ng-container>
       </div>

@@ -105,6 +105,11 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
   private scanES: EventSource | null = null;
   private liveES: EventSource | null = null;
 
+  // -- Email body --
+  emailBodyText: string | null = null;
+  emailBodyLoading = false;
+  emailBodyVisible = false;
+
   get totalFlaggedCount(): number {
     return Object.values(this.mailboxSpamCounts).reduce((s, c) => s + c, 0);
   }
@@ -292,11 +297,6 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
             this.scanTotal = this.totalInbox;
             this.scanning = false;
             this.loaded = true;
-            if (this.emails.length > 0) {
-              this.toasts.warning(`${this.emails.length} verdächtige E-Mails gefunden!`);
-            } else {
-              this.toasts.success('Inbox ist sauber!');
-            }
             this.loadSpamCounts();
           } else if (data.type === 'error') {
             es.close();
@@ -451,11 +451,45 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
   // =============================================
 
   showDetail(email: SpamEmail) {
-    this.selectedEmail = this.selectedEmail?.uid === email.uid ? null : email;
+    if (this.selectedEmail?.uid === email.uid) {
+      this.selectedEmail = null;
+    } else {
+      this.selectedEmail = email;
+      this.emailBodyText = null;
+      this.emailBodyLoading = false;
+      this.emailBodyVisible = false;
+    }
   }
 
   closeDetail() {
     this.selectedEmail = null;
+    this.emailBodyText = null;
+    this.emailBodyVisible = false;
+  }
+
+  toggleEmailBody() {
+    if (this.emailBodyVisible) {
+      this.emailBodyVisible = false;
+      return;
+    }
+    if (this.emailBodyText !== null) {
+      this.emailBodyVisible = true;
+      return;
+    }
+    if (!this.activeMailbox || !this.selectedEmail) return;
+    this.emailBodyLoading = true;
+    this.api.spamKillerGetEmailBody(this.activeMailbox.mailboxId, this.selectedEmail.uid).subscribe({
+      next: (res) => {
+        this.emailBodyText = res.bodyText || 'Kein Text verfügbar.';
+        this.emailBodyVisible = true;
+        this.emailBodyLoading = false;
+      },
+      error: () => {
+        this.emailBodyText = 'Fehler beim Laden des E-Mail-Textes.';
+        this.emailBodyVisible = true;
+        this.emailBodyLoading = false;
+      },
+    });
   }
 
   // =============================================
@@ -507,6 +541,14 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
 
   formatDuration(ms: number): string {
     return ms < 1000 ? `${ms}ms` : `${(Math.round(ms / 100) / 10)}s`;
+  }
+
+  getMailboxInitials(mb: UserMailbox): string {
+    const name = mb.mailbox.name || mb.mailbox.email || '';
+    if (!name) return '?';
+    const parts = name.trim().split(/[\s@.]+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
   }
 
   trackByMailbox(_: number, mb: UserMailbox): string { return mb.mailboxId; }

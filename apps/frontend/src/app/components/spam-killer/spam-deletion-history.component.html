@@ -52,7 +52,7 @@
         <span class="material-symbols-outlined dh-filter__icon">mail</span>
         <select class="dh-filter__select" [(ngModel)]="filterMailboxId" (ngModelChange)="onFilterChange()">
           <option value="">Alle Postfächer</option>
-          <option *ngFor="let mb of availableMailboxes" [value]="mb.id">{{ mb.email }}</option>
+          <option *ngFor="let mb of availableMailboxes" [value]="mb.mailboxId">{{ mb.mailbox.email }}</option>
         </select>
       </div>
 
@@ -135,26 +135,37 @@
 
       <!-- Expanded: Email list -->
       <div class="dh-log__body" *ngIf="isExpanded(log.id)">
-        <div class="dh-email"
-             *ngFor="let email of parseEmailSummaries(log.emailSummaries)">
-          <div class="dh-email__cat">
-            <span class="material-symbols-outlined" [style.color]="getCategoryInfo(email.category).color"
-              [title]="getCategoryInfo(email.category).label">
-              {{ getCategoryInfo(email.category).icon }}
-            </span>
+        <div class="dh-email-wrapper"
+             *ngFor="let email of parseEmailSummaries(log.emailSummaries); let i = index">
+          <div class="dh-email" (click)="(email.bodyText || email.preview) ? toggleEmailBody(log.id, i) : null"
+               [class.dh-email--clickable]="email.bodyText || email.preview">
+            <div class="dh-email__cat">
+              <span class="material-symbols-outlined" [style.color]="getCategoryInfo(email.category).color"
+                [title]="getCategoryInfo(email.category).label">
+                {{ getCategoryInfo(email.category).icon }}
+              </span>
+            </div>
+            <div class="dh-email__content">
+              <div class="dh-email__subject">{{ email.subject || '(Kein Betreff)' }}</div>
+              <div class="dh-email__from">{{ email.fromName || email.from }}</div>
+            </div>
+            <div class="dh-email__badges">
+              <span class="dh-email__cat-badge" [style.background]="getCategoryInfo(email.category).color + '14'"
+                [style.color]="getCategoryInfo(email.category).color">
+                {{ getCategoryInfo(email.category).label }}
+              </span>
+              <span class="dh-email__score" *ngIf="email.spamScore">
+                {{ email.spamScore }}%
+              </span>
+              <span class="material-symbols-outlined dh-email__expand-icon" *ngIf="email.bodyText || email.preview"
+                [class.dh-email__expand-icon--open]="isEmailBodyExpanded(log.id, i)">
+                expand_more
+              </span>
+            </div>
           </div>
-          <div class="dh-email__content">
-            <div class="dh-email__subject">{{ email.subject || '(Kein Betreff)' }}</div>
-            <div class="dh-email__from">{{ email.from }}</div>
-          </div>
-          <div class="dh-email__badges">
-            <span class="dh-email__cat-badge" [style.background]="getCategoryInfo(email.category).color + '14'"
-              [style.color]="getCategoryInfo(email.category).color">
-              {{ getCategoryInfo(email.category).label }}
-            </span>
-            <span class="dh-email__score" *ngIf="email.spamScore">
-              {{ (email.spamScore * 100).toFixed(0) }}%
-            </span>
+          <!-- Email body text -->
+          <div class="dh-email__body" *ngIf="isEmailBodyExpanded(log.id, i) && (email.bodyText || email.preview)">
+            {{ email.bodyText || email.preview }}
           </div>
         </div>
         <div class="dh-log__no-details" *ngIf="parseEmailSummaries(log.emailSummaries).length === 0">

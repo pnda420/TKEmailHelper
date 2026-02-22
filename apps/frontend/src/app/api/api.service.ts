@@ -1710,4 +1710,8 @@ clearAiData(): Observable<{ message: string; updated: number }> {
   spamKillerGetDeletionUsers(): Observable<string[]> {
     return this.http.get<string[]>(`${this.apiUrl}/spam-killer/deletion-users`, { headers: this.getHeaders() });
   }
+
+  spamKillerGetEmailBody(mailboxId: string, uid: number): Observable<{ bodyText: string }> {
+    return this.http.get<{ bodyText: string }>(`${this.apiUrl}/spam-killer/email-body/${mailboxId}/${uid}`, { headers: this.getHeaders() });
+  }
 }

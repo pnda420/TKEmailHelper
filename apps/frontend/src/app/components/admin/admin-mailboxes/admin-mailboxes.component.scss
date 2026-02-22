@@ -85,30 +85,52 @@
     white-space: nowrap;
   }
 
+  &__section {
+    margin-bottom: $admin-space-sm;
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: $color-text-tertiary;
+      margin-bottom: $admin-space-2xs;
+
+      .material-symbols-outlined {
+        font-size: 14px;
+      }
+    }
+  }
+
   &__info {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: $admin-space-xs $admin-space-md;
-    padding: $admin-space-sm $admin-space-md;
-    background: rgba($color-gray-100, 0.5);
+    gap: $admin-space-2xs $admin-space-sm;
+    padding: $admin-space-xs $admin-space-sm;
+    background: rgba($color-gray-100, 0.4);
     border-radius: $radius-sm;
-    margin-bottom: $admin-space-md;
 
     .info-item {
       display: flex;
       align-items: center;
       gap: $admin-space-2xs;
-      font-size: 0.8125rem;
+      font-size: 0.75rem;
+      min-width: 0;
 
       .material-symbols-outlined {
         color: $color-text-tertiary;
         font-size: 16px;
+        flex-shrink: 0;
       }
 
       .info-label {
         color: $color-text-tertiary;
         font-weight: 500;
-        min-width: 38px;
+        flex-shrink: 0;
+        white-space: nowrap;
       }
 
       .info-value {
@@ -116,21 +138,78 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        min-width: 0;
+
+        &--on {
+          color: $color-success;
+          font-weight: 600;
+        }
+
+        &--off {
+          color: $color-text-tertiary;
+        }
+      }
+
+      &--full {
+        grid-column: 1 / -1;
       }
     }
   }
 
-  &__users {
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $admin-space-2xs;
+    margin-bottom: $admin-space-sm;
+
+    .info-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba($color-gray-200, 0.5);
+      color: $color-text-secondary;
+      white-space: nowrap;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+
+      .material-symbols-outlined {
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+
+      &--signature {
+        background: rgba($color-success, 0.1);
+        color: $color-success;
+      }
+
+      &--no-signature {
+        background: rgba($color-text-tertiary, 0.08);
+        color: $color-text-tertiary;
+      }
+    }
+  }
+
+  &__meta {
     display: flex;
     align-items: center;
-    gap: $admin-space-2xs;
-    font-size: 0.8125rem;
-    color: $color-text-secondary;
-    margin-bottom: $admin-space-md;
+    gap: $admin-space-md;
+    font-size: 0.6875rem;
+    color: $color-text-tertiary;
+    margin-bottom: $admin-space-sm;
 
-    .material-symbols-outlined {
-      color: $color-text-tertiary;
-      font-size: 16px;
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+
+      .material-symbols-outlined {
+        font-size: 14px;
+      }
     }
   }
 

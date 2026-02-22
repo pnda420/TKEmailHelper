@@ -5,68 +5,99 @@
   <!-- ============================================ -->
   <ng-container *ngIf="!activeMailbox">
 
-    <header class="sk-header" @fadeSlide>
-      <div class="sk-header__left">
-        <span class="material-symbols-outlined sk-header__icon">shield</span>
-        <div>
-          <h1>Spam Killer</h1>
-          <p>KI-gestützte Spam-Erkennung für deine Postfächer</p>
-        </div>
-      </div>
-      <div class="sk-header__right">
-        <div class="sk-total-badge" *ngIf="totalFlaggedCount > 0">
-          <span class="material-symbols-outlined">warning</span>
-          <span><strong>{{ totalFlaggedCount }}</strong> verdächtig</span>
-        </div>
-        <a routerLink="/spam-killer/history" class="sk-history-link">
-          <span class="material-symbols-outlined">delete_sweep</span>
-          Löschverlauf
-        </a>
-      </div>
-    </header>
+    <div class="sk-pick" @fadeSlide>
 
-    <!-- Loading -->
-    <div class="sk-picker-loading" *ngIf="loadingMailboxes" @fadeSlide>
-      <div class="sk-skeleton-card" *ngFor="let i of [1,2,3]"></div>
-    </div>
-
-    <!-- Mailbox Grid -->
-    <div class="sk-picker" *ngIf="!loadingMailboxes && mailboxes.length > 0">
-      <div
-        class="sk-picker__card"
-        *ngFor="let mb of mailboxes; trackBy: trackByMailbox"
-        (click)="selectMailbox(mb)"
-        @scaleIn>
-        <div class="sk-picker__card-icon">
-          <span class="material-symbols-outlined">mail</span>
-        </div>
-        <div class="sk-picker__card-info">
-          <strong>{{ mb.mailbox.name || 'Postfach' }}</strong>
-          <span>{{ mb.mailbox.email }}</span>
-          <div class="sk-picker__auto-delete" *ngIf="mb.mailbox.spamAutoDeleteCategories && mb.mailbox.spamAutoDeleteCategories.length > 0">
-            <span class="material-symbols-outlined">auto_delete</span>
-            <span class="sk-cat-badge sk-cat-badge--xs" *ngFor="let cat of mb.mailbox.spamAutoDeleteCategories" [class]="getCategoryClass(cat)">
-              {{ getCategoryLabel(cat) }}
-            </span>
+      <!-- Hero header -->
+      <header class="sk-pick__header">
+        <div class="sk-pick__header-content">
+          <div class="sk-pick__title-row">
+            <span class="material-symbols-outlined sk-pick__icon">shield</span>
+            <div>
+              <h1>Mailwächter</h1>
+            </div>
+          </div>
+          <div class="sk-pick__actions">
+            <div class="sk-pick__alert" *ngIf="totalFlaggedCount > 0">
+              <span class="material-symbols-outlined">warning</span>
+              <span><strong>{{ totalFlaggedCount }}</strong> verdächtig</span>
+            </div>
+            <a routerLink="/spam-killer/history" class="sk-pick__history-btn">
+              <span class="material-symbols-outlined">delete_sweep</span>
+              Löschverlauf
+            </a>
           </div>
         </div>
-        <span
-          class="sk-picker__badge"
-          *ngIf="mailboxSpamCounts[mb.mailboxId] > 0"
-          [class.sk-picker__badge--high]="mailboxSpamCounts[mb.mailboxId] >= 10">
-          {{ mailboxSpamCounts[mb.mailboxId] }}
-        </span>
-        <span class="sk-picker__badge sk-picker__badge--clean" *ngIf="!mailboxSpamCounts[mb.mailboxId] || mailboxSpamCounts[mb.mailboxId] === 0">
-          <span class="material-symbols-outlined">check</span>
-        </span>
-        <span class="material-symbols-outlined sk-picker__arrow">chevron_right</span>
-      </div>
-    </div>
+      </header>
 
-    <!-- Empty (no mailboxes) -->
-    <div class="sk-empty" *ngIf="!loadingMailboxes && mailboxes.length === 0">
-      <span class="material-symbols-outlined">mail_lock</span>
-      <p>Keine Postfächer verfügbar.</p>
+      <!-- Loading skeletons -->
+      <div class="sk-pick__grid" *ngIf="loadingMailboxes">
+        <div class="sk-pick__skeleton" *ngFor="let i of [1,2,3,4]" @scaleIn>
+          <div class="sk-pick__skeleton-avatar"></div>
+          <div class="sk-pick__skeleton-lines">
+            <div class="sk-pick__skeleton-line sk-pick__skeleton-line--short"></div>
+            <div class="sk-pick__skeleton-line"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mailbox grid -->
+      <div class="sk-pick__grid" *ngIf="!loadingMailboxes && mailboxes.length > 0">
+        <div
+          class="sk-pick__card"
+          *ngFor="let mb of mailboxes; trackBy: trackByMailbox"
+          (click)="selectMailbox(mb)"
+          [class.sk-pick__card--danger]="mailboxSpamCounts[mb.mailboxId] >= 10"
+          [class.sk-pick__card--warn]="mailboxSpamCounts[mb.mailboxId] > 0 && mailboxSpamCounts[mb.mailboxId] < 10"
+          [class.sk-pick__card--clean]="!mailboxSpamCounts[mb.mailboxId] || mailboxSpamCounts[mb.mailboxId] === 0"
+          @scaleIn>
+
+          <!-- Status accent strip -->
+          <div class="sk-pick__accent"></div>
+
+          <!-- Avatar -->
+          <div class="sk-pick__avatar">
+            <span>{{ getMailboxInitials(mb) }}</span>
+          </div>
+
+          <!-- Info -->
+          <div class="sk-pick__info">
+            <strong class="sk-pick__name">{{ mb.mailbox.name || 'Postfach' }}</strong>
+            <span class="sk-pick__email">{{ mb.mailbox.email }}</span>
+            <div class="sk-pick__tags" *ngIf="mb.mailbox.spamAutoDeleteCategories && mb.mailbox.spamAutoDeleteCategories.length > 0">
+              <span class="material-symbols-outlined">auto_delete</span>
+              <span class="sk-cat-badge sk-cat-badge--xs" *ngFor="let cat of mb.mailbox.spamAutoDeleteCategories" [class]="getCategoryClass(cat)">
+                {{ getCategoryLabel(cat) }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Status badge -->
+          <div class="sk-pick__status">
+            <div class="sk-pick__count" *ngIf="mailboxSpamCounts[mb.mailboxId] > 0"
+              [class.sk-pick__count--high]="mailboxSpamCounts[mb.mailboxId] >= 10">
+              <span class="sk-pick__count-number">{{ mailboxSpamCounts[mb.mailboxId] }}</span>
+              <span class="sk-pick__count-label">verdächtig</span>
+            </div>
+            <div class="sk-pick__clean" *ngIf="!mailboxSpamCounts[mb.mailboxId] || mailboxSpamCounts[mb.mailboxId] === 0">
+              <span class="material-symbols-outlined">check_circle</span>
+              <span>Sauber</span>
+            </div>
+          </div>
+
+          <!-- Arrow -->
+          <span class="material-symbols-outlined sk-pick__arrow">chevron_right</span>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div class="sk-pick__empty" *ngIf="!loadingMailboxes && mailboxes.length === 0">
+        <div class="sk-pick__empty-icon">
+          <span class="material-symbols-outlined">mail_lock</span>
+        </div>
+        <h3>Keine Postfächer</h3>
+        <p>Es sind noch keine Postfächer konfiguriert.</p>
+      </div>
+
     </div>
 
   </ng-container>
@@ -260,10 +291,27 @@
           </div>
 
           <!-- Preview -->
-          <div class="sk-detail__preview" *ngIf="selectedEmail.preview">
+          <div class="sk-detail__preview" *ngIf="selectedEmail.preview && !emailBodyVisible">
             <h4>Vorschau</h4>
             <p>{{ selectedEmail.preview }}</p>
           </div>
+
+          <!-- Full email body -->
+          <div class="sk-detail__body" *ngIf="emailBodyVisible && emailBodyText">
+            <h4>
+              <span class="material-symbols-outlined">article</span>
+              E-Mail Inhalt
+            </h4>
+            <div class="sk-detail__body-text">{{ emailBodyText }}</div>
+          </div>
+
+          <!-- Read email button -->
+          <button class="sk-detail__read-btn" (click)="toggleEmailBody()" [disabled]="emailBodyLoading">
+            <span class="material-symbols-outlined" [class.sk-spin]="emailBodyLoading">
+              {{ emailBodyLoading ? 'hourglass_top' : emailBodyVisible ? 'visibility_off' : 'visibility' }}
+            </span>
+            {{ emailBodyLoading ? 'Lade...' : emailBodyVisible ? 'Text ausblenden' : 'Komplette E-Mail lesen' }}
+          </button>
 
           <!-- Toggle mark -->
           <button class="sk-detail__mark-btn" (click)="toggle(selectedEmail)" [class.sk-detail__mark-btn--active]="selectedEmail.selected">

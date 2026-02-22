@@ -2,14 +2,17 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { ApiService, SpamDeletionLog, SpamDeletionHistoryResponse, Mailbox } from '../../api/api.service';
+import { ApiService, SpamDeletionLog, SpamDeletionHistoryResponse, UserMailbox } from '../../api/api.service';
 
 interface ParsedEmailSummary {
   uid: number;
   subject: string;
   from: string;
+  fromName?: string;
   category: string;
   spamScore: number;
+  preview?: string;
+  bodyText?: string;
 }
 
 @Component({
@@ -41,10 +44,13 @@ export class SpamDeletionHistoryComponent implements OnInit, OnDestroy {
 
   // Filter options
   availableUsers: string[] = [];
-  availableMailboxes: Mailbox[] = [];
+  availableMailboxes: UserMailbox[] = [];
 
   // Expanded rows
   expandedLogIds = new Set<string>();
+
+  // Expanded email bodies (key: logId-emailIndex)
+  expandedEmailBodies = new Set<string>();
 
   // Category config
   readonly categories = [
@@ -98,7 +104,7 @@ export class SpamDeletionHistoryComponent implements OnInit, OnDestroy {
     this.api.spamKillerGetDeletionUsers().subscribe({
       next: (users) => this.availableUsers = users,
     });
-    this.api.getAllMailboxes().subscribe({
+    this.api.getMyMailboxes().subscribe({
       next: (mailboxes) => this.availableMailboxes = mailboxes,
     });
   }
@@ -184,6 +190,19 @@ export class SpamDeletionHistoryComponent implements OnInit, OnDestroy {
     return this.expandedLogIds.has(logId);
   }
 
+  toggleEmailBody(logId: string, emailIndex: number): void {
+    const key = `${logId}-${emailIndex}`;
+    if (this.expandedEmailBodies.has(key)) {
+      this.expandedEmailBodies.delete(key);
+    } else {
+      this.expandedEmailBodies.add(key);
+    }
+  }
+
+  isEmailBodyExpanded(logId: string, emailIndex: number): boolean {
+    return this.expandedEmailBodies.has(`${logId}-${emailIndex}`);
+  }
+
   // ════════════════════════════════════════════
   // HELPERS
   // ════════════════════════════════════════════
@@ -223,7 +242,7 @@ export class SpamDeletionHistoryComponent implements OnInit, OnDestroy {
   }
 
   getMailboxName(mailboxId: string): string {
-    const mb = this.availableMailboxes.find(m => m.id === mailboxId);
-    return mb?.email || mb?.name || mailboxId;
+    const mb = this.availableMailboxes.find(m => m.mailboxId === mailboxId);
+    return mb?.mailbox.email || mb?.mailbox.name || mailboxId;
   }
 }

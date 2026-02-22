@@ -41,6 +41,9 @@ export class SpamScan {
   @Column('text', { default: '' })
   preview: string;
 
+  @Column('text', { default: '' })
+  bodyText: string;
+
   @Column({ length: 32, default: 'unknown' })
   category: string;
 

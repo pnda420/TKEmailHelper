@@ -23,6 +23,7 @@ export interface SpamScanEmail {
   to: string;
   date: string;
   preview: string;
+  bodyText?: string;
   isSpam: boolean;
   spamScore: number;
   spamReason: string;
@@ -51,6 +52,7 @@ interface RawEmail {
   to: string;
   date: string;
   preview: string;
+  bodyText: string;
   textSnippet: string;
 }
 
@@ -296,6 +298,9 @@ export class SpamKillerService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log(`[SpamKiller] Done! Spam: ${spamCount}, Newsletter: ${newsletterCount}, Legit: ${legitimateCount}, Flagged: ${flagged.length}`);
 
+    // Strip bodyText from response to keep payload small (loaded on-demand via email-body endpoint)
+    const strippedEmails = flagged.map(({ bodyText, ...rest }) => rest);
+
     const result: SpamScanResult = {
       mailboxId,
       mailboxEmail: mailbox.email,
@@ -305,7 +310,7 @@ export class SpamKillerService implements OnModuleInit, OnModuleDestroy {
       spamCount,
       newsletterCount,
       legitimateCount,
-      emails: flagged,
+      emails: strippedEmails,
       scanDurationMs: Date.now() - startTime,
     };
 
@@ -328,6 +333,9 @@ export class SpamKillerService implements OnModuleInit, OnModuleDestroy {
       .filter(e => e.category !== 'legitimate')
       .sort((a, b) => b.spamScore - a.spamScore);
 
+    // Strip bodyText from response
+    const strippedEmails = flagged.map(({ bodyText, ...rest }) => rest);
+
     return {
       mailboxId,
       mailboxEmail: mailbox.email,
@@ -337,7 +345,7 @@ export class SpamKillerService implements OnModuleInit, OnModuleDestroy {
       spamCount: all.filter(e => ['spam', 'scam', 'phishing'].includes(e.category)).length,
       newsletterCount: all.filter(e => ['newsletter', 'marketing'].includes(e.category)).length,
       legitimateCount: all.filter(e => e.category === 'legitimate').length,
-      emails: flagged,
+      emails: strippedEmails,
       scanDurationMs: 0,
     };
   }
@@ -368,6 +376,8 @@ export class SpamKillerService implements OnModuleInit, OnModuleDestroy {
         fromName: c.fromName,
         category: c.category,
         spamScore: c.spamScore,
+        preview: c.preview,
+        bodyText: c.bodyText || '',
       }));
     } catch {}
 
@@ -645,6 +655,17 @@ export class SpamKillerService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /**
+   * Get full email body text for a specific email (from DB cache)
+   */
+  async getEmailBody(mailboxId: string, uid: number): Promise<{ bodyText: string }> {
+    const entry = await this.spamScanRepo.findOne({
+      where: { mailboxId, uid },
+      select: ['bodyText'],
+    });
+    return { bodyText: entry?.bodyText || '' };
+  }
+
   private async saveToDb(mailboxId: string, emails: SpamScanEmail[], userId?: string): Promise<void> {
     if (emails.length === 0) return;
 
@@ -658,6 +679,7 @@ export class SpamKillerService implements OnModuleInit, OnModuleDestroy {
       to: e.to,
       date: e.date,
       preview: e.preview,
+      bodyText: e.bodyText || '',
       category: e.category,
       spamScore: e.spamScore,
       spamReason: e.spamReason,
@@ -748,11 +770,12 @@ export class SpamKillerService implements OnModuleInit, OnModuleDestroy {
                     ? toAddr.map(a => a.text).join(', ')
                     : toAddr?.text || '';
 
-                  let preview = parsed.text || '';
-                  if (!preview && parsed.html) {
-                    preview = parsed.html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                  let fullText = parsed.text || '';
+                  if (!fullText && parsed.html) {
+                    fullText = parsed.html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
                   }
-                  if (preview.length > 300) preview = preview.substring(0, 300) + '...';
+                  const bodyText = fullText.length > 50000 ? fullText.substring(0, 50000) + '...' : fullText;
+                  const preview = fullText.length > 300 ? fullText.substring(0, 300) + '...' : fullText;
 
                   const email: RawEmail = {
                     uid: messageUid,
@@ -763,6 +786,7 @@ export class SpamKillerService implements OnModuleInit, OnModuleDestroy {
                     to: toStr,
                     date: parsed.date?.toISOString() || '',
                     preview,
+                    bodyText,
                     textSnippet: preview.substring(0, 200),
                   };
                   emails.push(email);
@@ -1039,6 +1063,7 @@ WICHTIG: Antworte NUR mit dem JSON. Kein anderer Text.`;
           to: email.to,
           date: email.date,
           preview: email.preview,
+          bodyText: email.bodyText,
           isSpam,
           spamScore,
           spamReason: cls.reason || cls.grund || 'Keine Begründung',
@@ -1075,6 +1100,7 @@ WICHTIG: Antworte NUR mit dem JSON. Kein anderer Text.`;
       to: email.to,
       date: email.date,
       preview: email.preview,
+      bodyText: email.bodyText,
       isSpam: false,
       spamScore: 50,
       spamReason: 'Klassifizierung fehlgeschlagen',

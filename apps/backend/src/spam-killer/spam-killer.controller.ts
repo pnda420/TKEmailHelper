@@ -159,6 +159,18 @@ export class SpamKillerController {
   }
 
   /**
+   * GET /spam-killer/email-body/:mailboxId/:uid
+   * Returns the full email body text from DB cache.
+   */
+  @Get('email-body/:mailboxId/:uid')
+  async getEmailBody(
+    @Param('mailboxId') mailboxId: string,
+    @Param('uid') uid: string,
+  ): Promise<{ bodyText: string }> {
+    return this.spamKillerService.getEmailBody(mailboxId, parseInt(uid, 10));
+  }
+
+  /**
    * GET /spam-killer/results/:mailboxId
    * Returns cached scan results from DB (no new scan).
    */
