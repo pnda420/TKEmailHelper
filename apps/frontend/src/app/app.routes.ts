@@ -25,6 +25,7 @@ import { SetupComponent } from './components/setup/setup.component';
 import { AdminMailboxesComponent } from './components/admin/admin-mailboxes/admin-mailboxes.component';
 import { SpamKillerComponent } from './components/spam-killer/spam-killer.component';
 import { SpamDeletionHistoryComponent } from './components/spam-killer/spam-deletion-history.component';
+import { ChatComponent } from './components/chat/chat.component';
 
 const pageMainName = 'MailFlow';
 export const routes: Routes = [
@@ -50,6 +51,7 @@ export const routes: Routes = [
     { path: 'templates', component: EmailTemplatesComponent, canActivate: [authGuard], title: pageMainName + ' | Vorlagen', data: { description: 'E-Mail Vorlagen verwalten.' } },
     { path: 'spam-killer', component: SpamKillerComponent, canActivate: [authGuard], title: pageMainName + ' | Spam Killer', data: { description: 'KI-gestützte Spam-Erkennung – Finde und lösche Spam mit einem Klick.' } },
     { path: 'spam-killer/history', component: SpamDeletionHistoryComponent, canActivate: [authGuard], title: pageMainName + ' | Löschverlauf', data: { description: 'Verlauf aller gelöschten Spam-E-Mails.' } },
+    { path: 'chat', component: ChatComponent, canActivate: [authGuard], title: pageMainName + ' | AI Chat', data: { description: 'KI-Chat mit JTL-Wawi Zugriff.' } },
     { path: 'help', component: HelpComponent, canActivate: [authGuard], title: pageMainName + ' | Hilfe', data: { description: 'Hilfe & Anleitung für MailFlow.' } },
     { path: 'admin', redirectTo: 'admin/health', pathMatch: 'full' },
     { path: 'admin/health', component: AdminHealthComponent, canActivate: [authGuard, adminGuard], title: pageMainName + ' | System Status', data: { description: 'System Health & Status.' } },

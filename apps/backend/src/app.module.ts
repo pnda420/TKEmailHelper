@@ -28,6 +28,8 @@ import { SpamDeletionLog } from './spam-killer/spam-deletion-log.entity';
 import { Mailbox } from './mailboxes/mailbox.entity';
 import { UserMailbox } from './mailboxes/user-mailbox.entity';
 import { User } from './users/users.entity';
+import { ChatConversation } from './ai-agent/chat-conversation.entity';
+import { ChatMessageEntity } from './ai-agent/chat-message.entity';
 import { Email } from './emails/emails.entity';
 import { EmailTemplate } from './email-templates/email-templates.entity';
 import { AppLog } from './logs/app-log.entity';
@@ -67,7 +69,7 @@ import { AppService } from './app.service';
       username: process.env.DB_USER ?? 'app',
       password: process.env.DB_PASS ?? 'secret',
       database: process.env.DB_NAME ?? 'appdb',
-      entities: [User, Email, EmailTemplate, AppLog, AiUsage, AiConfig, Mailbox, UserMailbox, SpamScan, SpamDeletionLog],
+      entities: [User, Email, EmailTemplate, AppLog, AiUsage, AiConfig, Mailbox, UserMailbox, SpamScan, SpamDeletionLog, ChatConversation, ChatMessageEntity],
       // synchronize: Kein Migrations-System vorhanden, daher immer aktiv.
       // Bei neuem Entity/Column wird die DB automatisch angepasst.
       synchronize: true,

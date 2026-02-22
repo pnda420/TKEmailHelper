@@ -9,6 +9,7 @@ import { ConfirmationService } from '../../shared/confirmation/confirmation.serv
 import { ConfigService } from '../../services/config.service';
 import { AuthService } from '../../services/auth.service';
 import { IdenticonPipe } from '../../shared/identicon.pipe';
+import { PageTitleComponent } from "../../shared/page-title/page-title.component";
 
 interface SpamEmail {
   uid: number;
@@ -31,7 +32,7 @@ type CategoryFilter = '' | 'spam' | 'scam' | 'phishing' | 'newsletter' | 'market
 @Component({
   selector: 'app-spam-killer',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, IdenticonPipe],
+  imports: [CommonModule, FormsModule, RouterModule, IdenticonPipe, PageTitleComponent],
   templateUrl: './spam-killer.component.html',
   styleUrls: ['./spam-killer.component.scss'],
   animations: [
@@ -416,6 +417,25 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
     email.selected = !email.selected;
   }
 
+
+  lightenUpColor(color: string, amount: number): string {
+    try {
+      let c = color.startsWith('#') ? color.substring(1) : color;
+      if (c.length === 3) {
+        c = c.split('').map(ch => ch + ch).join('');
+      }
+      if (c.length !== 6) return color;
+
+      const r = Math.min(255, parseInt(c.substring(0, 2), 16) + amount);
+      const g = Math.min(255, parseInt(c.substring(2, 4), 16) + amount);
+      const b = Math.min(255, parseInt(c.substring(4, 6), 16) + amount);
+
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    } catch {
+      return color;
+    }
+  }
+
   // =============================================
   // DELETE
   // =============================================
@@ -528,7 +548,7 @@ export class SpamKillerComponent implements OnInit, OnDestroy {
       this.emailBodyVisible = true;
       return;
     }
-    const target = this.expandedEmail || this.selectedEmail;
+    const target = this.selectedEmail || this.expandedEmail;
     if (!this.activeMailbox || !target) return;
     this.emailBodyLoading = true;
     this.api.spamKillerGetEmailBody(this.activeMailbox.mailboxId, target.uid).subscribe({

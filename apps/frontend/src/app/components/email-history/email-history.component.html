@@ -1,15 +1,12 @@
+<app-page-title title="Archiv"></app-page-title>
+
 <section class="history-page">
   <!-- Command Bar Header -->
   <header class="inbox-header">
     <div class="header-row">
-      <div class="header-stats">
-        <span class="stat-pill">
-          <span class="material-symbols-outlined stat-pill__icon">{{ activeTab === 'sent' ? 'send' : 'delete' }}</span>
-          <strong>{{ totalEmails }}</strong>
-        </span>
-      </div>
-
-      <span class="header-divider"></span>
+      <a routerLink="/emails" class="header-back" title="Zurück zum Posteingang">
+        <span class="material-symbols-outlined">arrow_back</span>
+      </a>
 
       <nav class="tab-pills">
         <button class="tab-pill" [class.active]="activeTab === 'sent'" (click)="switchTab('sent')">
@@ -21,6 +18,15 @@
           Papierkorb
         </button>
       </nav>
+
+      <span class="header-divider"></span>
+
+      <div class="header-stats">
+        <span class="stat-pill">
+          <span class="material-symbols-outlined stat-pill__icon">{{ activeTab === 'sent' ? 'send' : 'delete' }}</span>
+          <strong>{{ totalEmails }}</strong>
+        </span>
+      </div>
 
       <span class="header-divider"></span>
 

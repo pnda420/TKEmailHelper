@@ -41,6 +41,29 @@
   flex-wrap: wrap;
 }
 
+.header-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: $color-text-secondary;
+  cursor: pointer;
+  transition: all .15s;
+  flex-shrink: 0;
+  text-decoration: none;
+
+  .material-symbols-outlined { font-size: 20px; }
+
+  &:hover {
+    background: rgba($color-brand-primary, 0.08);
+    color: $color-brand-primary;
+  }
+}
+
 .header-stats {
   display: flex;
   align-items: center;
@@ -83,7 +106,6 @@
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  margin-left: auto;
 }
 
 .tab-pill {
@@ -1224,6 +1246,7 @@
   min-width: 200px;
   max-width: 320px;
   flex: 1;
+  margin-left: auto;
   transition: all .2s;
 
   &:focus-within {

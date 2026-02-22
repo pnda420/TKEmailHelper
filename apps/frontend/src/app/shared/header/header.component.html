@@ -21,15 +21,20 @@
           <a routerLink="/emails" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
             <span class="material-symbols-outlined ms-size-18">inbox</span>
             Posteingang
+            <span class="nav-inbox-badge" *ngIf="inboxCount > 0">{{ inboxCount > 99 ? '99+' : inboxCount }}</span>
           </a>
-          <a routerLink="/history" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
+          <!-- <a routerLink="/history" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
             <span class="material-symbols-outlined ms-size-18">history</span>
-            Archiv
+            Mail-Archiv
+          </a> -->
+          <a routerLink="/chat" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()">
+            <span class="material-symbols-outlined ms-size-18">auto_awesome</span>
+            Chat
           </a>
           <a routerLink="/spam-killer" routerLinkActive="active" (click)="servicesDropdownOpen = false; closeMenu()"
             [routerLinkActiveOptions]="{ exact: true }">
             <span class="material-symbols-outlined ms-size-18">shield</span>
-            Mailwächter 
+            Mail Wächter 
             <span class="nav-spam-badge" *ngIf="totalSpamCount > 0">{{ totalSpamCount > 99 ? '99+' : totalSpamCount
               }}</span>
           </a>

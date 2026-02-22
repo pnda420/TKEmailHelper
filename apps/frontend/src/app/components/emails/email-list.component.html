@@ -1,4 +1,4 @@
-<!-- <app-page-title title="Posteingang"></app-page-title> -->
+<app-page-title title="Posteingang"></app-page-title>
 
 <div class="inbox">
 
@@ -86,6 +86,12 @@
 
             <button class="header-refresh-btn" (click)="refreshEmails()" [disabled]="refreshing" title="E-Mails abrufen">
                 <span class="material-symbols-outlined" [class.spin]="refreshing">sync</span>
+                Abrufen
+            </button>
+
+            <button class="header-history-btn" routerLink="/history" title="Mail-Archiv">
+                <span class="material-symbols-outlined">history</span>
+                Mail-Archiv
             </button>
         </div>
     </header>

@@ -1,0 +1,230 @@
+<app-page-title title="Chat"></app-page-title>
+
+<div class="chat-container">
+
+  <!-- ── Unified Command Bar (same as email list) ── -->
+  <header class="inbox-header">
+    <div class="header-row">
+      <div class="header-brand">
+        <span class="material-symbols-outlined header-brand__icon">auto_awesome</span>
+        <div class="header-brand__text">
+          <strong>MailFlow AI</strong>
+          <span>GPT 5.2 Agent</span>
+        </div>
+      </div>
+
+      <span class="header-divider"></span>
+
+      <div class="header-stats">
+        <span class="stat-pill">
+          <span class="material-symbols-outlined">forum</span>
+          <strong>{{ conversations.length }}</strong> Chats
+        </span>
+        <span class="stat-pill stat-pill--accent" *ngIf="activeConversationId">
+          <span class="material-symbols-outlined">chat</span>
+          Aktiv
+        </span>
+      </div>
+
+      <span class="header-divider"></span>
+
+      <div class="header-info-pills">
+        <span class="info-pill">
+          <span class="material-symbols-outlined">database</span>
+          JTL-Wawi
+        </span>
+        <span class="info-pill">
+          <span class="material-symbols-outlined">build</span>
+          16 Tools
+        </span>
+      </div>
+
+      <button class="header-new-btn" (click)="newChat()">
+        <span class="material-symbols-outlined">add</span>
+        Neuer Chat
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Main split view (same grid as email list) ── -->
+  <div class="inbox-split">
+
+    <!-- Conversation list pane -->
+    <aside class="list-pane" [class.has-detail]="activeConversationId">
+
+      <div class="conv-item"
+           *ngFor="let conv of conversations; trackBy: trackByConversationId"
+           [class.active]="conv.id === activeConversationId"
+           (click)="selectConversation(conv)">
+
+        <div class="conv-avatar">
+          <span class="material-symbols-outlined">chat_bubble</span>
+        </div>
+
+        <div class="conv-content">
+          <div class="conv-top">
+            <ng-container *ngIf="editingTitleId !== conv.id">
+              <span class="conv-title">{{ conv.title }}</span>
+              <span class="conv-time">{{ formatDate(conv.updatedAt) }}</span>
+            </ng-container>
+            <input
+              *ngIf="editingTitleId === conv.id"
+              class="conv-edit-input"
+              [(ngModel)]="editingTitleText"
+              (keydown)="onTitleKeyDown($event, conv)"
+              (blur)="saveTitle(conv)"
+              (click)="$event.stopPropagation()"
+              autofocus
+            />
+          </div>
+          <div class="conv-snippet" *ngIf="editingTitleId !== conv.id">
+            <span class="material-symbols-outlined">schedule</span>
+            {{ formatDate(conv.createdAt) }} erstellt
+          </div>
+        </div>
+
+        <div class="conv-actions" *ngIf="editingTitleId !== conv.id">
+          <button class="conv-action-btn" (click)="startEditTitle(conv, $event)" title="Umbenennen">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button class="conv-action-btn conv-action-btn--delete" (click)="deleteConversation(conv, $event)" title="Löschen">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div class="list-empty" *ngIf="!isLoadingConversations && conversations.length === 0">
+        <span class="material-symbols-outlined">forum</span>
+        <h3>Noch keine Chats</h3>
+        <p>Starte einen neuen Chat um loszulegen.</p>
+        <button class="action-btn" (click)="newChat()">
+          <span class="material-symbols-outlined">add</span> Neuer Chat
+        </button>
+      </div>
+    </aside>
+
+    <!-- Chat detail pane -->
+    <main class="detail-pane">
+
+      <!-- Empty State (no conversation selected or new chat) -->
+      <div class="chat-empty" *ngIf="!hasMessages">
+        <div class="chat-empty__hero">
+          <div class="chat-empty__icon-wrap">
+            <span class="material-symbols-outlined">auto_awesome</span>
+          </div>
+          <h2>Wie kann ich helfen?</h2>
+          <p>Frag mich alles — ich kann Kunden, Bestellungen und Produkte in der Wawi nachschlagen.</p>
+        </div>
+
+        <div class="quick-actions">
+          <button class="quick-action" *ngFor="let action of quickActions" (click)="onQuickAction(action)">
+            <span class="material-symbols-outlined quick-action__icon">{{ action.icon }}</span>
+            <span class="quick-action__label">{{ action.label }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Messages view -->
+      <div class="chat-messages" *ngIf="hasMessages" #messagesContainer>
+        <div
+          class="message"
+          *ngFor="let msg of messages; trackBy: trackByMessageId"
+          [class.message--user]="msg.role === 'user'"
+          [class.message--assistant]="msg.role === 'assistant'"
+          [class.message--error]="msg.isError"
+          [class.message--streaming]="msg.isStreaming"
+        >
+          <!-- Avatar -->
+          <div class="message__avatar">
+            <span class="material-symbols-outlined" *ngIf="msg.role === 'user'">person</span>
+            <span class="material-symbols-outlined" *ngIf="msg.role === 'assistant'">auto_awesome</span>
+          </div>
+
+          <div class="message__body">
+            <!-- Header -->
+            <div class="message__header">
+              <span class="message__sender">{{ msg.role === 'user' ? (user && user.name ? user.name.split(' ')[0] : 'Du') : 'MailFlow AI' }}</span>
+              <span class="message__time">{{ formatTime(msg.timestamp) }}</span>
+            </div>
+
+            <!-- Tool Calls -->
+            <div class="message__tools" *ngIf="msg.toolCalls?.length">
+              <div
+                class="tool-call"
+                *ngFor="let tc of msg.toolCalls; let i = index; trackBy: trackByToolIndex"
+                [class.tool-call--running]="tc.status === 'running'"
+                [class.tool-call--done]="tc.status === 'done'"
+                [class.tool-call--error]="tc.status === 'error'"
+              >
+                <button class="tool-call__header" (click)="toggleToolExpand(tc)">
+                  <span class="tool-call__indicator">
+                    <span class="tool-call__spinner" *ngIf="tc.status === 'running'"></span>
+                    <span class="material-symbols-outlined tool-call__check" *ngIf="tc.status === 'done'">check_circle</span>
+                    <span class="material-symbols-outlined tool-call__error-icon" *ngIf="tc.status === 'error'">error</span>
+                  </span>
+                  <span class="material-symbols-outlined tool-call__icon">{{ getToolIcon(tc.tool) }}</span>
+                  <span class="tool-call__name">{{ getToolLabel(tc.tool) }}</span>
+                  <span class="tool-call__args-preview" *ngIf="tc.args">{{ tc.args | json }}</span>
+                  <span class="material-symbols-outlined tool-call__expand">
+                    {{ tc.expanded ? 'expand_less' : 'expand_more' }}
+                  </span>
+                </button>
+                <div class="tool-call__detail" *ngIf="tc.expanded && tc.result">
+                  <pre class="tool-call__result">{{ formatToolResult(tc.result) }}</pre>
+                </div>
+              </div>
+            </div>
+
+            <!-- Content -->
+            <div class="message__content" *ngIf="msg.content">
+              <div
+                *ngIf="msg.role === 'assistant'"
+                class="message__markdown"
+                [innerHTML]="renderMarkdown(msg.content)"
+              ></div>
+              <div *ngIf="msg.role === 'user'" class="message__text">{{ msg.content }}</div>
+            </div>
+
+            <!-- Streaming indicator -->
+            <div class="message__typing" *ngIf="msg.isStreaming && !msg.content && !msg.toolCalls?.length">
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area (always at bottom) -->
+      <div class="chat-input-area">
+        <div class="chat-input-wrap">
+          <textarea
+            #messageInput
+            class="chat-input"
+            [(ngModel)]="inputText"
+            (keydown)="onKeyDown($event)"
+            (input)="autoGrow($event)"
+            placeholder="Nachricht an MailFlow AI…"
+            [disabled]="isLoading"
+            rows="1"
+          ></textarea>
+          <button
+            class="chat-send-btn"
+            (click)="sendMessage()"
+            [disabled]="!inputText.trim() || isLoading"
+            [class.active]="inputText.trim() && !isLoading"
+          >
+            <span class="material-symbols-outlined" *ngIf="!isLoading">arrow_upward</span>
+            <span class="send-spinner" *ngIf="isLoading"></span>
+          </button>
+        </div>
+        <div class="chat-input-footer">
+          <span class="material-symbols-outlined">info</span>
+          Enter zum Senden &middot; Shift+Enter für neue Zeile
+        </div>
+      </div>
+    </main>
+  </div>
+
+</div>

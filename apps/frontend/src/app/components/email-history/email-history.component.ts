@@ -10,6 +10,7 @@ import { ToastService } from '../../shared/toasts/toast.service';
 import { AttachmentPreviewComponent, AttachmentInfo } from '../../shared/attachment-preview/attachment-preview.component';
 import { ConfigService } from '../../services/config.service';
 import { IdenticonPipe } from '../../shared/identicon.pipe';
+import { PageTitleComponent } from "../../shared/page-title/page-title.component";
 
 type HistoryTab = 'sent' | 'trash';
 type SortOption = 'receivedAt_desc' | 'receivedAt_asc' | 'repliedAt_desc' | 'repliedAt_asc';
@@ -17,7 +18,7 @@ type SortOption = 'receivedAt_desc' | 'receivedAt_asc' | 'repliedAt_desc' | 'rep
 @Component({
   selector: 'app-email-history',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, AttachmentPreviewComponent, IdenticonPipe],
+  imports: [CommonModule, RouterModule, FormsModule, AttachmentPreviewComponent, IdenticonPipe, PageTitleComponent],
   templateUrl: './email-history.component.html',
   styleUrls: ['./email-history.component.scss'],
   animations: [

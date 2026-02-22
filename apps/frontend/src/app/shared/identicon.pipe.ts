@@ -1,61 +1,48 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
-/**
- * Generates a GitHub-style 5×5 symmetric identicon SVG from an email address.
- * Usage: [style.background-image]="email | identicon"
- * Returns: url(data:image/svg+xml,...) for use as CSS background-image
- *
- * No initials overlay — the identicon alone is the avatar.
- * Colors are derived from the email hash for uniqueness.
- */
 @Pipe({ name: 'identicon', standalone: true, pure: true })
 export class IdenticonPipe implements PipeTransform {
 
-  /**
-   * Curated HSL hue anchors — skips muddy ranges, keeps things vibrant.
-   * Saturation and lightness are tuned per-pair for a modern pastel look.
-   */
   private static readonly PALETTES: [string, string][] = [
-    ['#e0e7ff', '#6366f1'], // indigo
-    ['#ede9fe', '#8b5cf6'], // violet
-    ['#fce7f3', '#ec4899'], // pink
-    ['#fee2e2', '#ef4444'], // red
-    ['#ffedd5', '#f97316'], // orange
-    ['#fef9c3', '#ca8a04'], // amber
-    ['#dcfce7', '#22c55e'], // green
-    ['#ccfbf1', '#14b8a6'], // teal
-    ['#cffafe', '#0891b2'], // cyan
-    ['#dbeafe', '#3b82f6'], // blue
-    ['#f3e8ff', '#a855f7'], // purple
-    ['#fae8ff', '#d946ef'], // fuchsia
-    ['#e0f2fe', '#0284c7'], // sky
-    ['#fef3c7', '#d97706'], // warm-amber
-    ['#d1fae5', '#059669'], // emerald
-    ['#ffe4e6', '#e11d48'], // rose
+    ['#e0e7ff', '#6366f1'],
+    ['#ede9fe', '#8b5cf6'],
+    ['#fce7f3', '#ec4899'],
+    ['#fee2e2', '#ef4444'],
+    ['#ffedd5', '#f97316'],
+    ['#fef9c3', '#ca8a04'],
+    ['#dcfce7', '#22c55e'],
+    ['#ccfbf1', '#14b8a6'],
+    ['#cffafe', '#0891b2'],
+    ['#dbeafe', '#3b82f6'],
+    ['#f3e8ff', '#a855f7'],
+    ['#fae8ff', '#d946ef'],
+    ['#e0f2fe', '#0284c7'],
+    ['#fef3c7', '#d97706'],
+    ['#d1fae5', '#059669'],
+    ['#ffe4e6', '#e11d48'],
   ];
 
   private static cache = new Map<string, string>();
 
-  transform(email: string | undefined | null): string {
+  transform(email: string | undefined | null, customBg?: string, customFg?: string): string {
     if (!email) return 'none';
 
-    const cached = IdenticonPipe.cache.get(email);
+    const cacheKey = `${email}__${customBg ?? ''}__${customFg ?? ''}`;
+    const cached = IdenticonPipe.cache.get(cacheKey);
     if (cached) return cached;
 
-    const result = this.generate(email.toLowerCase().trim());
-    IdenticonPipe.cache.set(email, result);
+    const result = this.generate(email.toLowerCase().trim(), customBg, customFg);
+    IdenticonPipe.cache.set(cacheKey, result);
     return result;
   }
 
-  private generate(email: string): string {
+  private generate(email: string, customBg?: string, customFg?: string): string {
     const hash = this.simpleHash(email);
 
-    // Pick palette from hash
     const palette = IdenticonPipe.PALETTES[Math.abs(hash) % IdenticonPipe.PALETTES.length];
-    const bg = palette[0]; // soft pastel background
-    const fg = palette[1]; // vibrant foreground cells
+    const bg = customBg ?? palette[0];
+    const fg = customFg ?? palette[1];
 
-    // 5×5 symmetric pattern — need 15 bits for left half + center column
     const bits = this.getBits(hash);
 
     const cellSize = 8;
@@ -73,7 +60,6 @@ export class IdenticonPipe implements PipeTransform {
           const y = padding + row * (cellSize + gap);
           rects += `<rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" rx="2" fill="${fg}"/>`;
 
-          // Mirror right side (skip center column 2)
           if (col < 2) {
             const mirrorX = padding + (4 - col) * (cellSize + gap);
             rects += `<rect x="${mirrorX}" y="${y}" width="${cellSize}" height="${cellSize}" rx="2" fill="${fg}"/>`;
@@ -96,7 +82,6 @@ export class IdenticonPipe implements PipeTransform {
     return `url("data:image/svg+xml,${encoded}")`;
   }
 
-  /** djb2 hash — fast, deterministic, good distribution. */
   private simpleHash(str: string): number {
     let hash = 5381;
     for (let i = 0; i < str.length; i++) {
@@ -105,7 +90,6 @@ export class IdenticonPipe implements PipeTransform {
     return hash;
   }
 
-  /** Extract 15 boolean bits from the hash for the 5×3 half-grid. */
   private getBits(hash: number): boolean[] {
     const bits: boolean[] = [];
     let h = Math.abs(hash);

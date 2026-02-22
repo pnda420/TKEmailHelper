@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ApiService, SpamDeletionLog, SpamDeletionHistoryResponse, UserMailbox } from '../../api/api.service';
+import { PageTitleComponent } from '../../shared/page-title/page-title.component';
 
 interface ParsedEmailSummary {
   uid: number;
@@ -18,7 +19,7 @@ interface ParsedEmailSummary {
 @Component({
   selector: 'app-spam-deletion-history',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, PageTitleComponent],
   templateUrl: './spam-deletion-history.component.html',
   styleUrl: './spam-deletion-history.component.scss',
 })
@@ -45,6 +46,9 @@ export class SpamDeletionHistoryComponent implements OnInit, OnDestroy {
   // Filter options
   availableUsers: string[] = [];
   availableMailboxes: UserMailbox[] = [];
+
+  // Selected log for detail pane
+  selectedLog: SpamDeletionLog | null = null;
 
   // Expanded rows
   expandedLogIds = new Set<string>();
@@ -244,5 +248,21 @@ export class SpamDeletionHistoryComponent implements OnInit, OnDestroy {
   getMailboxName(mailboxId: string): string {
     const mb = this.availableMailboxes.find(m => m.mailboxId === mailboxId);
     return mb?.mailbox.email || mb?.mailbox.name || mailboxId;
+  }
+
+  selectLog(log: SpamDeletionLog): void {
+    if (this.selectedLog?.id === log.id) {
+      this.selectedLog = null;
+    } else {
+      this.selectedLog = log;
+      this.expandedEmailBodies.clear();
+    }
+  }
+
+  formatDateFull(dateStr: string): string {
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch { return dateStr; }
   }
 }

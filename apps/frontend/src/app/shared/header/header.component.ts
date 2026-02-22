@@ -46,6 +46,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
   totalSpamCount = 0;
   private spamLiveES: EventSource | null = null;
 
+  // Inbox badge
+  inboxCount = 0;
+  private inboxCountInterval?: any;
+
   constructor(
     @Inject(DOCUMENT) private doc: Document,
     public router: Router,
@@ -66,13 +70,20 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.loadMyMailboxes();
         this.loadSpamCounts();
         this.connectSpamLiveSSE();
+        this.loadInboxCount();
+        this.inboxCountInterval = setInterval(() => this.loadInboxCount(), 30_000);
         // Poll every 30s while logged in
         this.connectionInterval = setInterval(() => this.loadConnectionStatus(), 30_000);
       } else {
         this.connectionStatus = null;
         this.myMailboxes = [];
         this.totalSpamCount = 0;
+        this.inboxCount = 0;
         this.closeSpamLiveSSE();
+        if (this.inboxCountInterval) {
+          clearInterval(this.inboxCountInterval);
+          this.inboxCountInterval = undefined;
+        }
         if (this.connectionInterval) {
           clearInterval(this.connectionInterval);
           this.connectionInterval = undefined;
@@ -97,6 +108,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.routerSub?.unsubscribe();
     if (this.connectionInterval) {
       clearInterval(this.connectionInterval);
+    }
+    if (this.inboxCountInterval) {
+      clearInterval(this.inboxCountInterval);
     }
     this.closeSpamLiveSSE();
   }
@@ -224,6 +238,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.api.getMyMailboxes().subscribe({
       next: (mailboxes) => this.myMailboxes = mailboxes,
       error: () => this.myMailboxes = [],
+    });
+  }
+
+  private loadInboxCount(): void {
+    this.api.getEmailStats().subscribe({
+      next: (stats) => this.inboxCount = stats.inbox,
+      error: () => this.inboxCount = 0,
     });
   }
 

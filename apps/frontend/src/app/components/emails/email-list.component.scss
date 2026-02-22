@@ -334,8 +334,9 @@ $g900: #111827;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
+  gap: 4px;
   height: 34px;
+  padding: 0 12px;
   border: 1.5px solid $g200;
   border-radius: 10px;
   background: #fff;
@@ -343,11 +344,39 @@ $g900: #111827;
   cursor: pointer;
   transition: all .15s;
   flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
 
   .material-symbols-outlined { font-size: 18px; }
 
   &:hover:not(:disabled) { background: $g50; border-color: $g300; color: $g700; }
   &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+// ── History btn ──
+.header-history-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1.5px solid $g200;
+  border-radius: 10px;
+  background: #fff;
+  color: $g500;
+  cursor: pointer;
+  transition: all .15s;
+  flex-shrink: 0;
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  .material-symbols-outlined { font-size: 18px; }
+
+  &:hover { background: rgba($accent, 0.08); border-color: $accent; color: $accent; }
 }
 
 // ── Filter Chips ──
