@@ -1255,13 +1255,26 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     return this.originalReplyBody.trim() !== '' && this.replyBody.trim() !== this.originalReplyBody.trim();
   }
 
+  // ── Diff cache to avoid recalculating on every change-detection cycle ──
+  private _diffCacheKey = '';
+  private _diffCacheResult: { text: string; type: 'same' | 'added' | 'removed' }[] = [];
+
   /**
    * Compute a simple word-level diff between original and current reply.
-   * Returns an array of { text, type } segments where type is 'same', 'added', or 'removed'.
+   * Results are cached so Angular's *ngFor receives a stable reference
+   * and doesn't destroy / re-create backdrop DOM nodes on every CD cycle.
    */
   computeDiff(): { text: string; type: 'same' | 'added' | 'removed' }[] {
-    if (!this.originalReplyBody) return [{ text: this.replyBody, type: 'same' }];
-    
+    // Build a cheap cache key from the two strings
+    const key = this.originalReplyBody + '\0' + this.replyBody;
+    if (key === this._diffCacheKey) return this._diffCacheResult;
+
+    if (!this.originalReplyBody) {
+      this._diffCacheKey = key;
+      this._diffCacheResult = [{ text: this.replyBody, type: 'same' }];
+      return this._diffCacheResult;
+    }
+
     const originalWords = this.originalReplyBody.split(/(\s+)/);
     const currentWords = this.replyBody.split(/(\s+)/);
     
@@ -1273,7 +1286,10 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
     
     // For very long texts, fall back to a simpler line-based diff
     if (m * n > 500000) {
-      return this.computeLineDiff();
+      const lineDiff = this.computeLineDiff();
+      this._diffCacheKey = key;
+      this._diffCacheResult = lineDiff;
+      return lineDiff;
     }
     
     // Build LCS table
@@ -1313,7 +1329,9 @@ export class EmailReplyComponent implements OnInit, OnDestroy {
         result.push({ ...seg });
       }
     }
-    
+
+    this._diffCacheKey = key;
+    this._diffCacheResult = result;
     return result;
   }
 

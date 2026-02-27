@@ -1997,11 +1997,19 @@ textarea.text-input {
 
 .message-input {
   min-height: 200px;
-  font-family: inherit;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.6;
 }
 
 // ==================== LIVE-DIFF HIGHLIGHT EDITOR ====================
+
+// Shared typography tokens so textarea & backdrop render identically
+$editor-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+$editor-font-size: 0.9375rem;
+$editor-line-height: 1.6;
+$editor-letter-spacing: normal;
+$editor-word-spacing: normal;
+$editor-font-weight: 400;
 
 .editor-highlight-wrap {
   position: relative;
@@ -2021,6 +2029,7 @@ textarea.text-input {
   border: 2px solid transparent;
   border-radius: 10px;
   padding: 0.875rem 1rem;
+  box-sizing: border-box;
   z-index: 0;
   background: white;
   visibility: hidden;
@@ -2031,19 +2040,30 @@ textarea.text-input {
 
   .backdrop-text {
     margin: 0;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 0.9375rem;
-    line-height: 1.6;
+    font-family: $editor-font-family;
+    font-size: $editor-font-size;
+    font-weight: $editor-font-weight;
+    line-height: $editor-line-height;
+    letter-spacing: $editor-letter-spacing;
+    word-spacing: $editor-word-spacing;
     white-space: pre-wrap;
     word-wrap: break-word;
+    overflow-wrap: break-word;
     color: $gray-900;
+    // Reset pre defaults that could cause drift
+    tab-size: 8;
+    -moz-tab-size: 8;
+    font-variant-ligatures: none;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
   }
 
   .hl-added {
     background: rgba(#10b981, 0.13);
     border-bottom: 2px solid rgba(#10b981, 0.35);
     border-radius: 2px;
-    padding: 0 1px;
+    // NO padding here – any horizontal padding shifts backdrop text
+    // relative to the invisible textarea text, causing cursor drift.
     color: inherit;
   }
 
@@ -2061,6 +2081,24 @@ textarea.text-input {
   background: transparent !important;
   resize: none;
   cursor: text !important;
+  // Mirror backdrop typography exactly so the caret stays aligned
+  font-family: $editor-font-family;
+  font-size: $editor-font-size;
+  font-weight: $editor-font-weight;
+  line-height: $editor-line-height;
+  letter-spacing: $editor-letter-spacing;
+  word-spacing: $editor-word-spacing;
+  // NOTE: Do NOT set white-space on textarea — browsers handle textarea
+  // wrapping natively via the wrap attribute. Overriding it can cause
+  // different wrap points than the backdrop <pre> and cursor drift.
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
+  tab-size: 8;
+  -moz-tab-size: 8;
+  font-variant-ligatures: none;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
 
   &.has-highlights {
     color: transparent;
